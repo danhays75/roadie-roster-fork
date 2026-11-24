@@ -52,12 +52,6 @@ module {
     Principal.fromText("aaaaa-aa");
   };
 
-  /// The sentinel work email stored on a demo leader's staff profile so demo
-  /// leaders can be told apart from real ones without an `isDemo` flag on
-  /// `AccessGrant`. A sentinel email leaves the real-looking home store number
-  /// free to display.
-  let demoLeaderMarker : Text = "DEMO";
-
   /// One demo person from the seed table: full name, preferred name (null when
   /// none), age, the position name to match, the photo file name and the
   /// birthday as "MM-DD".
@@ -476,13 +470,11 @@ module {
   };
 
   /// Internal: true when an access grant is a seeded demo leader. Demo leaders
-  /// are marked by a sentinel work email so their real-looking home store
-  /// number can still be shown.
+  /// are created by the system, so their approver is the system actor — a marker
+  /// a user can never set on their own grant. A work email is never consulted,
+  /// so a user who types "DEMO" as their work email is not a demo leader.
   func isDemoLeader(grant : Access.AccessGrant) : Bool {
-    switch (grant.staffProfile) {
-      case (?p) { p.workEmail == ?demoLeaderMarker };
-      case null { false };
-    };
+    grant.approvedBy.toText() == systemActor().toText();
   };
 
   /// Internal: the demo leaders who lead a group, ordered by principal so the
@@ -608,7 +600,7 @@ module {
     attendance : Map.Map<Nat, Phase23.AttendanceRecord>,
     trainerNotes : Map.Map<Nat, Phase23.TrainerNote>,
     orientationCheckoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
-    checkIns : Map.Map<Text, Phase23.CheckInRecord>,
+    _checkIns : Map.Map<Text, Phase23.CheckInRecord>,
     schedule : Map.Map<Common.EventId, Store.ScheduleEvent>,
     checklists : { var value : Store.Checklists },
     positions : Map.Map<Common.PositionId, Store.Position>,
@@ -712,7 +704,8 @@ module {
         case (#hired) {
           let want = i % 4;
           let maxChecked = if (applicable.size() == 0) { 0 } else { applicable.size() - 1 };
-          let checkedCount = if (want > maxChecked) { maxChecked } else { want };          takeItems(applicable, checkedCount);
+          let checkedCount = if (want > maxChecked) { maxChecked } else { want };
+          takeItems(applicable, checkedCount);
         };
         case _ { applicable };
       };
@@ -851,7 +844,7 @@ module {
       homeStoreCity = "Lake Charles";
       preferredName = null;
       workPhone = null;
-      workEmail = ?demoLeaderMarker;
+      workEmail = null;
       photo = null;
       demoPhotoUrl = ?(demoPhotoBase # leader.file);
       trainerPositionIds = leader.stations;

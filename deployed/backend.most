@@ -12,6 +12,7 @@ type AbsentAlertKind__470368855 = {#absent};
 type AbsentAlertKind__514856437 = {#absent};
 type AbsentAlertKind__639015179 = {#absent};
 type AbsentAlertKind__654527072 = {#absent};
+type AbsentAlertKind__655955077 = {#absent};
 type AbsentAlertKind__691517809 = {#absent};
 type AbsentAlertKind__982482321 = {#absent};
 type AbsentAlert__1002604852 =
@@ -37,6 +38,18 @@ type AbsentAlert__172242268 =
     kind : AbsentAlertKind__316146341;
     roadieId : Nat;
     shift : Shift__779441184
+  };
+type AbsentAlert__181557646 =
+  {
+    archived : Bool;
+    createdAt : Timestamp__900721712;
+    eventId : Nat;
+    excused : ?Text;
+    id : Nat;
+    isDemo : Bool;
+    kind : AbsentAlertKind__655955077;
+    roadieId : Nat;
+    shift : Shift__234268803
   };
 type AbsentAlert__218293520 =
   {
@@ -499,6 +512,17 @@ type AccessGrant__834409392 =
     staffProfile : ?StaffProfile__584722690;
     trainerPositionIds : [Nat]
   };
+type AccessGrant__901082515 =
+  {
+    accessEndsAt : ?Timestamp__900721712;
+    approvedAt : Timestamp__900721712;
+    approvedBy : Principal;
+    linkedRoadieId : ?Nat;
+    principal : Principal;
+    role : Role__535843072;
+    staffProfile : ?StaffProfile__858370834;
+    trainerPositionIds : [Nat]
+  };
 type AccessGrant__939015888 =
   {
     accessEndsAt : ?Timestamp__304179957;
@@ -718,6 +742,13 @@ type Alert__847451731 =
     id : Nat;
     message : Text
   };
+type Alert__886361976 =
+  {
+    acknowledged : Bool;
+    createdAt : Timestamp__900721712;
+    id : Nat;
+    message : Text
+  };
 type Alert__88701932 =
   {
     acknowledged : Bool;
@@ -757,6 +788,7 @@ type Approval__1027645142 =
   {at : Timestamp__310248083; principal : Principal};
 type Approval__227130875 = {at : Timestamp__708717995; principal : Principal};
 type Approval__373176228 = {at : Timestamp__174940636; principal : Principal};
+type Approval__533068222 = {at : Timestamp__900721712; principal : Principal};
 type Approval__635169503 = {at : Timestamp__304179957; principal : Principal};
 type Approval__681933480 = {at : Timestamp__303730311; principal : Principal};
 type Approval__855853068 = {at : Timestamp__301639476; principal : Principal};
@@ -841,6 +873,16 @@ type ArchiveReason__355174433 =
     #tookAnotherJob
   };
 type ArchiveReason__369845539 =
+  {
+    #letGo;
+    #ncnsOrientation;
+    #noShow;
+    #other : Text;
+    #paperworkIncomplete;
+    #quitDuringTraining;
+    #tookAnotherJob
+  };
+type ArchiveReason__379898016 =
   {
     #letGo;
     #ncnsOrientation;
@@ -1295,6 +1337,16 @@ type AttendanceRecord__926261073 =
     shift : ?Shift__1012062991;
     state : AttendanceState__840161168
   };
+type AttendanceRecord__966507287 =
+  {
+    eventId : ?Nat;
+    isDemo : Bool;
+    recordedAt : Timestamp__900721712;
+    recordedBy : Principal;
+    roadieId : Nat;
+    shift : ?Shift__234268803;
+    state : AttendanceState__567956642
+  };
 type AttendanceRecord__970322651 =
   {
     eventId : ?EventId__361868567;
@@ -1324,6 +1376,7 @@ type AttendanceState__480995899 = {#absent; #late; #present};
 type AttendanceState__528904883 = {#absent; #late; #present};
 type AttendanceState__528910205 = {#absent; #late; #present};
 type AttendanceState__547072733 = {#absent; #late; #present};
+type AttendanceState__567956642 = {#absent; #late; #present};
 type AttendanceState__610564040 = {#absent; #late; #present};
 type AttendanceState__651559222 = {#absent; #late; #present};
 type AttendanceState__65484572 = {#absent; #late; #present};
@@ -1390,6 +1443,8 @@ type AvailabilitySlot__72720672 =
   {day : Weekday__60083915; shift : Shift__795848743};
 type AvailabilitySlot__730509947 =
   {day : Weekday__377202064; shift : Shift__1002609531};
+type AvailabilitySlot__733529189 =
+  {day : Weekday__392870358; shift : Shift__234268803};
 type AvailabilitySlot__795316265 =
   {day : Weekday__364836003; shift : Shift__2900304};
 type AvailabilitySlot__816444877 =
@@ -1488,6 +1543,14 @@ type BuildToAdjustment__405739467 =
   {
     afterOpeningDelta : Int;
     at : Timestamp__875658186;
+    by : Principal;
+    openingDelta : Int;
+    positionId : Nat
+  };
+type BuildToAdjustment__416175858 =
+  {
+    afterOpeningDelta : Int;
+    at : Timestamp__900721712;
     by : Principal;
     openingDelta : Int;
     positionId : Nat
@@ -1764,6 +1827,18 @@ type ChangeLogEntry__214378494 =
     detail : Text;
     id : Nat;
     isDemo : Bool;
+    subjectRoadieId : ?Nat;
+    touchesContactSet : Bool
+  };
+type ChangeLogEntry__226494064 =
+  {
+    action : Text;
+    at : Timestamp__900721712;
+    by : Principal;
+    detail : Text;
+    id : Nat;
+    isDemo : Bool;
+    paperworkDetail : ?Text;
     subjectRoadieId : ?Nat;
     touchesContactSet : Bool
   };
@@ -2056,6 +2131,18 @@ type CheckInRecord__132748622 =
     shift : Shift__483878005;
     state : CheckInState__737763135
   };
+type CheckInRecord__138863450 =
+  {
+    eventId : Nat;
+    excused : ?Text;
+    isDemo : Bool;
+    lateAt : ?Timestamp__900721712;
+    recordedAt : Timestamp__900721712;
+    recordedBy : Principal;
+    roadieId : Nat;
+    shift : Shift__234268803;
+    state : CheckInState__63795208
+  };
 type CheckInRecord__229628742 =
   {
     eventId : Nat;
@@ -2207,6 +2294,7 @@ type CheckInState__357925953 = {#absent; #late; #present};
 type CheckInState__449433828 = {#absent; #late; #present};
 type CheckInState__463110526 = {#absent; #late; #present};
 type CheckInState__619703027 = {#absent; #late; #present};
+type CheckInState__63795208 = {#absent; #late; #present};
 type CheckInState__675148981 = {#absent; #late; #present};
 type CheckInState__737763135 = {#absent; #late; #present};
 type CheckInState__748950478 = {#absent; #late; #present};
@@ -2261,6 +2349,16 @@ type ChecklistItem__152270846 =
     itemType : UniformItemType__679869564;
     minorOnly : Bool;
     requiresAlcoholCert : Bool;
+    text : Text
+  };
+type ChecklistItem__333949612 =
+  {
+    enabled : Bool;
+    id : Nat;
+    itemType : UniformItemType__319065585;
+    minorOnly : Bool;
+    requiresAlcoholCert : Bool;
+    shortLabel : ?Text;
     text : Text
   };
 type ChecklistItem__345376888 =
@@ -2542,6 +2640,11 @@ type Checklists__938686344 =
     orientationUniform : [ChecklistItem__649842299];
     paperwork : [ChecklistItem__649842299]
   };
+type Checklists__944473385 =
+  {
+    orientationUniform : [ChecklistItem__333949612];
+    paperwork : [ChecklistItem__333949612]
+  };
 type Checklists__990393957 =
   {
     orientationUniform : [ChecklistItem__151192186];
@@ -2597,6 +2700,14 @@ type Comment__830597376 =
   {
     author : Principal;
     createdAt : Timestamp__303730311;
+    id : Nat;
+    suggestionId : ?Nat;
+    text : Text
+  };
+type Comment__897245057 =
+  {
+    author : Principal;
+    createdAt : Timestamp__900721712;
     id : Nat;
     suggestionId : ?Nat;
     text : Text
@@ -3030,6 +3141,21 @@ type ContactSet__937653706 =
     managerSignedBy : ?Principal;
     phone : Phone__899555329
   };
+type ContactSet__942452508 =
+  {
+    availability : [AvailabilitySlot__733529189];
+    availabilityResignPending : Bool;
+    availabilitySignature : ?SignatureRef__616390344;
+    availabilitySignedAt : ?Timestamp__900721712;
+    dateOfBirth : DateOnly__1073687550;
+    email : Email__694554799;
+    emergencyContactName : Text;
+    emergencyContactPhone : Phone__819081959;
+    managerSignature : ?SignatureRef__616390344;
+    managerSignedAt : ?Timestamp__900721712;
+    managerSignedBy : ?Principal;
+    phone : Phone__819081959
+  };
 type ContactSet__988336399 =
   {
     availability : [AvailabilitySlot__724349051];
@@ -3139,6 +3265,28 @@ type Counters__190263298 =
     var nextPositionId : Nat;
     var nextRoadieId : Nat;
     var nextSignupId : Nat;
+    var nextTrainerNoteId : Nat;
+    var nextTrainingGroupId : Nat
+  };
+type Counters__193565904 =
+  {
+    var nextAbsentAlertId : Nat;
+    var nextAlertId : Nat;
+    var nextAttendanceId : Nat;
+    var nextBuildToAdjustmentId : Nat;
+    var nextChangeLogId : Nat;
+    var nextCommentId : Nat;
+    var nextCrewId : Nat;
+    var nextEventId : Nat;
+    var nextGroupChangeNoticeId : Nat;
+    var nextLeaderTalkId : Nat;
+    var nextNudgeId : Nat;
+    var nextOpeningQuestionId : Nat;
+    var nextPositionId : Nat;
+    var nextQuestionHistoryId : Nat;
+    var nextRoadieId : Nat;
+    var nextSignupId : Nat;
+    var nextSuggestionId : Nat;
     var nextTrainerNoteId : Nat;
     var nextTrainingGroupId : Nat
   };
@@ -3661,12 +3809,15 @@ type Crew__854834070 =
   {id : Nat; isDemo : Bool; leaderPrincipal : ?Principal; name : Text};
 type Crew__910241569 =
   {id : Nat; isDemo : Bool; leaderPrincipal : ?Principal; name : Text};
+type Crew__959890996 =
+  {id : Nat; isDemo : Bool; leaderPrincipal : ?Principal; name : Text};
 type Crew__965749047 = {id : Nat; name : Text};
 type Data__1061330525<K, V> =
   {var count : Nat__565224867; kvs : [var ?(K, V)]};
 type DateOnly__1057035092 = Int;
 type DateOnly__1057562844 = Int;
 type DateOnly__1060257595 = Int;
+type DateOnly__1073687550 = Int;
 type DateOnly__118176284 = Int;
 type DateOnly__158803498 = Int;
 type DateOnly__226530716 = Int;
@@ -3713,6 +3864,7 @@ type DemoRoleEntry__552228057 =
   {role : DemoRole__577897036; stations : [Nat]};
 type DemoRoleEntry__562053187 =
   {role : DemoRole__950496294; stations : [Nat]};
+type DemoRoleEntry__56579913 = {role : DemoRole__576408119; stations : [Nat]};
 type DemoRoleEntry__605913768 =
   {role : DemoRole__834459951; stations : [Nat]};
 type DemoRoleEntry__630979298 =
@@ -3840,6 +3992,16 @@ type DemoRole__503718856 =
     #visitingManager
   };
 type DemoRole__529666816 =
+  {
+    #admin;
+    #kiosk;
+    #leadership;
+    #storeManager;
+    #trainer;
+    #trainingManager;
+    #visitingManager
+  };
+type DemoRole__576408119 =
   {
     #admin;
     #kiosk;
@@ -3985,6 +4147,7 @@ type DemoShift__644528738 = {#am; #pm};
 type DemoShift__686630700 = {#am; #pm};
 type DemoShift__699642841 = {#am; #pm};
 type DemoShift__708547180 = {#am; #pm};
+type DemoShift__864026716 = {#am; #pm};
 type DemoShift__881261509 = {#am; #pm};
 type DemoShift__88631215 = {#am; #pm};
 type DemoShift__887774923 = {#am; #pm};
@@ -4029,6 +4192,16 @@ type DemoState__135718971 =
     var enabled : Bool;
     var pretendDate : ?PretendDate__354717987;
     var turnedOnAt : ?Timestamp__708717995
+  };
+type DemoState__157738010 =
+  {
+    var autoOffAt : ?Timestamp__900721712;
+    var demoManagerAs : Map__175655829<Principal, Principal>;
+    var demoRoles : Map__175655829<Principal, DemoRoleEntry__56579913>;
+    var demoTrainerAs : Map__175655829<Principal, Principal>;
+    var enabled : Bool;
+    var pretendDate : ?PretendDate__625121707;
+    var turnedOnAt : ?Timestamp__900721712
   };
 type DemoState__189425033 =
   {
@@ -4180,6 +4353,7 @@ type EmailSettings__138586826 = {enabled : Bool};
 type EmailSettings__263835967 = {enabled : Bool};
 type EmailSettings__36968816 = {enabled : Bool};
 type EmailSettings__69286198 = {enabled : Bool};
+type EmailSettings__702822102 = {enabled : Bool};
 type EmailSettings__781947459 = {enabled : Bool};
 type Email__1008238742 = Text;
 type Email__1008875158 = Text;
@@ -4205,6 +4379,7 @@ type Email__633824011 = Text;
 type Email__647291373 = Text;
 type Email__663334776 = Text;
 type Email__678731748 = Text;
+type Email__694554799 = Text;
 type Email__730243176 = Text;
 type Email__739329939 = Text;
 type Email__789485877 = Text;
@@ -4446,6 +4621,16 @@ type EventKind__555962307 =
     #trainingDay
   };
 type EventKind__614436155 =
+  {
+    #deadline;
+    #friendsAndFamily;
+    #openingDay;
+    #orientation;
+    #other;
+    #signOff;
+    #trainingDay
+  };
+type EventKind__638928150 =
   {
     #deadline;
     #friendsAndFamily;
@@ -4804,6 +4989,15 @@ type FinalSignOff__840795201 =
     signedAt : Timestamp__716989500;
     signedBy : Principal
   };
+type FinalSignOff__843771278 =
+  {
+    futureTrainer : Bool;
+    isDemo : Bool;
+    outcome : SignOffOutcome__352272766;
+    roadieId : Nat;
+    signedAt : Timestamp__900721712;
+    signedBy : Principal
+  };
 type FinalSignOff__862676231 =
   {
     futureTrainer : Bool;
@@ -4830,6 +5024,7 @@ type FinalSignOff__95171734 =
     signedAt : Timestamp__708717995;
     signedBy : Principal
   };
+type FinishBySettings__112487541 = {finishBy : ?DateOnly__1073687550};
 type FinishBySettings__380434778 = {finishBy : ?DateOnly__839605037};
 type FinishBySettings__632400846 = {finishBy : ?DateOnly__687565450};
 type GroupChangeNotice__1006386401 =
@@ -4871,6 +5066,20 @@ type GroupChangeNotice__16370365 =
     isDemo : Bool;
     removedNames : [Text];
     shift : Shift__483878005;
+    shiftLabel : Text;
+    trainerPrincipal : Principal
+  };
+type GroupChangeNotice__164596340 =
+  {
+    addedNames : [Text];
+    createdAt : Timestamp__900721712;
+    dismissed : Bool;
+    editorName : Text;
+    eventId : Nat;
+    id : Nat;
+    isDemo : Bool;
+    removedNames : [Text];
+    shift : Shift__234268803;
     shiftLabel : Text;
     trainerPrincipal : Principal
   };
@@ -5100,6 +5309,7 @@ type HatSize__714218356 = Text;
 type HatSize__732563074 = Text;
 type HatSize__742732143 = Text;
 type HatSize__78062931 = Text;
+type HatSize__926159469 = Text;
 type HatSize__943585009 = Text;
 type HatSize__977979992 = Text;
 type HatSize__979470072 = Text;
@@ -5112,6 +5322,7 @@ type House__204678636 = {#boh; #foh};
 type House__278963560 = {#boh; #foh};
 type House__288920464 = {#boh; #foh};
 type House__345930827 = {#boh; #foh};
+type House__361266285 = {#boh; #foh};
 type House__404304492 = {#boh; #foh};
 type House__445692372 = {#boh; #foh};
 type House__484075530 = {#boh; #foh};
@@ -5173,6 +5384,14 @@ type LeaderTalk__213082552 =
   };
 type LeaderTalk__250932215 =
   {attendees : [Nat]; day : DateOnly__379316536; id : Nat; name : Text};
+type LeaderTalk__279533552 =
+  {
+    attendees : [Nat];
+    day : DateOnly__1073687550;
+    id : Nat;
+    isDemo : Bool;
+    name : Text
+  };
 type LeaderTalk__288687985 =
   {
     attendees : [Nat];
@@ -5687,6 +5906,44 @@ type NewActor__368071236 =
     storeTemplates : Map__175655829<Text, StoreTemplate__349176639>;
     trainerNotes : Map__175655829<Nat, TrainerNote__655305041>;
     trainingGroups : Map__175655829<Nat, TrainingGroup__17391411>
+  };
+type NewActor__395633712 =
+  {
+    absentAlerts : Map__175655829<Nat, AbsentAlert__181557646>;
+    accessControlState : AccessControlState__204832294;
+    accessGrants : Map__175655829<Principal, AccessGrant__901082515>;
+    alerts : Map__175655829<Nat, Alert__886361976>;
+    attendance : Map__175655829<Nat, AttendanceRecord__966507287>;
+    buildToAdjustments : Map__175655829<Nat, BuildToAdjustment__416175858>;
+    changeLog : Map__175655829<Nat, ChangeLogEntry__226494064>;
+    checkIns : Map__175655829<Text, CheckInRecord__138863450>;
+    checklists : {var value : Checklists__944473385};
+    counters : Counters__193565904;
+    crews : Map__175655829<Nat, Crew__959890996>;
+    demoState : DemoState__157738010;
+    finalSignOffs : Map__175655829<Nat, FinalSignOff__843771278>;
+    groupChangeNotices : Map__175655829<Nat, GroupChangeNotice__164596340>;
+    kioskPin : {var value : ?Text};
+    leaderTalks : Map__175655829<Nat, LeaderTalk__279533552>;
+    openingQuestionEmailSettings : {var value : EmailSettings__702822102};
+    openingQuestionFinishBy : {var value : FinishBySettings__112487541};
+    openingQuestionHistory :
+      Map__175655829<Nat, QuestionHistoryEntry__491009044>;
+    openingQuestionNudges : Map__175655829<Principal, Nudge__416002087>;
+    openingQuestions : Map__175655829<Nat, OpeningQuestion__753332293>;
+    orientationCheckoffs :
+      Map__175655829<Nat, OrientationCheckoff__801271952>;
+    pendingUsers : Map__175655829<Principal, PendingUser__386219634>;
+    positions : Map__175655829<Nat, Position__225283415>;
+    retention : {var value : RetentionSettings__353184460};
+    roadies : Map__175655829<Nat, Roadie__220700668>;
+    schedule : Map__175655829<Nat, ScheduleEvent__60448911>;
+    shiftBoards : Map__175655829<Text, ShiftBoard__515237597>;
+    signups : Map__175655829<Nat, SignupSubmission__733038539>;
+    storeInfo : {var value : StoreInfo__288958161};
+    storeTemplates : Map__175655829<Text, StoreTemplate__505923786>;
+    trainerNotes : Map__175655829<Nat, TrainerNote__70338610>;
+    uniformSettings : {var value : UniformSettings__718673271}
   };
 type NewActor__412534093 =
   {
@@ -7205,6 +7462,14 @@ type Nudge__1073619007 =
     sender : Principal;
     sentAt : Timestamp__304179957
   };
+type Nudge__416002087 =
+  {
+    day : DateOnly__1073687550;
+    manager : Principal;
+    pendingCount : Nat;
+    sender : Principal;
+    sentAt : Timestamp__900721712
+  };
 type Nudge__726516135 =
   {
     day : DateOnly__839605037;
@@ -7413,6 +7678,44 @@ type OldActor__1069692753 =
     storeTemplates : Map__175655829<Text, StoreTemplate__615332545>;
     trainerNotes : Map__175655829<Nat, TrainerNote__209740368>;
     uniformSettings : {var value : UniformSettings__448938985}
+  };
+type OldActor__177637331 =
+  {
+    absentAlerts : Map__175655829<Nat, AbsentAlert__181557646>;
+    accessControlState : AccessControlState__204832294;
+    accessGrants : Map__175655829<Principal, AccessGrant__901082515>;
+    alerts : Map__175655829<Nat, Alert__886361976>;
+    attendance : Map__175655829<Nat, AttendanceRecord__966507287>;
+    buildToAdjustments : Map__175655829<Nat, BuildToAdjustment__416175858>;
+    changeLog : Map__175655829<Nat, ChangeLogEntry__226494064>;
+    checkIns : Map__175655829<Text, CheckInRecord__138863450>;
+    checklists : {var value : Checklists__944473385};
+    counters : Counters__193565904;
+    crews : Map__175655829<Nat, Crew__959890996>;
+    demoState : DemoState__157738010;
+    finalSignOffs : Map__175655829<Nat, FinalSignOff__843771278>;
+    groupChangeNotices : Map__175655829<Nat, GroupChangeNotice__164596340>;
+    kioskPin : {var value : ?Text};
+    leaderTalks : Map__175655829<Nat, LeaderTalk__279533552>;
+    openingQuestionEmailSettings : {var value : EmailSettings__702822102};
+    openingQuestionFinishBy : {var value : FinishBySettings__112487541};
+    openingQuestionHistory :
+      Map__175655829<Nat, QuestionHistoryEntry__491009044>;
+    openingQuestionNudges : Map__175655829<Principal, Nudge__416002087>;
+    openingQuestions : Map__175655829<Nat, OpeningQuestion__753332293>;
+    orientationCheckoffs :
+      Map__175655829<Nat, OrientationCheckoff__801271952>;
+    pendingUsers : Map__175655829<Principal, PendingUser__386219634>;
+    positions : Map__175655829<Nat, Position__225283415>;
+    retention : {var value : RetentionSettings__353184460};
+    roadies : Map__175655829<Nat, Roadie__220700668>;
+    schedule : Map__175655829<Nat, ScheduleEvent__60448911>;
+    shiftBoards : Map__175655829<Text, ShiftBoard__515237597>;
+    signups : Map__175655829<Nat, SignupSubmission__733038539>;
+    storeInfo : {var value : StoreInfo__288958161};
+    storeTemplates : Map__175655829<Text, StoreTemplate__505923786>;
+    trainerNotes : Map__175655829<Nat, TrainerNote__70338610>;
+    uniformSettings : {var value : UniformSettings__718673271}
   };
 type OldActor__188892312 =
   {
@@ -8761,6 +9064,25 @@ type OpeningQuestion__493621731 =
     updatedAt : Timestamp__301639476;
     updatedBy : Principal
   };
+type OpeningQuestion__753332293 =
+  {
+    answer : Text;
+    approvals : [Approval__533068222];
+    area : QuestionArea__879887546;
+    comments : [Comment__897245057];
+    finalizedAt : ?Timestamp__900721712;
+    finalizedBy : ?Principal;
+    id : Nat;
+    isDemo : Bool;
+    number : Nat;
+    order : Nat;
+    question : Text;
+    sectionOrder : Nat;
+    sectionTitle : Text;
+    suggestions : [Suggestion__453387554];
+    updatedAt : Timestamp__900721712;
+    updatedBy : Principal
+  };
 type OpeningQuestion__903901527 =
   {
     answer : Text;
@@ -9055,6 +9377,17 @@ type OrientationCheckoff__76559791 =
     uniformItems : [Text];
     updatedAt : Timestamp__634283358
   };
+type OrientationCheckoff__801271952 =
+  {
+    hatsCount : Nat;
+    isDemo : Bool;
+    paperworkItems : [Text];
+    roadieId : Nat;
+    shirtsCount : Nat;
+    uniformCounts : [(Nat, Nat)];
+    uniformItems : [Text];
+    updatedAt : Timestamp__900721712
+  };
 type OrientationCheckoff__817273499 =
   {
     hatsCount : Nat;
@@ -9195,6 +9528,12 @@ type PendingUser__321615472 =
   };
 type PendingUser__350115966 =
   {principal : Principal; requestedAt : Timestamp__367191650};
+type PendingUser__386219634 =
+  {
+    principal : Principal;
+    requestedAt : Timestamp__900721712;
+    staffProfile : ?StaffProfile__858370834
+  };
 type PendingUser__417678522 =
   {
     principal : Principal;
@@ -9311,6 +9650,7 @@ type PersonName__734268728 = Text;
 type PersonName__744182552 = Text;
 type PersonName__750022294 = Text;
 type PersonName__805914291 = Text;
+type PersonName__90490690 = Text;
 type PersonName__975639676 = Text;
 type Phone__1019337670 = Text;
 type Phone__1029966934 = Text;
@@ -9336,6 +9676,7 @@ type Phone__705711027 = Text;
 type Phone__74110415 = Text;
 type Phone__790202559 = Text;
 type Phone__818099076 = Text;
+type Phone__819081959 = Text;
 type Phone__843890575 = Text;
 type Phone__851886304 = Text;
 type Phone__852522351 = Text;
@@ -9370,6 +9711,7 @@ type PhotoRef__637577877 = Blob;
 type PhotoRef__657426895 = Blob;
 type PhotoRef__681516470 = Blob;
 type PhotoRef__72140591 = Blob;
+type PhotoRef__734571737 = Blob;
 type PhotoRef__769980997 = Blob;
 type PhotoRef__783023723 = Blob;
 type PhotoRef__810309632 = Blob;
@@ -9494,6 +9836,23 @@ type Position__222216683 =
     hatQty : Nat;
     hatType : Text;
     house : House__118262145;
+    id : Nat;
+    minimumAge : Nat;
+    name : Text;
+    needsAlcoholCert : Bool;
+    openingBuildTo : Nat;
+    shirtQty : Nat;
+    shirtType : Text
+  };
+type Position__225283415 =
+  {
+    afterOpeningBuildTo : Nat;
+    code : Text;
+    defaultHats : Nat;
+    defaultShirts : Nat;
+    hatQty : Nat;
+    hatType : Text;
+    house : House__361266285;
     id : Nat;
     minimumAge : Nat;
     name : Text;
@@ -9857,6 +10216,8 @@ type PretendDate__490406280 =
   {day : DateOnly__689585916; shift : DemoShift__604705087};
 type PretendDate__557515522 =
   {day : DateOnly__518696674; shift : DemoShift__978729413};
+type PretendDate__625121707 =
+  {day : DateOnly__1073687550; shift : DemoShift__864026716};
 type PretendDate__706900143 =
   {day : DateOnly__460533646; shift : DemoShift__629180098};
 type PretendDate__722851617 =
@@ -9883,6 +10244,7 @@ type QuestionArea__599320299 = {#both; #dan; #kitchen; #service};
 type QuestionArea__610103982 = {#both; #dan; #kitchen; #service};
 type QuestionArea__694403350 = {#both; #dan; #kitchen; #service};
 type QuestionArea__827157231 = {#both; #dan; #kitchen; #service};
+type QuestionArea__879887546 = {#both; #dan; #kitchen; #service};
 type QuestionChangeKind__1045238235 =
   {
     #answerEdited;
@@ -9913,6 +10275,16 @@ type QuestionChangeKind__655788652 =
     #suggestionAccepted;
     #suggestionDeclined
   };
+type QuestionChangeKind__873872317 =
+  {
+    #answerEdited;
+    #approvalWithdrawn;
+    #approved;
+    #markedFinal;
+    #reopened;
+    #suggestionAccepted;
+    #suggestionDeclined
+  };
 type QuestionHistoryEntry__191688702 =
   {
     at : Timestamp__301639476;
@@ -9922,6 +10294,16 @@ type QuestionHistoryEntry__191688702 =
     newAnswer : ?Text;
     oldAnswer : ?Text;
     questionId : QuestionId__505336604
+  };
+type QuestionHistoryEntry__491009044 =
+  {
+    at : Timestamp__900721712;
+    by : Principal;
+    id : Nat;
+    kind : QuestionChangeKind__873872317;
+    newAnswer : ?Text;
+    oldAnswer : ?Text;
+    questionId : Nat
   };
 type QuestionHistoryEntry__648688513 =
   {
@@ -10038,6 +10420,13 @@ type RetentionSettings__3178867 =
     notesDays : Nat
   };
 type RetentionSettings__342656414 =
+  {
+    archivedContactSetDays : Nat;
+    archivedPhotoDays : Nat;
+    changeLogDays : Nat;
+    notesDays : Nat
+  };
+type RetentionSettings__353184460 =
   {
     archivedContactSetDays : Nat;
     archivedPhotoDays : Nat;
@@ -10195,6 +10584,25 @@ type RoadieProfile__1059063670 =
     preferredName : ?Text;
     shiftsWantedPerWeek : ?Nat;
     shirtSize : ?ShirtSize__755112335;
+    weekdayLunch : ?Bool
+  };
+type RoadieProfile__1063803233 =
+  {
+    favoriteColor : ?Text;
+    favoriteDrink : ?Text;
+    favoriteMovie : ?Text;
+    favoriteSnack : ?Text;
+    favoriteTeam : ?Text;
+    funFact : ?Text;
+    goalHere : ?Text;
+    hatSize : ?HatSize__926159469;
+    hobbies : ?Text;
+    hometown : ?Text;
+    name : PersonName__90490690;
+    positionAppliedFor : ?Text;
+    preferredName : ?Text;
+    shiftsWantedPerWeek : ?Nat;
+    shirtSize : ?ShirtSize__311052371;
     weekdayLunch : ?Bool
   };
 type RoadieProfile__1064004341 =
@@ -10800,6 +11208,8 @@ type RoadieStage__466622672 =
   {#certified; #hired; #inTraining; #oriented; #paperworkDone};
 type RoadieStage__510653360 =
   {#certified; #hired; #inTraining; #oriented; #paperworkDone};
+type RoadieStage__517007881 =
+  {#certified; #hired; #inTraining; #oriented; #paperworkDone};
 type RoadieStage__667253004 =
   {#certified; #hired; #inTraining; #oriented; #paperworkDone};
 type RoadieStage__763708385 =
@@ -11136,6 +11546,17 @@ type RoadieStatus__860523364 =
     #oriented;
     #paperworkDone
   };
+type RoadieStatus__887066374 =
+  {
+    #active;
+    #archived;
+    #certified;
+    #hired;
+    #inTraining;
+    #needsMoreTime;
+    #oriented;
+    #paperworkDone
+  };
 type RoadieStatus__907534024 =
   {
     #active;
@@ -11291,6 +11712,33 @@ type Roadie__206950829 =
     stage : ?RoadieStage__767028531;
     startDate : ?DateOnly__158803498;
     status : RoadieStatus__775349736
+  };
+type Roadie__220700668 =
+  {
+    archivedAt : ?Timestamp__900721712;
+    archivedReason : ?ArchiveReason__379898016;
+    birthdayMonthDay : ?Text;
+    contactSet : ?ContactSet__942452508;
+    corporateEmployeeId : ?Text;
+    crewId : ?Nat;
+    crossTrainedPositionId : ?Nat;
+    demoPhotoUrl : ?Text;
+    hireDate : ?Timestamp__900721712;
+    hiredAt : Timestamp__900721712;
+    id : Nat;
+    isDemo : Bool;
+    isMinor : Bool;
+    mainPositionId : Nat;
+    orientationEventId : ?Nat;
+    paperworkStep : ?Text;
+    photo : ?PhotoRef__734571737;
+    profile : RoadieProfile__1063803233;
+    rosterState : RosterState__585617551;
+    secondPositionId : ?Nat;
+    signedBy : ?Principal;
+    stage : ?RoadieStage__517007881;
+    startDate : ?DateOnly__1073687550;
+    status : RoadieStatus__887066374
   };
 type Roadie__229452652 =
   {
@@ -12025,6 +12473,20 @@ type Role__474778806 =
     #trainingManager;
     #visitingManager
   };
+type Role__535843072 =
+  {
+    #admin;
+    #integration;
+    #kiosk;
+    #kitchenManager;
+    #leadership;
+    #managingPartner;
+    #serviceManager;
+    #storeManager;
+    #trainer;
+    #trainingManager;
+    #visitingManager
+  };
 type Role__539421439 =
   {
     #admin;
@@ -12224,6 +12686,7 @@ type RosterState__480371910 = {#active; #pending};
 type RosterState__540078359 = {#active; #pending};
 type RosterState__547571485 = {#active; #pending};
 type RosterState__559802772 = {#active; #pending};
+type RosterState__585617551 = {#active; #pending};
 type RosterState__600144226 = {#active; #pending};
 type RosterState__623295077 = {#active; #pending};
 type RosterState__66481671 = {#active; #pending};
@@ -12407,6 +12870,14 @@ type ScheduleEvent__511986578 =
     name : Text;
     start : Timestamp__293690699
   };
+type ScheduleEvent__60448911 =
+  {
+    end : ?Timestamp__900721712;
+    id : Nat;
+    kind : EventKind__638928150;
+    name : Text;
+    start : Timestamp__900721712
+  };
 type ScheduleEvent__617630586 =
   {
     end : ?Timestamp__982194933;
@@ -12496,6 +12967,8 @@ type ScheduleEvent__879189803 =
     start : Timestamp__771871407
   };
 type ShiftBoardGroup__1066296382 =
+  {capacity : Nat; roadieIds : [Nat]; trainerPrincipal : Principal};
+type ShiftBoardGroup__1067365268 =
   {capacity : Nat; roadieIds : [Nat]; trainerPrincipal : Principal};
 type ShiftBoardGroup__149304893 =
   {capacity : Nat; roadieIds : [Nat]; trainerPrincipal : Principal};
@@ -12596,6 +13069,15 @@ type ShiftBoard__483798494 =
     offRoadieIds : [Nat];
     shift : Shift__78371549
   };
+type ShiftBoard__515237597 =
+  {
+    editedAt : Timestamp__900721712;
+    eventId : Nat;
+    groups : [ShiftBoardGroup__1067365268];
+    isDemo : Bool;
+    offRoadieIds : [Nat];
+    shift : Shift__234268803
+  };
 type ShiftBoard__570620687 =
   {
     editedAt : Timestamp__381858625;
@@ -12691,6 +13173,7 @@ type Shift__1004943710 = {#am; #pm};
 type Shift__1012062991 = {#am; #pm};
 type Shift__1055503266 = {#am; #pm};
 type Shift__176641285 = {#am; #pm};
+type Shift__234268803 = {#am; #pm};
 type Shift__250733398 = {#am; #pm};
 type Shift__2900304 = {#am; #pm};
 type Shift__29056261 = {#am; #pm};
@@ -12728,6 +13211,7 @@ type ShirtSize__236364417 = Text;
 type ShirtSize__253192559 = Text;
 type ShirtSize__260467195 = Text;
 type ShirtSize__282453930 = Text;
+type ShirtSize__311052371 = Text;
 type ShirtSize__340181193 = Text;
 type ShirtSize__455417891 = Text;
 type ShirtSize__459248631 = Text;
@@ -12760,6 +13244,7 @@ type SignOffOutcome__19487491 = {#certified; #needsMoreTime : Text};
 type SignOffOutcome__235666099 = {#certified; #needsMoreTime : Text};
 type SignOffOutcome__262998546 = {#certified; #needsMoreTime : Text};
 type SignOffOutcome__301829843 = {#certified; #needsMoreTime : Text};
+type SignOffOutcome__352272766 = {#certified; #needsMoreTime : Text};
 type SignOffOutcome__461199449 = {#certified; #needsMoreTime : Text};
 type SignOffOutcome__469906767 = {#certified; #needsMoreTime : Text};
 type SignOffOutcome__487742850 = {#certified; #needsMoreTime : Text};
@@ -12804,6 +13289,7 @@ type SignatureRef__519009048 = Blob;
 type SignatureRef__548406139 = Blob;
 type SignatureRef__551206013 = Blob;
 type SignatureRef__583689859 = Blob;
+type SignatureRef__616390344 = Blob;
 type SignatureRef__63789915 = Blob;
 type SignatureRef__656323425 = Blob;
 type SignatureRef__700171198 = Blob;
@@ -12848,6 +13334,7 @@ type SignupStatus__724684970 = {#approved : Nat; #pending; #rejected};
 type SignupStatus__786905147 = {#approved : Nat; #pending; #rejected};
 type SignupStatus__826668948 = {#approved : Nat; #pending; #rejected};
 type SignupStatus__840609061 = {#approved : Nat; #pending; #rejected};
+type SignupStatus__846114518 = {#approved : Nat; #pending; #rejected};
 type SignupStatus__847992138 = {#approved : Nat; #pending; #rejected};
 type SignupStatus__906541061 = {#approved : Nat; #pending; #rejected};
 type SignupStatus__912444694 = {#approved : Nat; #pending; #rejected};
@@ -13083,6 +13570,18 @@ type SignupSubmission__636549270 =
     status : SignupStatus__48141823;
     submittedAt : Timestamp__277212555
   };
+type SignupSubmission__733038539 =
+  {
+    contactSet : ContactSet__942452508;
+    demoPhotoUrl : ?Text;
+    id : Nat;
+    isDemo : Bool;
+    photo : ?PhotoRef__734571737;
+    profile : RoadieProfile__1063803233;
+    signature : ?SignatureRef__616390344;
+    status : SignupStatus__846114518;
+    submittedAt : Timestamp__900721712
+  };
 type SignupSubmission__832448566 =
   {
     contactSet : ContactSet__474597526;
@@ -13204,6 +13703,7 @@ type SignupSubmission__994329842 =
     status : SignupStatus__1012795808;
     submittedAt : Timestamp__367191650
   };
+type SizeCurveEntry__1009566187 = {percent : Nat; size : Text};
 type SizeCurveEntry__1056134971 = {percent : Nat; size : Text};
 type SizeCurveEntry__111381843 = {percent : Nat; size : Text};
 type SizeCurveEntry__154552488 = {percent : Nat; size : Text};
@@ -13231,6 +13731,11 @@ type SizeCurve__246713775 =
   {
     hats : [SizeCurveEntry__1056134971];
     shirts : [SizeCurveEntry__1056134971]
+  };
+type SizeCurve__254493978 =
+  {
+    hats : [SizeCurveEntry__1009566187];
+    shirts : [SizeCurveEntry__1009566187]
   };
 type SizeCurve__451928069 =
   {hats : [SizeCurveEntry__154552488]; shirts : [SizeCurveEntry__154552488]};
@@ -13790,6 +14295,32 @@ type StaffProfile__844719241 =
     workEmail : ?Email__82376211;
     workPhone : ?Phone__705711027
   };
+type StaffProfile__858370834 =
+  {
+    arrivalDate : ?DateOnly__1073687550;
+    demoPhotoUrl : ?Text;
+    departureDate : ?DateOnly__1073687550;
+    favoriteColor : ?Text;
+    favoriteDrink : ?Text;
+    favoriteSnack : ?Text;
+    favoriteTeam : ?Text;
+    fullName : PersonName__90490690;
+    funFact : ?Text;
+    goalHere : ?Text;
+    hatSize : ?HatSize__926159469;
+    hobbies : ?Text;
+    homeStoreCity : Text;
+    homeStoreNumber : Text;
+    hometown : ?Text;
+    photo : ?PhotoRef__734571737;
+    preferredName : ?Text;
+    requestedRole : Role__535843072;
+    shirtSize : ?ShirtSize__311052371;
+    title : Text;
+    trainerPositionIds : [Nat];
+    workEmail : ?Email__694554799;
+    workPhone : ?Phone__819081959
+  };
 type StaffProfile__891815094 =
   {
     arrivalDate : ?DateOnly__438110020;
@@ -13955,6 +14486,25 @@ type StoreInfo__251052863 =
     storeNumber : Text;
     storePhone : Phone__389637900;
     timeZone : TimeZone__484395901;
+    trainingGroupSize : Nat
+  };
+type StoreInfo__288958161 =
+  {
+    address : Text;
+    amShiftEnd : TimeOfDay__944934062;
+    amShiftStart : TimeOfDay__944934062;
+    appName : Text;
+    leaderTalkName : Text;
+    leaderTalkSize : Nat;
+    locationName : Text;
+    logo : ?PhotoRef__734571737;
+    openingDate : DateOnly__1073687550;
+    pmShiftEnd : TimeOfDay__944934062;
+    pmShiftStart : TimeOfDay__944934062;
+    secondaryLogo : ?PhotoRef__734571737;
+    storeNumber : Text;
+    storePhone : Phone__819081959;
+    timeZone : TimeZone__989403213;
     trainingGroupSize : Nat
   };
 type StoreInfo__301761262 =
@@ -14584,6 +15134,14 @@ type StoreTemplate__494955954 =
     positions : [Position__273557644];
     schedule : [ScheduleEvent__1030548796]
   };
+type StoreTemplate__505923786 =
+  {
+    checklists : Checklists__944473385;
+    leaderTalkName : Text;
+    name : Text;
+    positions : [Position__225283415];
+    schedule : [ScheduleEvent__60448911]
+  };
 type StoreTemplate__52808053 =
   {
     checklists : Checklists__214502569;
@@ -14707,6 +15265,7 @@ type StoreTemplate__963200768 =
 type SuggestionId__826926792 = Nat;
 type SuggestionState__1036052330 = {#accepted; #declined; #open};
 type SuggestionState__249667954 = {#accepted; #declined; #open};
+type SuggestionState__25952697 = {#accepted; #declined; #open};
 type SuggestionState__483921478 = {#accepted; #declined; #open};
 type SuggestionState__489972761 = {#accepted; #declined; #open};
 type SuggestionState__657067257 = {#accepted; #declined; #open};
@@ -14734,6 +15293,18 @@ type Suggestion__27720489 =
     note : Text;
     proposedAnswer : Text;
     state : SuggestionState__1036052330
+  };
+type Suggestion__453387554 =
+  {
+    author : Principal;
+    createdAt : Timestamp__900721712;
+    decidedAt : ?Timestamp__900721712;
+    decidedBy : ?Principal;
+    discussionEndsAt : Timestamp__900721712;
+    id : Nat;
+    note : Text;
+    proposedAnswer : Text;
+    state : SuggestionState__25952697
   };
 type Suggestion__504847756 =
   {
@@ -14816,6 +15387,7 @@ type TimeOfDay__893155577 = Nat;
 type TimeOfDay__895468886 = Nat;
 type TimeOfDay__922299111 = Nat;
 type TimeOfDay__937958303 = Nat;
+type TimeOfDay__944934062 = Nat;
 type TimeZone__1006997051 = Text;
 type TimeZone__1070015883 = Text;
 type TimeZone__1072085375 = Text;
@@ -14849,6 +15421,7 @@ type TimeZone__90079798 = Text;
 type TimeZone__924958087 = Text;
 type TimeZone__942702088 = Text;
 type TimeZone__963522570 = Text;
+type TimeZone__989403213 = Text;
 type Timestamp__1015286446 = Int;
 type Timestamp__1028605864 = Int;
 type Timestamp__1073181733 = Int;
@@ -14880,6 +15453,7 @@ type Timestamp__771871407 = Int;
 type Timestamp__821944435 = Int;
 type Timestamp__875658186 = Int;
 type Timestamp__888498416 = Int;
+type Timestamp__900721712 = Int;
 type Timestamp__982194933 = Int;
 type Timestamp__9915625 = Int;
 type TrainerNote__1008448864 =
@@ -15198,6 +15772,18 @@ type TrainerNote__673548677 =
     shift : Shift__862494843;
     workOn : Text
   };
+type TrainerNote__70338610 =
+  {
+    author : Principal;
+    createdAt : Timestamp__900721712;
+    day : DateOnly__1073687550;
+    didWell : Text;
+    id : Nat;
+    isDemo : Bool;
+    roadieId : Nat;
+    shift : Shift__234268803;
+    workOn : Text
+  };
 type TrainerNote__805925633 =
   {
     author : Principal;
@@ -15421,6 +16007,7 @@ type UniformItemType__13182470 = {#checkbox; #count};
 type UniformItemType__140276906 = {#checkbox; #count};
 type UniformItemType__158111068 = {#checkbox; #count};
 type UniformItemType__263583505 = {#checkbox; #count};
+type UniformItemType__319065585 = {#checkbox; #count};
 type UniformItemType__334988712 = {#checkbox; #count};
 type UniformItemType__551434998 = {#checkbox; #count};
 type UniformItemType__601623950 = {#checkbox; #count};
@@ -15459,6 +16046,8 @@ type UniformSettings__645306447 =
   {bufferPercent : Nat; sizeCurve : SizeCurve__925920223};
 type UniformSettings__660632515 =
   {bufferPercent : Nat; sizeCurve : SizeCurve__844051533};
+type UniformSettings__718673271 =
+  {bufferPercent : Nat; sizeCurve : SizeCurve__254493978};
 type UniformSettings__72177319 =
   {bufferPercent : Nat; sizeCurve : SizeCurve__963284128};
 type UniformSettings__827376162 =
@@ -15487,6 +16076,7 @@ type Weekday__300415212 = {#fri; #mon; #sat; #sun; #thu; #tue; #wed};
 type Weekday__323908154 = {#fri; #mon; #sat; #sun; #thu; #tue; #wed};
 type Weekday__364836003 = {#fri; #mon; #sat; #sun; #thu; #tue; #wed};
 type Weekday__377202064 = {#fri; #mon; #sat; #sun; #thu; #tue; #wed};
+type Weekday__392870358 = {#fri; #mon; #sat; #sun; #thu; #tue; #wed};
 type Weekday__414965161 = {#fri; #mon; #sat; #sun; #thu; #tue; #wed};
 type Weekday__502071789 = {#fri; #mon; #sat; #sun; #thu; #tue; #wed};
 type Weekday__522311710 = {#fri; #mon; #sat; #sun; #thu; #tue; #wed};
@@ -15539,7 +16129,8 @@ type Weekday__996880681 = {#fri; #mon; #sat; #sun; #thu; #tue; #wed};
   "00000028_000000" : (old : OldActor__544940534) -> NewActor__60279238;
   "00000029_000000" : (old : OldActor__37259199) -> NewActor__995514173;
   "00000030_000000" : (old : OldActor__1044622718) -> NewActor__524346307;
-  "00000031_000000" : (old : OldActor__416630488) -> NewActor__285869570
+  "00000031_000000" : (old : OldActor__416630488) -> NewActor__285869570;
+  "00000032_000000" : (old : OldActor__177637331) -> NewActor__395633712
 }
 actor  {
   stable absentAlerts :

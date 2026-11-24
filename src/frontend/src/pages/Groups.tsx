@@ -43,7 +43,11 @@ import {
 } from "@/components/roadie/RoadieCardModal";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { canEditGroups, useAccessState } from "@/hooks/useAccess";
+import {
+  canEditGroups,
+  useAccessState,
+  useDemoAwareStoreInfo,
+} from "@/hooks/useAccess";
 import { useDemo } from "@/hooks/useDemo";
 import {
   useAutoFillShiftBoard,
@@ -55,7 +59,6 @@ import {
   useRoadies,
   useSchedule,
   useShiftBoard,
-  useStoreInfo,
 } from "@/hooks/useQueries";
 import { staffDisplayName } from "@/lib/format";
 import { useMemo, useState } from "react";
@@ -78,7 +81,7 @@ export default function GroupsPage() {
   const demo = useDemo();
 
   const schedule = useSchedule();
-  const storeInfo = useStoreInfo();
+  const storeInfo = useDemoAwareStoreInfo();
   const positions = usePositions();
   const roadies = useRoadies();
   const leaders = useLeaders(canView);

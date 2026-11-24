@@ -4,7 +4,6 @@ import Principal "mo:core/Principal";
 import Text "mo:core/Text";
 import Time "mo:core/Time";
 import Runtime "mo:core/Runtime";
-import Debug "mo:core/Debug";
 import Common "../types/common";
 import Access "../types/access";
 import Roadie "../types/roadie";
@@ -48,6 +47,15 @@ module {
 
   /// Nanoseconds in one day.
   let dayNs : Int = 86_400_000_000_000;
+
+  /// Maximum characters for a question answer.
+  public let maxAnswerLength : Nat = 4_000;
+  /// Maximum characters for a comment or a suggestion reply.
+  public let maxCommentLength : Nat = 2_000;
+  /// Maximum characters for a suggestion's proposed answer and note.
+  public let maxSuggestionLength : Nat = 2_000;
+  /// Maximum characters for a suggestion note.
+  public let maxNoteLength : Nat = 1_000;
 
   // --- Internal helpers ---
 
@@ -269,6 +277,8 @@ module {
       readyForFinal = isReadyForFinal(accessGrants, q);
       openSuggestionCount = openSuggestionCount(q);
       decisionDue = decisionDue(q, now);
+      commentCount = q.comments.filter(func(c) = c.suggestionId == null).size();
+      replyCount = q.comments.filter(func(c) = c.suggestionId != null).size();
     };
   };
 
@@ -369,7 +379,9 @@ module {
     state.history.add(id, entry);
   };
 
-  /// List questions for a tab, applying the combined filters.
+  /// List questions for a tab, applying the combined filters. Each view carries
+  /// comment and reply counts only; the discussion itself is loaded separately
+  /// by `getDiscussion` when a card is opened.
   public func listQuestions(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -381,39 +393,69 @@ module {
   ) : [OQ.QuestionView] {
     ignore requireSectionReader(accessGrants, demoState, caller);
     let now = nowOf(demoState, storeInfo);
-    let isMp = Auth.isRealManagingPartner(accessGrants, caller);
-    let search = switch (filter.search) {
-      case (?s) {
-        let trimmed = s.trim(#predicate(func(c : Char) : Bool { c.isWhitespace() }));
-        if (trimmed.size() == 0) { null } else { ?trimmed.toLower() };
-      };
-      case null { null };
-    };
-    state.questions.values().filter(func(q) {
+    let all = state.questions.values().toArray();
+    let filtered = all.filter(func(q) {
       let tabOk = switch (tab) {
         case (#myQuestions) { isOwner(accessGrants, caller, q.area) };
-        case (#needsMyApproval) { isOwner(accessGrants, caller, q.area) and not hasApproved(q, caller) and not isFinal(q) };
+        case (#needsMyApproval) {
+          isOwner(accessGrants, caller, q.area) and not hasApproved(q, caller) and not isFinal(q);
+        };
         case (#all) { true };
         case (#decisionDue) { decisionDue(q, now) };
         case (#final) { isFinal(q) };
-        case (#readyForFinal) { isMp and isReadyForFinal(accessGrants, q) };
+        case (#readyForFinal) { isReadyForFinal(accessGrants, q) };
       };
-      let sectionOk = switch (filter.sectionTitle) {
-        case (?title) { q.sectionTitle == title };
-        case null { true };
+      if (not tabOk) {
+        return false;
       };
-      let areaOk = switch (filter.area) {
-        case (?area) { q.area == area };
-        case null { true };
+      switch (filter.sectionTitle) {
+        case (?title) { if (q.sectionTitle != title) { return false } };
+        case null {};
       };
-      let searchOk = switch (search) {
+      switch (filter.area) {
+        case (?area) { if (q.area != area) { return false } };
+        case null {};
+      };
+      switch (filter.search) {
         case (?term) {
-          q.question.toLower().contains(#text term) or q.answer.toLower().contains(#text term);
+          let needle = term.trim(#predicate(func(c : Char) : Bool { c.isWhitespace() })).toLower();
+          if (needle.size() > 0) {
+            let hay = (q.question # " " # q.answer).toLower();
+            if (not hay.contains(#text needle)) { return false };
+          };
         };
-        case null { true };
+        case null {};
       };
-      tabOk and sectionOk and areaOk and searchOk;
-    }).map(func(q) = toView(accessGrants, q, caller, now)).toArray();
+      true;
+    });
+    let sorted = filtered.sort(func(a, b) {
+      if (a.sectionOrder < b.sectionOrder) { #less }
+      else if (a.sectionOrder > b.sectionOrder) { #greater }
+      else if (a.order < b.order) { #less }
+      else if (a.order > b.order) { #greater }
+      else if (a.id < b.id) { #less }
+      else if (a.id > b.id) { #greater }
+      else { #equal };
+    });
+    sorted.map(func(q) = toView(accessGrants, q, caller, now));
+  };
+
+  /// One question's discussion: its suggestions and comments, loaded when a
+  /// card is opened. Readable by the same roles that may read the list.
+  public func getDiscussion(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    state : State,
+    caller : Principal,
+    id : OQ.QuestionId,
+  ) : OQ.QuestionDiscussion {
+    ignore requireSectionReader(accessGrants, demoState, caller);
+    let q = requireQuestion(state, id);
+    {
+      questionId = q.id;
+      suggestions = q.suggestions;
+      comments = q.comments;
+    };
   };
 
   /// The caller's own pending-approval count: the questions they own that they
@@ -501,6 +543,9 @@ module {
     };
     if (isFinal(q)) {
       Runtime.trap("This question is Final; the Managing Partner must reopen it before the answer can change");
+    };
+    if (answer.size() > maxAnswerLength) {
+      Runtime.trap("Answer is too long: the limit is " # maxAnswerLength.toText() # " characters");
     };
     let changed = q.answer != answer;
     let updated : OQ.OpeningQuestion = {
@@ -664,6 +709,12 @@ module {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
     let q = requireQuestion(state, id);
+    if (proposedAnswer.size() > maxSuggestionLength) {
+      Runtime.trap("Suggested answer is too long: the limit is " # maxSuggestionLength.toText() # " characters");
+    };
+    if (note.size() > maxNoteLength) {
+      Runtime.trap("Suggestion note is too long: the limit is " # maxNoteLength.toText() # " characters");
+    };
     let now = Time.now();
     let suggestionId = counters.nextSuggestionId;
     counters.nextSuggestionId := suggestionId + 1;
@@ -688,7 +739,8 @@ module {
     ignore ChangeLog.record(changeLog, logCounters, caller, "openingQuestion.suggestionPosted", null, false, "Question " # id.toText() # " suggestion posted");
   };
 
-  /// Reply in a suggestion's discussion.
+  /// Reply in a suggestion's discussion. Accepted only while the suggestion is
+  /// still pending (open); refused once it is accepted or declined.
   public func replyToSuggestion(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -703,9 +755,23 @@ module {
   ) : () {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
+    if (text.size() > maxCommentLength) {
+      Runtime.trap("Reply is too long: the limit is " # maxCommentLength.toText() # " characters");
+    };
+    if (isBlank(text)) {
+      Runtime.trap("Reply text is required");
+    };
     let q = requireQuestion(state, id);
-    if (not q.suggestions.any(func(s) = s.id == suggestionId)) {
-      Runtime.trap("Suggestion not found");
+    let suggestion = q.suggestions.find(func(s) = s.id == suggestionId)
+      ?? Runtime.trap("Suggestion not found");
+    switch (suggestion.state) {
+      case (#open) {};
+      case (#accepted) {
+        Runtime.trap("This suggestion has been accepted; replies are closed");
+      };
+      case (#declined) {
+        Runtime.trap("This suggestion has been declined; replies are closed");
+      };
     };
     let now = Time.now();
     let commentId = counters.nextCommentId;
@@ -724,7 +790,7 @@ module {
       updatedBy = caller;
     };
     put(state, updated);
-    ignore ChangeLog.record(changeLog, logCounters, caller, "openingQuestion.suggestionReply", null, false, "Question " # id.toText() # " suggestion reply");
+    ignore ChangeLog.record(changeLog, logCounters, caller, "openingQuestion.replyPosted", null, false, "Question " # id.toText() # " suggestion reply posted");
   };
 
   /// Post a comment on a question.
@@ -742,6 +808,12 @@ module {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
     let q = requireQuestion(state, id);
+    if (text.size() > maxCommentLength) {
+      Runtime.trap("Comment is too long: the limit is " # maxCommentLength.toText() # " characters");
+    };
+    if (isBlank(text)) {
+      Runtime.trap("Comment text is required");
+    };
     let now = Time.now();
     let commentId = counters.nextCommentId;
     counters.nextCommentId := commentId + 1;
@@ -945,7 +1017,9 @@ module {
     };
   };
 
-  /// Clear all questions (Admin only, `confirm` must be "CLEAR").
+  /// Clear all questions (Admin only, `confirm` must be "CLEAR"). Also clears
+  /// their history entries and nudge records so nothing points at a deleted
+  /// question.
   public func clearAll(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -960,11 +1034,12 @@ module {
     requireRealWrite(demoState);
     requireRealAdmin(accessGrants, demoState, caller);
     if (confirm != "CLEAR") {
-      Runtime.trap("Type CLEAR to confirm");
+      Runtime.trap("Type CLEAR to confirm clearing all Opening Questions");
     };
-    let count = state.questions.size();
     state.questions.clear();
-    ignore ChangeLog.record(changeLog, logCounters, caller, "openingQuestion.cleared", null, false, "Cleared " # count.toText() # " questions");
+    state.history.clear();
+    state.nudges.clear();
+    ignore ChangeLog.record(changeLog, logCounters, caller, "openingQuestion.cleared", null, false, "Cleared all Opening Questions, their history and nudges");
   };
 
   /// The caller's Opening Questions alerts and counts.
@@ -1027,23 +1102,31 @@ module {
   /// The Managers scoreboard: one row per current question owner (Kitchen
   /// Managers, Service Managers and the Managing Partner), derived from the
   /// live ownership rules, sorted by most questions still needing approval
-  /// first with a stable tiebreak. Readable only by the Managing Partner and
-  /// Admins; every other role is refused.
+  /// first with a stable tiebreak. Each row's `nudgedToday` is true when that
+  /// manager was nudged on the current store-local day. Readable only by the
+  /// Managing Partner and Admins; every other role is refused.
   public func getManagerScoreboard(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
     state : State,
+    storeInfo : StoreInfo,
     caller : Principal,
   ) : [OQ.ManagerScoreRow] {
     ignore requireSectionReader(accessGrants, demoState, caller);
     if (not Auth.isRealAdmin(accessGrants, caller)) {
-      Runtime.trap("Access denied: only the Managing Partner or an Admin may read the Managers scoreboard");
+      Runtime.trap("Access denied: only the Managing Partner or an Admin may read the scoreboard");
     };
+    let now = nowOf(demoState, storeInfo);
+    let today = Clock.localDayStart(now, storeInfo.value.timeZone);
     let all = state.questions.values().toArray();
     let rows = accessGrants.values().filter(func(g) = isActiveRealLeader(g) and ownsAnyArea(g.role)).map(func(g) {
       let owned = all.filter(func(q) = ownsArea(g.role, q.area));
       let approved = owned.filter(func(q) = hasApproved(q, g.principal));
       let pending = owned.filter(func(q) = not hasApproved(q, g.principal) and not isFinal(q));
+      let nudgedToday = switch (state.nudges.get(g.principal)) {
+        case (?n) { Clock.localDayStart(n.sentAt, storeInfo.value.timeZone) == today };
+        case null { false };
+      };
       {
         principal = g.principal;
         displayName = displayName(g);
@@ -1051,20 +1134,17 @@ module {
         ownedCount = owned.size();
         approvedCount = approved.size();
         pendingCount = pending.size();
+        nudgedToday;
       };
     }).toArray();
     rows.sort(func(a, b) {
-      if (a.pendingCount > b.pendingCount) {
-        #less;
-      } else if (a.pendingCount < b.pendingCount) {
-        #greater;
-      } else if (a.displayName < b.displayName) {
-        #less;
-      } else if (a.displayName > b.displayName) {
-        #greater;
-      } else {
-        Principal.compare(a.principal, b.principal);
-      };
+      if (a.pendingCount > b.pendingCount) { #less }
+      else if (a.pendingCount < b.pendingCount) { #greater }
+      else if (a.displayName < b.displayName) { #less }
+      else if (a.displayName > b.displayName) { #greater }
+      else if (a.principal.toText() < b.principal.toText()) { #less }
+      else if (a.principal.toText() > b.principal.toText()) { #greater }
+      else { #equal };
     });
   };
 
@@ -1132,7 +1212,8 @@ module {
   };
 
   /// Read the Finish-by date with the computed days left or days overdue for the
-  /// caller, using the store-local calendar day.
+  /// caller, counted in whole calendar days in the store time zone so the count
+  /// never jumps or slips a day across a daylight saving change.
   public func getFinishBy(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -1141,17 +1222,20 @@ module {
     caller : Principal,
   ) : OQ.FinishByView {
     ignore requireSectionReader(accessGrants, demoState, caller);
+    let now = nowOf(demoState, storeInfo);
+    let tz = storeInfo.value.timeZone;
     switch (state.finishBy.value.finishBy) {
-      case null { { finishBy = null; daysLeft = 0; daysOverdue = 0 } };
       case (?day) {
-        let now = nowOf(demoState, storeInfo);
-        let today = Clock.localDayStart(now, storeInfo.value.timeZone);
-        let target = Age.localMidnightOfDate(day, storeInfo.value.timeZone);
-        let diffDays = (target - today) / dayNs;
-        let daysLeft = if (diffDays > 0) { Int.abs(diffDays) } else { 0 };
-        let daysOverdue = if (diffDays < 0) { Int.abs(diffDays) } else { 0 };
-        { finishBy = ?day; daysLeft; daysOverdue };
+        let todayStart = Clock.localDayStart(now, tz);
+        let targetStart = Age.localMidnightOfDate(day, tz);
+        let diffDays = (targetStart - todayStart) / dayNs;
+        if (diffDays >= 0) {
+          { finishBy = ?day; daysLeft = diffDays.toNat(); daysOverdue = 0 };
+        } else {
+          { finishBy = ?day; daysLeft = 0; daysOverdue = (-diffDays).toNat() };
+        };
       };
+      case null { { finishBy = null; daysLeft = 0; daysOverdue = 0 } };
     };
   };
 
@@ -1180,8 +1264,8 @@ module {
   };
 
   /// Send a nudge to one manager who still has questions needing approval
-  /// (Managing Partner and Admins only). Refused when that manager was already
-  /// nudged on the current store-local day.
+  /// (Managing Partner and Admins only). Records the nudged manager's principal
+  /// and the send time, and refuses a second nudge on the same store-local day.
   public func sendNudge(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -1195,42 +1279,42 @@ module {
   ) : () {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
-    if (not Auth.isRealAdmin(accessGrants, caller)) {
-      Runtime.trap("Access denied: only the Managing Partner or an Admin may send a nudge");
-    };
-    if (not ownsAnyArea(switch (Auth.realRole(accessGrants, manager)) { case (?r) { r }; case null { #kiosk } })) {
-      Runtime.trap("Access denied: that person does not own Opening Questions");
-    };
-    let managerRole = switch (Auth.realRole(accessGrants, manager)) { case (?r) { r }; case null { #kiosk } };
-    let pending = state.questions.values().filter(func(q) {
-      ownsArea(managerRole, q.area)
-        and not hasApproved(q, manager)
-        and not isFinal(q);
-    }).size();
-    if (pending == 0) {
-      Runtime.trap("That manager has no questions needing approval");
+    requireRealAdmin(accessGrants, demoState, caller);
+    let target = accessGrants.get(manager)
+      ?? Runtime.trap("Nudge target is not a registered user");
+    if (not isActiveRealLeader(target) or not ownsAnyArea(target.role)) {
+      Runtime.trap("Nudge target is not a current question owner");
     };
     let now = nowOf(demoState, storeInfo);
     let today = Clock.localDayStart(now, storeInfo.value.timeZone);
+    let pending = state.questions.values().filter(func(q) {
+      ownsArea(target.role, q.area) and not hasApproved(q, manager) and not isFinal(q);
+    }).size();
+    if (pending == 0) {
+      Runtime.trap("This manager has no questions waiting on them");
+    };
     switch (state.nudges.get(manager)) {
       case (?existing) {
         if (Clock.localDayStart(existing.sentAt, storeInfo.value.timeZone) == today) {
-          Runtime.trap("That manager was already nudged today");
+          Runtime.trap("This manager was already nudged today");
         };
       };
       case null {};
     };
-    state.nudges.add(manager, {
+    let nudge : OQ.Nudge = {
       manager;
       sender = caller;
       day = today;
       pendingCount = pending;
       sentAt = now;
-    });
-    ignore ChangeLog.record(changeLog, logCounters, caller, "openingQuestion.nudgeSent", null, false, "Nudged " # principalName(accessGrants, manager) # " about " # pending.toText() # " questions");
+    };
+    state.nudges.add(manager, nudge);
+    ignore ChangeLog.record(changeLog, logCounters, caller, "openingQuestion.nudgeSent", null, false, "Nudged " # displayName(target) # " with " # pending.toText() # " questions waiting");
   };
 
-  /// The caller's own nudge alerts, newest first.
+  /// The caller's own nudge alerts, newest first. An alert is present only
+  /// while the caller still has questions waiting on them, and its count is the
+  /// number still waiting now, not the count recorded when the nudge was sent.
   public func getMyNudges(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -1239,14 +1323,21 @@ module {
   ) : [OQ.NudgeAlert] {
     ignore requireSectionReader(accessGrants, demoState, caller);
     switch (state.nudges.get(caller)) {
-      case null { [] };
       case (?n) {
-        [{
-          senderName = principalName(accessGrants, n.sender);
-          pendingCount = n.pendingCount;
-          sentAt = n.sentAt;
-        }];
+        let pending = state.questions.values().filter(func(q) {
+          isOwner(accessGrants, caller, q.area) and not hasApproved(q, caller) and not isFinal(q);
+        }).size();
+        if (pending == 0) {
+          [];
+        } else {
+          [{
+            senderName = principalName(accessGrants, n.sender);
+            pendingCount = pending;
+            sentAt = n.sentAt;
+          }];
+        };
       };
+      case null { [] };
     };
   };
 };

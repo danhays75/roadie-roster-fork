@@ -1,6 +1,7 @@
 import Map "mo:core/Map";
 import Principal "mo:core/Principal";
 import Time "mo:core/Time";
+import Runtime "mo:core/Runtime";
 import AccessControl "mo:caffeineai-authorization/access-control";
 import Common "../types/common";
 import Access "../types/access";
@@ -19,7 +20,11 @@ mixin (
   /// Register the caller for approval. Any signed-in caller may call this once;
   /// it is idempotent and returns true when the caller is already registered or
   /// already pending. The first caller approved by an Admin becomes an Admin.
+  /// The anonymous (signed-out) identity is refused.
   public shared ({ caller }) func requestAccess() : async Bool {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Sign in to request access");
+    };
     if (accessGrants.containsKey(caller)) {
       return true;
     };

@@ -16,14 +16,17 @@ import { PositionRosterDialog } from "@/components/dashboard/PositionRosterDialo
 import { useDashboardCopy } from "@/components/dashboard/copy";
 import { usePaperworkIncompleteMap } from "@/components/roadie/RoadieTile";
 import { Button } from "@/components/ui/button";
-import { canArchive, useAccessState } from "@/hooks/useAccess";
+import {
+  canArchive,
+  useAccessState,
+  useDemoAwareStoreInfo,
+} from "@/hooks/useAccess";
 import {
   useDashboard,
   useDemoState,
   useRoadies,
   useRosterSummary,
   useSchedule,
-  useStoreInfo,
 } from "@/hooks/useQueries";
 import { useSeedWhenEmpty } from "@/hooks/useSeeding";
 import {
@@ -284,7 +287,7 @@ function DashboardContent() {
 
   const { data, isLoading, isError, refetch } = useDashboard();
   const { data: schedule } = useSchedule();
-  const { data: storeInfo } = useStoreInfo();
+  const { data: storeInfo } = useDemoAwareStoreInfo();
   const { data: rosterSummary } = useRosterSummary();
   const { data: roadies } = useRoadies();
   const { data: alerts } = useAlerts(canAdjust);

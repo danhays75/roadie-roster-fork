@@ -83,7 +83,9 @@ module {
     newAnswer : ?Text;
   };
 
-  /// A stored opening question.
+  /// A stored opening question. `comments` and `suggestions` are the stored
+  /// discussion; the list view never carries them (see `QuestionView`), and a
+  /// question's discussion is loaded on demand by `getOpeningQuestionDiscussion`.
   public type OpeningQuestion = {
     id : QuestionId;
     sectionTitle : Text;
@@ -101,6 +103,14 @@ module {
     updatedAt : Common.Timestamp;
     updatedBy : Principal;
     isDemo : Bool;
+  };
+
+  /// A question's discussion, loaded when its card is opened: the stored
+  /// suggestions and comments. The list view carries only their counts.
+  public type QuestionDiscussion = {
+    questionId : QuestionId;
+    suggestions : [Suggestion];
+    comments : [Comment];
   };
 
   /// The daily-email setting for Opening Questions.
@@ -128,7 +138,8 @@ module {
   /// One stored nudge: which manager was nudged, who sent it, the store-local
   /// day it was sent (UTC midnight nanoseconds) and the manager's pending count
   /// at that moment. One nudge per manager per store-local day is enforced from
-  /// this record.
+  /// this record. The alert's live count is recomputed from the questions still
+  /// waiting on the manager, never read from `pendingCount`.
   public type Nudge = {
     manager : Principal;
     sender : Principal;
@@ -139,7 +150,8 @@ module {
 
   /// The nudge alert carried to a manager's Today page and Opening Qs badge:
   /// the sender's display name, how many questions still need the manager's
-  /// approval, and when it was sent.
+  /// approval right now (live, not the count at send time), and when it was
+  /// sent. An alert is absent once the manager has no questions left waiting.
   public type NudgeAlert = {
     senderName : Text;
     pendingCount : Nat;
@@ -170,6 +182,9 @@ module {
   /// it is not final yet, the open suggestion count and the decision-due flag.
   /// `myApprovedAt` is the caller's own approval timestamp, or null when they
   /// have not approved; it drives the "You approved · <date>" chip on every tab.
+  /// The list view carries only discussion counts (`commentCount`,
+  /// `replyCount`); the full suggestions and comments load separately through
+  /// `getOpeningQuestionDiscussion` when a card is opened.
   public type QuestionView = {
     question : OpeningQuestion;
     owners : [OwnerView];
@@ -183,6 +198,12 @@ module {
     readyForFinal : Bool;
     openSuggestionCount : Nat;
     decisionDue : Bool;
+    /// The number of top-level comments on the question (comments with no
+    /// `suggestionId`).
+    commentCount : Nat;
+    /// The number of replies across the question's suggestions (comments with a
+    /// `suggestionId`).
+    replyCount : Nat;
   };
 
   /// The progress summary shown on the page. `final` counts only questions the
@@ -231,7 +252,8 @@ module {
 
   /// One row of the Managers scoreboard: a current question owner with their
   /// role, how many questions they own right now, how many of those they have
-  /// approved, and how many still need their approval.
+  /// approved, and how many still need their approval. `nudgedToday` is true
+  /// when that manager was already nudged on the current store-local day.
   public type ManagerScoreRow = {
     principal : Principal;
     displayName : Text;
@@ -239,6 +261,7 @@ module {
     ownedCount : Nat;
     approvedCount : Nat;
     pendingCount : Nat;
+    nudgedToday : Bool;
   };
 
   /// The result of a batch Mark final request: how many questions were marked

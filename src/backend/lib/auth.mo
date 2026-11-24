@@ -20,19 +20,18 @@ module {
     };
   };
 
-  /// The sentinel work email stored on a demo leader's staff profile so demo
-  /// leaders can be told apart from real ones. Matches the marker the demo
-  /// seeder writes.
-  let demoLeaderMarker : Text = "DEMO";
+  /// The system actor principal recorded as the approver of a system-created
+  /// demo leader. Demo leaders are recognised by this marker, never by a work
+  /// email a user could type themselves.
+  public func systemActor() : Principal {
+    Principal.fromText("aaaaa-aa");
+  };
 
-  /// True when an access grant is a seeded demo leader. Demo leaders are marked
-  /// by a sentinel work email so their real-looking home store number can still
-  /// be shown.
+  /// True when an access grant is a seeded demo leader: created by the system
+  /// (its approver is the system actor). A user cannot set their own approver,
+  /// so typing "DEMO" as a work email never makes them a demo leader.
   public func isDemoLeader(grant : Access.AccessGrant) : Bool {
-    switch (grant.staffProfile) {
-      case (?p) { p.workEmail == ?demoLeaderMarker };
-      case null { false };
-    };
+    grant.approvedBy == systemActor();
   };
 
   /// Map a demo role to the real application role it impersonates.
@@ -246,9 +245,13 @@ module {
     };
   };
 
-  /// True when a grant is a real, non-expired Managing Partner.
+  /// True when a grant is a real, non-expired Managing Partner that is not a
+  /// demo leader.
   public func isActiveManagingPartner(grant : Access.AccessGrant) : Bool {
     if (grant.role != #managingPartner) {
+      return false;
+    };
+    if (isDemoLeader(grant)) {
       return false;
     };
     switch (grant.accessEndsAt) {
@@ -257,7 +260,8 @@ module {
     };
   };
 
-  /// True when at least one real, non-expired Managing Partner grant exists.
+  /// True when at least one real, non-expired, non-demo Managing Partner grant
+  /// exists.
   public func hasActiveManagingPartner(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
   ) : Bool {
@@ -483,9 +487,10 @@ module {
     };
   };
 
-  /// Require a read-capable caller (any role except Kiosk); trap otherwise.
-  /// While demo mode is on, the caller's own impersonated demo role is
-  /// consulted.
+  /// Require a read-capable caller (any role except Kiosk and Integration);
+  /// trap otherwise. While demo mode is on, the caller's own impersonated demo
+  /// role is consulted. Integration is limited to the Shareable export, so it
+  /// is refused on every other read.
   public func requireReadable(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -495,6 +500,10 @@ module {
     if (role == #kiosk) {
       Runtime.trap("Access denied: Kiosk logins may only submit a sign-up");
     };
+    if (role == #integration) {
+      Runtime.trap("Access denied: Integration role may only read the Shareable export");
+    };
     role;
   };
 };
+

@@ -17,9 +17,17 @@ mixin (
   counters : OQLib.Counters,
   logCounters : OQLib.LogCounters,
 ) {
-  /// List questions for a tab, applying the combined filters.
+  /// List questions for a tab, applying the combined filters. Each view carries
+  /// comment and reply counts only; load the discussion with
+  /// `getOpeningQuestionDiscussion` when a card is opened.
   public query ({ caller }) func listOpeningQuestions(tab : OQ.QuestionTab, filter : OQ.QuestionFilter) : async [OQ.QuestionView] {
     OQLib.listQuestions(accessGrants, demoState, openingQuestions, storeInfo, caller, tab, filter);
+  };
+
+  /// One question's discussion (suggestions and comments), loaded when its card
+  /// is opened.
+  public query ({ caller }) func getOpeningQuestionDiscussion(id : OQ.QuestionId) : async OQ.QuestionDiscussion {
+    OQLib.getDiscussion(accessGrants, demoState, openingQuestions, caller, id);
   };
 
   /// The progress summary: answered and final counts plus per-section progress.
@@ -105,10 +113,10 @@ mixin (
   };
 
   /// The Managers scoreboard: one row per current question owner, sorted by
-  /// most questions still needing approval first. Managing Partner and Admins
-  /// only; every other role is refused.
+  /// most questions still needing approval first, each carrying `nudgedToday`.
+  /// Managing Partner and Admins only; every other role is refused.
   public query ({ caller }) func getOpeningQuestionManagerScoreboard() : async [OQ.ManagerScoreRow] {
-    OQLib.getManagerScoreboard(accessGrants, demoState, openingQuestions, caller);
+    OQLib.getManagerScoreboard(accessGrants, demoState, openingQuestions, storeInfo, caller);
   };
 
   /// Mark several questions final at once (Managing Partner only). Returns how

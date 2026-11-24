@@ -1065,6 +1065,15 @@ export const en: CopyDictionary = {
   "oq.nudge.alert": "{name} asked you to review {count} opening questions",
   "oq.nudge.alertOne": "{name} asked you to review 1 opening question",
   "oq.nudge.alertTitle": "Review request",
+  "oq.length.counter": "{count}/{max}",
+  "oq.length.tooLong": "Too long — keep it to {max} characters or fewer.",
+  "oq.discussion.replyClosed":
+    "Replies are closed because this suggestion was decided.",
+  "oq.discussion.loading": "Loading the discussion…",
+  "oq.discussion.error": "The discussion could not be loaded.",
+  "oq.discussion.retry": "Try again",
+  "oq.discussion.show": "Show discussion ({count})",
+  "oq.discussion.hide": "Hide discussion",
 
   "footer.attribution": "Built with love using caffeine.ai",
 };
@@ -2144,6 +2153,15 @@ export const es: CopyDictionary = {
   "oq.nudge.alert": "{name} te pidió revisar {count} preguntas de apertura",
   "oq.nudge.alertOne": "{name} te pidió revisar 1 pregunta de apertura",
   "oq.nudge.alertTitle": "Solicitud de revisión",
+  "oq.length.counter": "{count}/{max}",
+  "oq.length.tooLong": "Demasiado largo: usa {max} caracteres o menos.",
+  "oq.discussion.replyClosed":
+    "Las respuestas están cerradas porque esta sugerencia ya se decidió.",
+  "oq.discussion.loading": "Cargando la conversación…",
+  "oq.discussion.error": "No se pudo cargar la conversación.",
+  "oq.discussion.retry": "Reintentar",
+  "oq.discussion.show": "Ver conversación ({count})",
+  "oq.discussion.hide": "Ocultar conversación",
 
   "footer.attribution": "Hecho con cariño usando caffeine.ai",
 };

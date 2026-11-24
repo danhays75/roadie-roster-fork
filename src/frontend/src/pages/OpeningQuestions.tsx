@@ -15,8 +15,10 @@ import {
   AreaPill,
   DiscussionBlock,
   FinalBadge,
+  LengthHint,
   ManagersScoreboard,
   PrintSheet,
+  QuestionDiscussion,
   QuestionHistoryDialog,
 } from "@/components/opening-questions";
 import { Button } from "@/components/ui/button";
@@ -45,14 +47,13 @@ import {
   isAdminRole,
   isOpeningQuestionsOwner,
   ownsOpeningQuestionArea,
-  useAccessState,
+  useRealAccessGrant,
 } from "@/hooks/useAccess";
 import { useDemo } from "@/hooks/useDemo";
 import { useI18n } from "@/hooks/useI18n";
 import {
   useAccessGrants,
   useApproveOpeningQuestion,
-  useChangeLog,
   useDecideOpeningQuestionSuggestion,
   useLeaders,
   useMarkOpeningQuestionFinal,
@@ -77,9 +78,11 @@ import { formatTimestampMediumDate, staffDisplayName } from "@/lib/format";
 import {
   AREA_COLORS,
   AREA_FILTERS,
+  OQ_LIMITS,
   areaLabelKey,
   discussionTimeLeft,
   finishByBannerText,
+  isWaitingOnOwner,
   nextPendingQuestion,
   tabLabelKey,
   visibleQuestionTabs,
@@ -102,7 +105,7 @@ import {
   Printer,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 /** How many questions render per section before a "Show more" control. */
@@ -146,10 +149,12 @@ function initialTab(
 
 export default function OpeningQuestionsPage() {
   const { t } = useI18n();
-  const access = useAccessState();
   const demo = useDemo();
-  const grant = access.kind === "granted" ? access.grant : null;
-  const role = grant?.role;
+  // Every ownership and approval check uses the person's real role, so Approve,
+  // Edit, Next, the person filter and Nudge match what the backend allows even
+  // while demo mode is impersonating another role.
+  const realGrant = useRealAccessGrant();
+  const role = realGrant?.role;
   const isAdmin = isAdminRole(role);
   const isOwner = isOpeningQuestionsOwner(role);
   // Ownership is per question, so the page passes the viewer's role down and
@@ -195,10 +200,9 @@ export default function OpeningQuestionsPage() {
   const activeOwnerPrincipal = ownerFilter?.principal.toText() ?? null;
 
   // The Nudge button is Managing Partner and Admin only, enforced in the
-  // backend. The change log carries today's nudge state, so only those roles
-  // pay for that read.
+  // backend. Each scoreboard row carries the stored nudge state for the current
+  // store-local day, so no change-log read is needed.
   const canNudge = isAdmin;
-  const changeLog = useChangeLog();
   // The caller's own alerts and nudges keep the Opening Qs badge and the Today
   // nudge card fresh: sending a nudge invalidates both keys, and mounting them
   // here means the recipient's counts update without a full reload.
@@ -213,18 +217,12 @@ export default function OpeningQuestionsPage() {
     : null;
 
   // The person filter narrows the listed questions to those still waiting on
-  // that owner's approval. It is applied on top of the tab and filter rows, and
-  // only keeps questions that person actually owns by area.
+  // that owner's approval, judged from that owner's own entry in each
+  // question's approvals list rather than the viewer's approval. It is applied
+  // on top of the tab and filter rows.
   const ownerFiltered = useMemo(() => {
     if (!ownerFilter) return questions;
-    const key = ownerFilter.principal.toText();
-    return questions.filter(
-      (view) =>
-        !view.isFinal &&
-        !view.myApproved &&
-        ownsOpeningQuestionArea(ownerFilter.role, view.question.area) &&
-        view.owners.some((owner) => owner.principal.toText() === key),
-    );
+    return questions.filter((view) => isWaitingOnOwner(view, ownerFilter));
   }, [questions, ownerFilter]);
 
   // On the Needs my approval tab an approved card stays in place with its
@@ -336,7 +334,6 @@ export default function OpeningQuestionsPage() {
     fromId: string;
     toId: string | null;
   } | null>(null);
-  const scrollToId = useRef<string | null>(null);
 
   const saveAnswer = useSaveOpeningQuestionAnswer();
   const approve = useApproveOpeningQuestion(keepApprovedInPlace);
@@ -380,43 +377,41 @@ export default function OpeningQuestionsPage() {
 
   // The scoreboard principals the backend would accept a nudge for right now:
   // owners with at least one non-Final question they own by area and have not
-  // approved. A row outside this set shows no Nudge button.
+  // approved, judged from that owner's own approvals. A row outside this set
+  // shows no Nudge button.
   const nudgeTargets = useMemo(() => {
     const targets = new Set<string>();
     for (const row of scoreboardRows) {
-      const key = row.principal.toText();
-      const hasPending = allQuestions.some(
-        (view) =>
-          !view.isFinal &&
-          !view.myApproved &&
-          ownsOpeningQuestionArea(row.role, view.question.area) &&
-          view.owners.some((owner) => owner.principal.toText() === key),
-      );
-      if (hasPending) targets.add(key);
+      if (allQuestions.some((view) => isWaitingOnOwner(view, row))) {
+        targets.add(row.principal.toText());
+      }
     }
     return targets;
   }, [allQuestions, scoreboardRows]);
 
   // After a question is approved, work out the next one still needing the
-  // caller's approval and scroll to it once it has rendered.
+  // caller's approval in page order (section order, then question order) and
+  // scroll to it once it has rendered. The target may sit past the first 12
+  // cards of its section, so the section list expands to it first.
   const handleApproved = (id: QuestionId) => {
     const next = nextPendingQuestion(myPendingQuestions, id);
     setNextTarget({
       fromId: id.toString(),
       toId: next ? next.question.id.toString() : null,
     });
-    scrollToId.current = next ? next.question.id.toString() : null;
   };
 
-  useEffect(() => {
-    const target = scrollToId.current;
-    if (!target) return;
-    scrollToId.current = null;
+  const scrollToQuestion = (target: string) => {
     const el = document.getElementById(`oq-question-${target}`);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.focus({ preventScroll: true });
-  }, []);
+  };
+
+  // The Next button on a card jumps to the target once its section is open.
+  const handleNext = (toId: string) => {
+    scrollToQuestion(toId);
+  };
 
   // The History popup names the person behind each change. Only the Managing
   // Partner and Admins open it, so the staff directory read is gated to them.
@@ -592,7 +587,6 @@ export default function OpeningQuestionsPage() {
           onClear={() => setOwnerFilter(null)}
           canNudge={canNudge}
           nudgeTargets={nudgeTargets}
-          changeLog={changeLog.data}
           onNudge={(row) => {
             setNudgeErrorPrincipal(null);
             nudge.mutate(row.principal, {
@@ -783,14 +777,7 @@ export default function OpeningQuestionsPage() {
           onToggleSelected={toggleSelected}
           onOpenHistory={setHistoryFor}
           nextTarget={nextTarget}
-          onNext={(toId) => {
-            scrollToId.current = toId;
-            const el = document.getElementById(`oq-question-${toId}`);
-            if (el) {
-              el.scrollIntoView({ behavior: "smooth", block: "center" });
-              el.focus({ preventScroll: true });
-            }
-          }}
+          onNext={handleNext}
           onSaveAnswer={(id, answer) =>
             saveAnswer.mutate(
               { id, answer },
@@ -1246,10 +1233,24 @@ function QuestionSections({
     );
   }, [questions, nextTarget]);
   useEffect(() => {
-    if (nextSectionTitle) {
-      setExpanded((prev) => ({ ...prev, [nextSectionTitle]: true }));
-    }
+    if (!nextSectionTitle) return;
+    setExpanded((prev) => ({ ...prev, [nextSectionTitle]: true }));
+    // The target may sit past the first page of its section, so reveal it.
+    setShowAll((prev) => ({ ...prev, [nextSectionTitle]: true }));
   }, [nextSectionTitle]);
+
+  // Scroll to the Next target once its section has rendered and expanded.
+  useEffect(() => {
+    const target = nextTarget?.toId;
+    if (!target) return;
+    const frame = requestAnimationFrame(() => {
+      const el = document.getElementById(`oq-question-${target}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [nextTarget]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, QuestionView[]>();
@@ -1563,18 +1564,26 @@ function QuestionCard({
             <div className="space-y-2">
               <Textarea
                 value={draft}
+                maxLength={OQ_LIMITS.answer}
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder={t("oq.card.answerPlaceholder")}
                 aria-label={t("oq.card.answer")}
                 data-ocid="oq.question.answer_textarea"
                 className="min-h-24"
               />
+              <LengthHint
+                value={draft}
+                max={OQ_LIMITS.answer}
+                ocid="oq.question.answer"
+              />
               <div className="flex gap-2">
                 <Button
                   type="button"
                   className="touch-target"
                   data-ocid="oq.question.save_button"
-                  disabled={actions.isPending}
+                  disabled={
+                    actions.isPending || draft.length > OQ_LIMITS.answer
+                  }
                   onClick={save}
                 >
                   {actions.isPending
@@ -1757,26 +1766,43 @@ function QuestionCard({
             <div className="space-y-2 rounded-md border border-border p-3">
               <Textarea
                 value={proposed}
+                maxLength={OQ_LIMITS.suggestion}
                 onChange={(e) => setProposed(e.target.value)}
                 placeholder={t("oq.card.suggestPlaceholder")}
                 aria-label={t("oq.card.suggest")}
                 data-ocid="oq.question.suggest_textarea"
                 className="min-h-20"
               />
+              <LengthHint
+                value={proposed}
+                max={OQ_LIMITS.suggestion}
+                ocid="oq.question.suggest"
+              />
               <Input
                 value={note}
+                maxLength={OQ_LIMITS.note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={t("oq.card.suggestNotePlaceholder")}
                 aria-label={t("oq.card.suggestNoteLabel")}
                 data-ocid="oq.question.suggest_note_input"
                 className="touch-target"
               />
+              <LengthHint
+                value={note}
+                max={OQ_LIMITS.note}
+                ocid="oq.question.suggest_note"
+              />
               <div className="flex gap-2">
                 <Button
                   type="button"
                   className="touch-target"
                   data-ocid="oq.question.suggest_submit_button"
-                  disabled={actions.isPending || !proposed.trim()}
+                  disabled={
+                    actions.isPending ||
+                    !proposed.trim() ||
+                    proposed.length > OQ_LIMITS.suggestion ||
+                    note.length > OQ_LIMITS.note
+                  }
                   onClick={submitSuggestion}
                 >
                   {t("oq.card.suggestSubmit")}
@@ -1809,13 +1835,10 @@ function QuestionCard({
             </Button>
           )}
 
-          <DiscussionBlock
-            suggestions={q.suggestions}
-            comments={q.comments}
-            canPost
+          <QuestionDiscussion
+            view={view}
             isPending={actions.isPending}
             canDecide={actions.isAdmin}
-            canAccept={!view.isFinal}
             onReply={(suggestionId, text) =>
               actions.onReply(q.id, suggestionId, text)
             }
@@ -1823,7 +1846,6 @@ function QuestionCard({
             onDecide={(suggestionId, accept) =>
               actions.onDecide(q.id, suggestionId, accept)
             }
-            ocid="oq.question.discussion"
           />
 
           {openSuggestion && (

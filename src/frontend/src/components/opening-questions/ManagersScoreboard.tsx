@@ -1,9 +1,8 @@
-import type { ChangeLogEntry, ManagerScoreRow } from "@/backend";
+import type { ManagerScoreRow } from "@/backend";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/hooks/useI18n";
 import { cn } from "@/lib/utils";
 import { BellRing, Check, ChevronRight, Users, X } from "lucide-react";
-import { useMemo } from "react";
 
 /**
  * The Managers scoreboard: one row per current question owner with their name,
@@ -15,7 +14,8 @@ import { useMemo } from "react";
  * When `canNudge` is set (Managing Partner and Admins only), each row that
  * still has questions needing approval carries a Nudge button. A manager who
  * was already nudged on the current store-local day shows "Nudged today" and
- * cannot be nudged again; the backend enforces the same rule.
+ * cannot be nudged again; the backend enforces the same rule and reports the
+ * state on the row itself as `nudgedToday`.
  *
  * `nudgeTargets` is the set of principals the backend would accept a nudge for
  * right now (owners with at least one non-Final question they own by area and
@@ -30,7 +30,6 @@ export function ManagersScoreboard({
   onClear,
   canNudge = false,
   nudgeTargets,
-  changeLog,
   onNudge,
   nudgingPrincipal,
   nudgeErrorPrincipal,
@@ -42,7 +41,6 @@ export function ManagersScoreboard({
   onClear: () => void;
   canNudge?: boolean;
   nudgeTargets?: Set<string>;
-  changeLog?: ChangeLogEntry[];
   onNudge?: (row: ManagerScoreRow) => void;
   nudgingPrincipal?: string | null;
   nudgeErrorPrincipal?: string | null;
@@ -52,23 +50,6 @@ export function ManagersScoreboard({
   const activeRow = activePrincipal
     ? rows.find((row) => row.principal.toText() === activePrincipal)
     : undefined;
-
-  // The managers nudged on the current store-local day, keyed by display name.
-  // The backend records one nudge per manager per store-local day and logs it
-  // as "Nudged <name> about N questions", so the change log is the only read
-  // that carries today's nudge state.
-  const nudgedToday = useMemo(() => {
-    const names = new Set<string>();
-    if (!changeLog) return names;
-    const today = storeLocalDayKey(Date.now());
-    for (const entry of changeLog) {
-      if (entry.action !== "openingQuestion.nudgeSent") continue;
-      if (storeLocalDayKey(Number(entry.at / 1_000_000n)) !== today) continue;
-      const match = /^Nudged (.+) about \d+ questions?$/.exec(entry.detail);
-      if (match) names.add(match[1]);
-    }
-    return names;
-  }, [changeLog]);
 
   return (
     <section
@@ -121,7 +102,7 @@ export function ManagersScoreboard({
               canNudge &&
               row.pendingCount > 0n &&
               (nudgeTargets === undefined || nudgeTargets.has(key));
-            const wasNudged = needsNudge && nudgedToday.has(row.displayName);
+            const wasNudged = needsNudge && row.nudgedToday;
             const isNudging = nudgingPrincipal === key;
             const nudgeFailed = nudgeErrorPrincipal === key;
             return (
@@ -225,22 +206,6 @@ export function ManagersScoreboard({
       )}
     </section>
   );
-}
-
-/**
- * The store-local calendar day key (America/Chicago) for a millisecond
- * timestamp, so "today" matches the backend's store-local day boundary.
- */
-function storeLocalDayKey(ms: number): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(ms));
-  const get = (type: string) =>
-    parts.find((part) => part.type === type)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 function ScoreStat({

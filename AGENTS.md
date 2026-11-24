@@ -93,6 +93,8 @@
 - Do not change the design, copy or anything not listed
 - Add a data migration if a fix needs one so live data upgrades safely
 - Report what changed for each of the nine and which tests passed or failed
+- Do not change which roles see contact info, edit groups, check people in or approve sign-ups
+- Report what changed for each item and which tests passed or failed
 
 ## Accepted Requirements
 
@@ -330,6 +332,23 @@
 - Only a Managing Partner can grant, change, expire or remove the Managing Partner role, with the no-MP exception
 - Managing Partner given Admin access in gift bags, sign-up submit, uniform viewer and crew owner
 - Card pop-up preserves router history state while opening and closing
+- Scoreboard person filter uses the chosen manager's own approval
+- Nudge button uses the chosen manager's own approvals
+- Next walks every waiting question in page order across all sections, past the first 12 cards
+- Nudge alerts clear when the manager has nothing left and count live
+- Nudges recorded with manager principal and time; 'nudged today' from that record in store time zone
+- Frontend uses the real role for every Opening Questions ownership and approval check in demo mode
+- Replies accepted while a suggestion is pending, refused once decided (backend and frontend)
+- Clear all also clears history entries and nudge records
+- Finish-by days left and overdue counted in store-local calendar days
+- Length limits enforced in backend and shown in frontend: answer 4,000; comment, reply, suggestion 2,000; notes 1,000
+- Question list sends counts, discussion loads when a card is opened
+- Managing Partner check counts only real, non-expired grants and skips demo leaders
+- Demo viewers can read non-sensitive store details while demo mode is on
+- Demo leaders identified by a system-only marker with a migration; 'DEMO' refused as a work email
+- Integration role limited to the Shareable export; refused on shift boards, Today and Dashboard
+- Anonymous access request refused
+- ManagerTab.tsx TypeScript error fixed
 
 ## Verified Commands
 
@@ -339,14 +358,6 @@
 
 ## Learnings
 
-- Opening Questions batch selection is keyed by id.toString() and mapped back with BigInt(id); batch mode clears the selection whenever the tab leaves Ready for final.
-- The Opening Questions scoreboard row role label uses t(`profile.role.${row.role}`); only admin/managingPartner/kitchenManager/serviceManager keys exist in copy.ts.
-- Manager scoreboard rows derive from accessGrants filtered by isRealLeader and an owner role; pendingCount excludes Final questions.
-- Batch mark final reuses isReadyForFinal per id so already-Final or unapproved questions count as skipped, not errors.
-- Motoko string literals reject \uXXXX escapes; write the actual character instead, and never double-escape inner quotes in api-doc.mo.
-- Opening Questions Finish-by date lives in a settings singleton with a FinishByView carrying finishBy plus daysLeft/daysOverdue bigints; the date itself is 0 days left, computed from Clock.localDayStart.
-- Nudges are stored per manager with the sender, store-local day and pending count; a second nudge the same store-local day is refused, and the scoreboard derives Nudged today from change-log entries with action openingQuestion.nudgeSent.
-- TodayView now requires openingQuestionNudges, so src/frontend/src/mocks/backend.ts getToday must include it.
 - The /opening-questions route validates a tab search param so a nudge alert can open the Needs my approval tab; the page reads it while keeping its default tab.
 - ManagersScoreboard takes canNudge, changeLog, onNudge, nudgingPrincipal and nudgeErrorPrincipal props; OpeningQuestions.tsx must pass all five or the Nudge button never appears.
 - api-doc.mo's getApiDoc literal must stay one line with every inner double quote escaped; a split literal or raw quote fails M0097/M0057.
@@ -364,3 +375,11 @@
 - OpeningQuestions.tsx mounts useOpeningQuestionAlerts and useMyOpeningQuestionNudges and refetches both after a nudge; the nudge mutation invalidates both keys via OPENING_QUESTION_KEYS.
 - The card pop-up keeps router history state by spreading window.history.state on push and stripping only ?card on replaceState, so back from a full profile returns to the list.
 - Biome noUnusedVariables defaults ignoreRestSiblings true, so the rest-sibling destructure used to strip ?card passes lint.
+- QuestionView carries commentCount and replyCount only; QuestionDiscussion loads its own discussion via useOpeningQuestionDiscussion(id, open), and openingQuestionDiscussion is part of OPENING_QUESTION_KEYS so writes refresh it.
+- ManagerScoreRow.nudgedToday is the stored nudge state derived from the nudge record in store time; the scoreboard no longer reads the change log or a hardcoded Chicago day key.
+- Demo leaders are identified by approvedBy == systemActor() (aaaaa-aa), never by work email; migration 32 strips legacy DEMO work emails from system-created grants.
+- getStoreInfo traps for a demo-only caller; getStoreDemoView serves non-sensitive store details while demo is on, and useDemoAwareStoreInfo falls back to it on Dashboard and Groups.
+- Integration role is refused on shift boards, Today, Dashboard and every read except buildShareableExport; INTEGRATION_REFUSED_ROUTES plus useMayOpenOpenRoute in App.tsx enforce the routes.
+- Today's Opening Questions alert cards must use useRealAccessGrant, not the demo-aware useAccessState role, to match backend ownership checks.
+- Iter.filter().map() returns an Iter in Motoko; call .toArray() before .sort() when the function returns [T] (M0096 otherwise).
+- Opening Questions length limits: answer 4,000; comment, reply and suggestion 2,000; notes 1,000, enforced in the backend and shown on each field.

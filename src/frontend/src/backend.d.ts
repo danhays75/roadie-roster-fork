@@ -449,6 +449,7 @@ export interface ManagerScoreRow {
     ownedCount: bigint;
     approvedCount: bigint;
     role: Role;
+    nudgedToday: boolean;
 }
 export interface MyAccessView {
     demoRole?: DemoRole;
@@ -602,6 +603,11 @@ export interface ProgressSummary {
     openSuggestions: bigint;
     sections: Array<SectionProgress>;
 }
+export interface QuestionDiscussion {
+    suggestions: Array<Suggestion>;
+    questionId: QuestionId;
+    comments: Array<Comment>;
+}
 export interface QuestionFilter {
     area?: QuestionArea;
     search?: string;
@@ -629,6 +635,8 @@ export interface QuestionView {
     openSuggestionCount: bigint;
     readyForFinal: boolean;
     isFinal: boolean;
+    replyCount: bigint;
+    commentCount: bigint;
     finalizedByName?: string;
 }
 export interface Result {
@@ -826,6 +834,14 @@ export interface StaffProfile {
     funFact?: string;
     hobbies?: string;
     favoriteColor?: string;
+}
+export interface StoreDemoView {
+    storeNumber: string;
+    appName: string;
+    openingDate: DateOnly;
+    locationName: string;
+    positions: Array<Position>;
+    timeZone: TimeZone;
 }
 export interface StoreInfo {
     amShiftEnd: TimeOfDay;
@@ -1375,6 +1391,11 @@ export interface backendInterface {
      */
     getOpeningQuestionAlerts(): Promise<AlertSummary>;
     /**
+     * / One question's discussion (suggestions and comments), loaded when its card
+     * / is opened.
+     */
+    getOpeningQuestionDiscussion(id: QuestionId): Promise<QuestionDiscussion>;
+    /**
      * / Read the daily-email setting (Admin only).
      */
     getOpeningQuestionEmailSettings(): Promise<EmailSettings>;
@@ -1389,8 +1410,8 @@ export interface backendInterface {
     getOpeningQuestionHistory(id: QuestionId): Promise<Array<QuestionHistoryEntry>>;
     /**
      * / The Managers scoreboard: one row per current question owner, sorted by
-     * / most questions still needing approval first. Managing Partner and Admins
-     * / only; every other role is refused.
+     * / most questions still needing approval first, each carrying `nudgedToday`.
+     * / Managing Partner and Admins only; every other role is refused.
      */
     getOpeningQuestionManagerScoreboard(): Promise<Array<ManagerScoreRow>>;
     /**
@@ -1438,6 +1459,12 @@ export interface backendInterface {
      * / Returns null when the submission has no photo.
      */
     getSignupPhoto(id: SignupId): Promise<PhotoRef | null>;
+    /**
+     * / Read the non-sensitive store details a demo viewer needs while demo mode
+     * / is on: store name, opening date and positions. Refused when demo mode is
+     * / off; every other store setting stays on the real role.
+     */
+    getStoreDemoView(): Promise<StoreDemoView>;
     /**
      * / Read the store configuration.
      */
@@ -1520,7 +1547,9 @@ export interface backendInterface {
      */
     listLeaders(): Promise<Array<LeaderSummary>>;
     /**
-     * / List questions for a tab, applying the combined filters.
+     * / List questions for a tab, applying the combined filters. Each view carries
+     * / comment and reply counts only; load the discussion with
+     * / `getOpeningQuestionDiscussion` when a card is opened.
      */
     listOpeningQuestions(tab: QuestionTab, filter: QuestionFilter): Promise<Array<QuestionView>>;
     /**
@@ -1660,6 +1689,7 @@ export interface backendInterface {
      * / Register the caller for approval. Any signed-in caller may call this once;
      * / it is idempotent and returns true when the caller is already registered or
      * / already pending. The first caller approved by an Admin becomes an Admin.
+     * / The anonymous (signed-out) identity is refused.
      */
     requestAccess(): Promise<boolean>;
     /**

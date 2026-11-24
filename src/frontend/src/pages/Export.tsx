@@ -1,23 +1,22 @@
 import type { ExportData } from "@/backend";
-import { Role } from "@/backend";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { Button } from "@/components/ui/button";
-import { useAccessState } from "@/hooks/useAccess";
+import { canDownloadFullExport, useAccessState } from "@/hooks/useAccess";
 import { useI18n } from "@/hooks/useI18n";
 import { useFullExport, useShareableExport } from "@/hooks/useQueries";
 import { type ExportVariant, downloadExport } from "@/lib/export";
 import { Download, FileSpreadsheet, Lock } from "lucide-react";
 import { useState } from "react";
 
-/** Roles allowed to download the Full export with contact details. */
-const FULL_EXPORT_ROLES: Role[] = [Role.admin, Role.storeManager];
-
+/**
+ * Whether the caller may download the Full export with contact details. Admin
+ * and Store Manager only; the Integration role reaches this page for the
+ * Shareable export alone, so the Full card stays locked for it.
+ */
 function useCanDownloadFull(): boolean {
   const access = useAccessState();
-  return (
-    access.kind === "granted" && FULL_EXPORT_ROLES.includes(access.grant.role)
-  );
+  return access.kind === "granted" && canDownloadFullExport(access.grant.role);
 }
 
 function ExportCard({
@@ -179,7 +178,7 @@ export default function ExportPage() {
   const shareable = useShareableExport();
   const full = useFullExport();
 
-  const hasAnyData = !!shareable.data || !!full.data;
+  const hasAnyData = !!shareable.data || (canFull && !!full.data);
   const settled = !shareable.isLoading && !full.isPending;
 
   return (

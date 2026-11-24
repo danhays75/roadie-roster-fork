@@ -1,8 +1,10 @@
-import { QuestionArea, Role } from "@/backend";
+import { QuestionArea, Role, createActor } from "@/backend";
+import type { StoreDemoView, StoreInfo } from "@/backend";
 import { demoRoleToRole } from "@/hooks/useDemo";
-import { useDemoState, useMyAccess } from "@/hooks/useQueries";
+import { useDemoState, useMyAccess, useStoreInfo } from "@/hooks/useQueries";
 import type { AccessGrant, AccessState, MyAccessView, NavItem } from "@/types";
-import { useInternetIdentity } from "@caffeineai/core-infrastructure";
+import { useActor, useInternetIdentity } from "@caffeineai/core-infrastructure";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 /**
@@ -30,13 +32,21 @@ export const KIOSK_ROLES: Role[] = [
   Role.storeManager,
 ];
 
-/** Roles allowed to see the export surface. */
+/**
+ * Roles allowed to see the export surface. The Integration role may open it
+ * too, but only the Shareable export: the Full export stays locked to Admin and
+ * Store Manager, which is what FULL_EXPORT_ROLES gates.
+ */
 export const EXPORT_ROLES: Role[] = [
   ...ADMIN_ROLES,
   Role.storeManager,
   Role.trainingManager,
   Role.leadership,
+  Role.integration,
 ];
+
+/** Roles allowed to download the Full export with contact details. */
+export const FULL_EXPORT_ROLES: Role[] = [...ADMIN_ROLES, Role.storeManager];
 
 /** Roles allowed to edit a roadie's details or change their position. */
 export const EDIT_ROADIE_ROLES: Role[] = [...ADMIN_ROLES, Role.storeManager];
@@ -350,8 +360,21 @@ export function useRealAccessGrant(): AccessGrant | null {
   return useMemo(() => normalizeAccessView(data).grant, [data]);
 }
 
+/**
+ * Routes the Integration role is refused even though their nav entries carry
+ * no role list: it has no roster read access, so Today and the Dashboard would
+ * only trap on the backend.
+ */
+export const INTEGRATION_REFUSED_ROUTES: string[] = ["/today", "/dashboard"];
+
 /** Whether the given role may see a nav item. */
 export function canSeeNavItem(item: NavItem, role: Role | undefined): boolean {
+  if (
+    role === Role.integration &&
+    INTEGRATION_REFUSED_ROUTES.includes(item.to)
+  ) {
+    return false;
+  }
   if (item.allowedRoles.length === 0) return true;
   if (!role) return false;
   return item.allowedRoles.includes(role);
@@ -375,6 +398,11 @@ export function canApprove(role: Role | undefined): boolean {
 /** Whether the given role may open the export surface. */
 export function canExport(role: Role | undefined): boolean {
   return !!role && EXPORT_ROLES.includes(role);
+}
+
+/** Whether the given role may download the Full export with contact details. */
+export function canDownloadFullExport(role: Role | undefined): boolean {
+  return !!role && FULL_EXPORT_ROLES.includes(role);
 }
 
 /** Whether the given role may edit a roadie's details or position. */
@@ -497,4 +525,77 @@ export function isTodayReadOnly(role: Role | undefined): boolean {
 /** Whether the given role is routed to the manager Today view. */
 export function canSeeManagerToday(role: Role | undefined): boolean {
   return !!role && MANAGER_TODAY_ROLES.includes(role);
+}
+
+/**
+ * The non-sensitive store details a demo viewer may read while demo mode is on,
+ * read through the backend's `getStoreDemoView`. Refused when demo mode is off,
+ * so the query stays disabled unless demo mode is on.
+ */
+function useStoreDemoView(enabled: boolean) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery({
+    queryKey: ["storeDemoView"],
+    queryFn: async (): Promise<StoreDemoView | null> => {
+      if (!actor) return null;
+      return actor.getStoreDemoView();
+    },
+    enabled: enabled && !!actor && !isFetching,
+  });
+}
+
+/**
+ * Map the demo store view onto the full `StoreInfo` shape. The demo view only
+ * carries the non-sensitive fields (name, number, location, opening date, time
+ * zone and positions); every other setting falls back to a neutral default so
+ * the demo screens can render without exposing real store settings.
+ */
+function demoViewToStoreInfo(view: StoreDemoView): StoreInfo {
+  return {
+    amShiftEnd: 0n,
+    pmShiftStart: 0n,
+    storeNumber: view.storeNumber,
+    leaderTalkName: "",
+    appName: view.appName,
+    leaderTalkSize: 0n,
+    amShiftStart: 0n,
+    openingDate: view.openingDate,
+    pmShiftEnd: 0n,
+    trainingGroupSize: 4n,
+    address: "",
+    locationName: view.locationName,
+    timeZone: view.timeZone,
+    storePhone: "",
+  };
+}
+
+/**
+ * The store details a screen needs, demo-aware. A caller with a real grant
+ * reads the full `getStoreInfo`; a demo-only viewer (no real grant) is refused
+ * there, so while demo mode is on the hook falls back to the non-sensitive
+ * `getStoreDemoView` and maps it onto the `StoreInfo` shape. This lets a demo
+ * viewer still see the store name and the details the demo screens need without
+ * exposing the real store settings.
+ */
+export function useDemoAwareStoreInfo() {
+  const real = useStoreInfo();
+  const { data: demoData } = useDemoState();
+  const demoEnabled = demoData?.enabled ?? false;
+  // Read the demo view whenever demo mode is on and the real read has not
+  // produced data yet, so a demo-only viewer (whose real read is refused) sees
+  // the store details without waiting for the real read's retries to exhaust.
+  const demoView = useStoreDemoView(demoEnabled && !real.data);
+
+  const data = useMemo<StoreInfo | null>(() => {
+    if (real.data) return real.data;
+    if (demoView.data) return demoViewToStoreInfo(demoView.data);
+    return null;
+  }, [real.data, demoView.data]);
+
+  return {
+    data,
+    isLoading: !data && (real.isLoading || demoView.isLoading),
+    isError: real.isError && !demoView.data,
+    refetch: real.refetch,
+  };
 }

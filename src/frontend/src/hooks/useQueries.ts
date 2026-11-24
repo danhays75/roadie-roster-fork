@@ -34,6 +34,7 @@ import {
   type PositionId,
   type PretendDate,
   type ProgressSummary,
+  type QuestionDiscussion,
   type QuestionFilter,
   type QuestionHistoryEntry,
   type QuestionId,
@@ -1966,6 +1967,7 @@ const OPENING_QUESTION_KEYS = [
   "openingQuestionScoreboard",
   "openingQuestionFinishBy",
   "openingQuestionNudges",
+  "openingQuestionDiscussion",
   "today",
   "changeLog",
 ] as const;
@@ -2067,6 +2069,26 @@ export function useOpeningQuestionHistory(
     queryFn: async (): Promise<QuestionHistoryEntry[]> => {
       if (!actor || id === undefined) return [];
       return actor.getOpeningQuestionHistory(id);
+    },
+    enabled: enabled && id !== undefined && !!actor && !isFetching,
+  });
+}
+
+/**
+ * One question's discussion (suggestions and comments), loaded only while its
+ * card is open. The list carries counts instead of every comment and reply, so
+ * this read is what fills the discussion block.
+ */
+export function useOpeningQuestionDiscussion(
+  id: QuestionId | undefined,
+  enabled = true,
+) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery({
+    queryKey: ["openingQuestionDiscussion", id?.toString()],
+    queryFn: async (): Promise<QuestionDiscussion | null> => {
+      if (!actor || id === undefined) return null;
+      return actor.getOpeningQuestionDiscussion(id);
     },
     enabled: enabled && id !== undefined && !!actor && !isFetching,
   });

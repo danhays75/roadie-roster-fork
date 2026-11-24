@@ -401,6 +401,7 @@ export interface ManagerScoreRow {
   'ownedCount' : bigint,
   'approvedCount' : bigint,
   'role' : Role,
+  'nudgedToday' : boolean,
 }
 export interface MyAccessView {
   'demoRole' : [] | [DemoRole],
@@ -561,6 +562,11 @@ export type QuestionChangeKind = { 'reopened' : null } |
   { 'approvalWithdrawn' : null } |
   { 'suggestionAccepted' : null } |
   { 'suggestionDeclined' : null };
+export interface QuestionDiscussion {
+  'suggestions' : Array<Suggestion>,
+  'questionId' : QuestionId,
+  'comments' : Array<Comment>,
+}
 export interface QuestionFilter {
   'area' : [] | [QuestionArea],
   'search' : [] | [string],
@@ -594,6 +600,8 @@ export interface QuestionView {
   'openSuggestionCount' : bigint,
   'readyForFinal' : boolean,
   'isFinal' : boolean,
+  'replyCount' : bigint,
+  'commentCount' : bigint,
   'finalizedByName' : [] | [string],
 }
 export interface Result { 'hasMore' : boolean, 'rows' : Array<Array<Cell>> }
@@ -796,6 +804,14 @@ export interface StaffProfile {
   'funFact' : [] | [string],
   'hobbies' : [] | [string],
   'favoriteColor' : [] | [string],
+}
+export interface StoreDemoView {
+  'storeNumber' : string,
+  'appName' : string,
+  'openingDate' : DateOnly,
+  'locationName' : string,
+  'positions' : Array<Position>,
+  'timeZone' : TimeZone,
 }
 export interface StoreInfo {
   'amShiftEnd' : TimeOfDay,
@@ -1249,6 +1265,14 @@ export interface _SERVICE {
    */
   'getOpeningQuestionAlerts' : ActorMethod<[], AlertSummary>,
   /**
+   * / One question's discussion (suggestions and comments), loaded when its card
+   * / is opened.
+   */
+  'getOpeningQuestionDiscussion' : ActorMethod<
+    [QuestionId],
+    QuestionDiscussion
+  >,
+  /**
    * / Read the daily-email setting (Admin only).
    */
   'getOpeningQuestionEmailSettings' : ActorMethod<[], EmailSettings>,
@@ -1266,8 +1290,8 @@ export interface _SERVICE {
   >,
   /**
    * / The Managers scoreboard: one row per current question owner, sorted by
-   * / most questions still needing approval first. Managing Partner and Admins
-   * / only; every other role is refused.
+   * / most questions still needing approval first, each carrying `nudgedToday`.
+   * / Managing Partner and Admins only; every other role is refused.
    */
   'getOpeningQuestionManagerScoreboard' : ActorMethod<
     [],
@@ -1324,6 +1348,12 @@ export interface _SERVICE {
    * / Returns null when the submission has no photo.
    */
   'getSignupPhoto' : ActorMethod<[SignupId], [] | [PhotoRef]>,
+  /**
+   * / Read the non-sensitive store details a demo viewer needs while demo mode
+   * / is on: store name, opening date and positions. Refused when demo mode is
+   * / off; every other store setting stays on the real role.
+   */
+  'getStoreDemoView' : ActorMethod<[], StoreDemoView>,
   /**
    * / Read the store configuration.
    */
@@ -1406,7 +1436,9 @@ export interface _SERVICE {
    */
   'listLeaders' : ActorMethod<[], Array<LeaderSummary>>,
   /**
-   * / List questions for a tab, applying the combined filters.
+   * / List questions for a tab, applying the combined filters. Each view carries
+   * / comment and reply counts only; load the discussion with
+   * / `getOpeningQuestionDiscussion` when a card is opened.
    */
   'listOpeningQuestions' : ActorMethod<
     [QuestionTab, QuestionFilter],
@@ -1561,6 +1593,7 @@ export interface _SERVICE {
    * / Register the caller for approval. Any signed-in caller may call this once;
    * / it is idempotent and returns true when the caller is already registered or
    * / already pending. The first caller approved by an Admin becomes an Admin.
+   * / The anonymous (signed-out) identity is refused.
    */
   'requestAccess' : ActorMethod<[], boolean>,
   /**

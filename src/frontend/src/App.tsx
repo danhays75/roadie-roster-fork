@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  INTEGRATION_REFUSED_ROUTES,
   canAdmin,
   canApprove,
   canExport,
@@ -259,6 +260,38 @@ function useRole(): Role | undefined {
   return access.kind === "granted" ? access.grant.role : undefined;
 }
 
+/**
+ * Whether the caller may open a route that carries no role list. The
+ * Integration role has no roster read access, so Today and the Dashboard are
+ * refused to it even though every other role may open them.
+ */
+function useMayOpenOpenRoute(path: string): boolean {
+  const role = useRole();
+  return !(
+    role === Role.integration && INTEGRATION_REFUSED_ROUTES.includes(path)
+  );
+}
+
+/** The Today page, blocked for roles that cannot read the roster. */
+function GuardedToday() {
+  const allowed = useMayOpenOpenRoute("/today");
+  return (
+    <RouteGuard allowed={allowed}>
+      <TodayPage />
+    </RouteGuard>
+  );
+}
+
+/** The Dashboard page, blocked for roles that cannot read the roster. */
+function GuardedDashboard() {
+  const allowed = useMayOpenOpenRoute("/dashboard");
+  return (
+    <RouteGuard allowed={allowed}>
+      <DashboardPage />
+    </RouteGuard>
+  );
+}
+
 /** The Admin page, blocked for roles that cannot use it. */
 function GuardedAdmin() {
   const role = useRole();
@@ -362,19 +395,19 @@ function GuardedUniforms() {
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: TodayPage,
+  component: GuardedToday,
 });
 
 const todayRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/today",
-  component: TodayPage,
+  component: GuardedToday,
 });
 
 const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dashboard",
-  component: DashboardPage,
+  component: GuardedDashboard,
 });
 
 const rosterRoute = createRoute({

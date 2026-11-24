@@ -29,6 +29,7 @@ import {
   canSeeManagerToday,
   isTodayReadOnly,
   useAccessState,
+  useRealAccessGrant,
 } from "@/hooks/useAccess";
 import {
   useDismissGroupChangeNotice,
@@ -492,16 +493,19 @@ function MyGroupSection({ group }: { group: MyGroupView }) {
  * to the Opening Qs page. Renders nothing while the counts load, on error, or
  * when nothing is waiting, so the rest of Today is unchanged.
  */
-function OpeningQuestionsAlertCard({ role }: { role: Role | undefined }) {
+function OpeningQuestionsAlertCard() {
   const { t } = useDashboardCopy();
-  const mayRead = canOpeningQuestions(role);
+  // Opening Questions ownership and approval checks use the person's real role,
+  // so the card matches what the backend allows even while demo mode is on.
+  const realRole = useRealAccessGrant()?.role;
+  const mayRead = canOpeningQuestions(realRole);
   const { data } = useOpeningQuestionAlerts(mayRead);
 
   if (!mayRead || !data) return null;
 
   const needsApproval = Number(data.needsMyApproval);
   const newActivity = Number(data.newSuggestionsOrReplies);
-  const decisionsDue = role === Role.admin ? Number(data.decisionsDue) : 0;
+  const decisionsDue = realRole === Role.admin ? Number(data.decisionsDue) : 0;
   const total = needsApproval + newActivity + decisionsDue;
 
   if (total === 0) return null;
@@ -651,9 +655,12 @@ function NudgeAlertCard() {
  * the count loads, on error, or when nothing is waiting, so the rest of Today
  * is unchanged.
  */
-function ReadyForFinalAlertCard({ role }: { role: Role | undefined }) {
+function ReadyForFinalAlertCard() {
   const { t } = useDashboardCopy();
-  const mayFinalize = canFinalizeOpeningQuestions(role);
+  // Only the real Managing Partner may mark final, so the check uses the real
+  // role rather than the demo role.
+  const realRole = useRealAccessGrant()?.role;
+  const mayFinalize = canFinalizeOpeningQuestions(realRole);
   const { data } = useOpeningQuestionAlerts(mayFinalize);
 
   if (!mayFinalize || !data) return null;
@@ -710,13 +717,7 @@ function ReadyForFinalAlertCard({ role }: { role: Role | undefined }) {
  * mounted for roles that may read the shift boards, so the group and notice
  * reads never run for a role the backend would reject.
  */
-function TrainerToday({
-  mayCheckIn,
-  role,
-}: {
-  mayCheckIn: boolean;
-  role: Role | undefined;
-}) {
+function TrainerToday({ mayCheckIn }: { mayCheckIn: boolean }) {
   const { t } = useDashboardCopy();
   const { data: group, isLoading, isError, refetch } = useMyGroup();
   const { data: notices } = useGroupChangeNotices();
@@ -724,8 +725,8 @@ function TrainerToday({
 
   return (
     <>
-      <OpeningQuestionsAlertCard role={role} />
-      <ReadyForFinalAlertCard role={role} />
+      <OpeningQuestionsAlertCard />
+      <ReadyForFinalAlertCard />
 
       {(notices ?? []).map((notice) => (
         <GroupChangeNoticeCard key={notice.id.toString()} notice={notice} />
@@ -947,9 +948,9 @@ function ManagerToday({ role }: { role: Role | undefined }) {
 
   return (
     <>
-      <OpeningQuestionsAlertCard role={role} />
+      <OpeningQuestionsAlertCard />
       <NudgeAlertCard />
-      <ReadyForFinalAlertCard role={role} />
+      <ReadyForFinalAlertCard />
 
       <MyCrewSection />
 
@@ -1007,15 +1008,15 @@ function ManagerToday({ role }: { role: Role | undefined }) {
  * attendance summary per shift with present, late and absent counts, plus the
  * next upcoming event when no shift is scheduled today.
  */
-function ReadOnlyToday({ role }: { role: Role | undefined }) {
+function ReadOnlyToday() {
   const { t } = useDashboardCopy();
   const { data: today, isLoading, isError, refetch } = useToday();
   const summaries = today?.shiftSummaries ?? [];
 
   return (
     <>
-      <OpeningQuestionsAlertCard role={role} />
-      <ReadyForFinalAlertCard role={role} />
+      <OpeningQuestionsAlertCard />
+      <ReadyForFinalAlertCard />
 
       <section className="space-y-4" data-ocid="today.shifts.section">
         <h2 className="font-display text-xl font-bold uppercase tracking-wide text-foreground">
@@ -1091,11 +1092,11 @@ export default function TodayPage() {
       <PracticeRunCard />
 
       {isTrainer ? (
-        <TrainerToday mayCheckIn={mayCheckIn} role={role} />
+        <TrainerToday mayCheckIn={mayCheckIn} />
       ) : maySeeManager ? (
         <ManagerToday role={role} />
       ) : readOnly ? (
-        <ReadOnlyToday role={role} />
+        <ReadOnlyToday />
       ) : (
         <section
           data-ocid="today.placeholder"

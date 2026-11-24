@@ -82,6 +82,20 @@ module {
     };
   };
 
+  /// Refuse the reserved demo marker as a work email. The marker is reserved for
+  /// system-created demo leaders, so a user may never save it as their own work
+  /// email.
+  func rejectDemoWorkEmail(profile : Access.StaffProfile) : () {
+    switch (profile.workEmail) {
+      case (?email) {
+        if (email.trim(#predicate(func(c : Char) : Bool { c.isWhitespace() })).toUpper() == "DEMO") {
+          Runtime.trap("DEMO is reserved and cannot be used as a work email");
+        };
+      };
+      case null {};
+    };
+  };
+
   /// Store the signed-in caller's staff profile on their pending request. The
   /// caller must already have a pending request (created by `requestAccess`).
   /// Calling it again replaces the stored profile. A caller who already holds an
@@ -91,6 +105,7 @@ module {
     caller : Principal,
     profile : Access.StaffProfile,
   ) : () {
+    rejectDemoWorkEmail(profile);
     let pending = pendingUsers.get(caller)
       ?? Runtime.trap("No pending request for this principal");
     pendingUsers.add(caller, { pending with staffProfile = ?profile });
@@ -98,12 +113,14 @@ module {
 
   /// Update the signed-in caller's own staff profile on their access grant.
   /// Existing users who were approved before profiles existed can fill theirs in
-  /// here without losing their access. Traps when the caller has no grant.
+  /// here without losing their access. Traps when the caller has no grant, and
+  /// refuses the reserved demo marker as a work email.
   public func updateMyStaffProfile(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     caller : Principal,
     profile : Access.StaffProfile,
   ) : () {
+    rejectDemoWorkEmail(profile);
     let grant = accessGrants.get(caller)
       ?? Runtime.trap("Access grant not found");
     accessGrants.add(caller, { grant with staffProfile = ?profile });

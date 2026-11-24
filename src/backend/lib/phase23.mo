@@ -46,7 +46,10 @@ module {
     positions : Map.Map<Common.PositionId, Store.Position>,
     caller : Principal,
   ) : Phase23.DashboardView {
-    ignore Auth.requireReadable(accessGrants, demoState, caller);
+    let dashRole = Auth.requireReadable(accessGrants, demoState, caller);
+    if (dashRole == #integration) {
+      Runtime.trap("Access denied: Integration role may only read the Shareable export");
+    };
     let active = roadies.values().filter(func r = r.isDemo == Auth.demoActive(demoState) and r.status != #archived).toArray();
     let hired = active.size();
     let activeCount = active.filter(func r = r.rosterState == #active).size();
@@ -862,7 +865,10 @@ module {
     eventId : Common.EventId,
     shift : Common.Shift,
   ) : ?Phase23.ShiftBoardView {
-    ignore Auth.requireReadable(accessGrants, demoState, caller);
+    let boardRole = Auth.requireReadable(accessGrants, demoState, caller);
+    if (boardRole == #integration) {
+      Runtime.trap("Access denied: Integration role may only read the Shareable export");
+    };
     let demo = Auth.demoActive(demoState);
     switch (shiftBoards.get(boardKey(eventId, shift, demo))) {
       case (?board) {
@@ -905,7 +911,10 @@ module {
     schedule : Map.Map<Common.EventId, Store.ScheduleEvent>,
     caller : Principal,
   ) : [Phase23.ShiftBoardView] {
-    ignore Auth.requireReadable(accessGrants, demoState, caller);
+    let boardsRole = Auth.requireReadable(accessGrants, demoState, caller);
+    if (boardsRole == #integration) {
+      Runtime.trap("Access denied: Integration role may only read the Shareable export");
+    };
     let demo = Auth.demoActive(demoState);
     let boards = shiftBoards.values()
       .filter(func b = b.isDemo == demo)
@@ -2206,7 +2215,10 @@ module {
     eventId : Common.EventId,
     shift : Common.Shift,
   ) : ?Phase23.CheckInBoardView {
-    ignore Auth.requireReadable(accessGrants, demoState, caller);
+    let checkInRole = Auth.requireReadable(accessGrants, demoState, caller);
+    if (checkInRole == #integration) {
+      Runtime.trap("Access denied: Integration role may only read the Shareable export");
+    };
     let demo = Auth.demoActive(demoState);
     let board = switch (shiftBoards.get(boardKey(eventId, shift, demo))) {
       case (?b) { b };
@@ -2463,6 +2475,9 @@ module {
     caller : Principal,
   ) : Phase23.TodayView {
     let role = Auth.requireReadable(accessGrants, demoState, caller);
+    if (role == #integration) {
+      Runtime.trap("Access denied: Integration role may only read the Shareable export");
+    };
     let demo = Auth.demoActive(demoState);
     let now = Clock.effectiveNow(demoState, storeInfo);
     let isTrainer = role == #trainer;

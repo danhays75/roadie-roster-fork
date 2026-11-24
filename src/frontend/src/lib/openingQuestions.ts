@@ -1,5 +1,6 @@
-import { QuestionArea, QuestionTab } from "@/backend";
+import { QuestionArea, QuestionTab, type Role } from "@/backend";
 import type { FinishByView, QuestionFilter, QuestionView } from "@/backend";
+import { ownsOpeningQuestionArea } from "@/hooks/useAccess";
 import { formatDateOnly } from "@/lib/format";
 
 /**
@@ -148,25 +149,57 @@ export function finishByBannerText(
 }
 
 /**
- * The next question still needing the caller's approval, in imported order.
- * `questions` is the caller's own pending list (already filtered to questions
- * they own and have not approved); `afterId` is the question just approved, so
- * the Next button advances past it. Returns null when nothing remains, which
- * the page renders as "All caught up".
+ * The next question still needing the caller's approval, in the same order the
+ * page shows them: section order first, then question order. `questions` is the
+ * caller's own pending list (already filtered to questions they own and have
+ * not approved); `afterId` is the question just approved, so the Next button
+ * advances past it. Returns null when nothing remains, which the page renders
+ * as "All caught up".
  */
 export function nextPendingQuestion(
   questions: QuestionView[],
   afterId?: bigint,
 ): QuestionView | null {
-  const ordered = [...questions].sort((a, b) =>
-    a.question.order < b.question.order
-      ? -1
-      : a.question.order > b.question.order
-        ? 1
-        : 0,
-  );
+  const ordered = [...questions].sort(compareQuestionOrder);
   if (afterId === undefined) return ordered[0] ?? null;
   const afterIndex = ordered.findIndex((q) => q.question.id === afterId);
   if (afterIndex === -1) return ordered[0] ?? null;
   return ordered[afterIndex + 1] ?? null;
 }
+
+/** The page's display order: section order, then question order. */
+export function compareQuestionOrder(a: QuestionView, b: QuestionView): number {
+  const sectionA = a.question.sectionOrder;
+  const sectionB = b.question.sectionOrder;
+  if (sectionA !== sectionB) return sectionA < sectionB ? -1 : 1;
+  const orderA = a.question.order;
+  const orderB = b.question.order;
+  if (orderA !== orderB) return orderA < orderB ? -1 : 1;
+  return 0;
+}
+
+/**
+ * Whether a question is still waiting on the given owner's approval: not Final,
+ * owned by that person's role by area, listed among the question's owners, and
+ * missing from that owner's own entry in the question's approvals list. The
+ * viewer's own approval never enters this check.
+ */
+export function isWaitingOnOwner(
+  view: QuestionView,
+  owner: { principal: { toText(): string }; role: Role },
+): boolean {
+  if (view.isFinal) return false;
+  if (!ownsOpeningQuestionArea(owner.role, view.question.area)) return false;
+  const key = owner.principal.toText();
+  if (!view.owners.some((o) => o.principal.toText() === key)) return false;
+  return !view.question.approvals.some((a) => a.principal.toText() === key);
+}
+
+/** The character caps the Opening Questions fields enforce. */
+export const OQ_LIMITS = {
+  answer: 4000,
+  comment: 2000,
+  reply: 2000,
+  suggestion: 2000,
+  note: 1000,
+} as const;

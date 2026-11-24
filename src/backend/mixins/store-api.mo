@@ -28,6 +28,13 @@ mixin (
     StoreLib.getStoreInfo(accessGrants, demoState, storeInfo, caller);
   };
 
+  /// Read the non-sensitive store details a demo viewer needs while demo mode
+  /// is on: store name, opening date and positions. Refused when demo mode is
+  /// off; every other store setting stays on the real role.
+  public query ({ caller }) func getStoreDemoView() : async Store.StoreDemoView {
+    StoreLib.getStoreDemoView(demoState, storeInfo, positions, caller);
+  };
+
   /// Read both store logos (main and secondary). Any caller, including Kiosk
   /// and unregistered users.
   public query func getStoreLogo() : async Store.StoreLogos {

@@ -227,6 +227,15 @@ type StoreInfo =
    timeZone: TimeZone;
    trainingGroupSize: nat;
  };
+type StoreDemoView = 
+ record {
+   appName: text;
+   locationName: text;
+   openingDate: DateOnly;
+   positions: vec Position;
+   storeNumber: text;
+   timeZone: TimeZone;
+ };
 type StaffProfile = 
  record {
    arrivalDate: opt DateOnly;
@@ -477,6 +486,7 @@ type Result =
  };
 type QuestionView = 
  record {
+   commentCount: nat;
    decisionDue: bool;
    finalizedByAdmin: bool;
    finalizedByName: opt text;
@@ -489,6 +499,7 @@ type QuestionView =
    owners: vec OwnerView;
    question: OpeningQuestion;
    readyForFinal: bool;
+   replyCount: nat;
  };
 type QuestionTab = 
  variant {
@@ -515,6 +526,12 @@ type QuestionFilter =
    area: opt QuestionArea;
    search: opt text;
    sectionTitle: opt text;
+ };
+type QuestionDiscussion = 
+ record {
+   comments: vec Comment;
+   questionId: QuestionId;
+   suggestions: vec Suggestion;
  };
 type QuestionChangeKind = 
  variant {
@@ -715,6 +732,7 @@ type ManagerScoreRow =
  record {
    approvedCount: nat;
    displayName: text;
+   nudgedToday: bool;
    ownedCount: nat;
    pendingCount: nat;
    "principal": principal;
@@ -1354,6 +1372,10 @@ service : {
   getMyPendingRequest: () -> (opt PendingRequestSummary) query;
   /// The caller's Opening Questions alerts and counts.
   getOpeningQuestionAlerts: () -> (AlertSummary) query;
+  /// One question's discussion (suggestions and comments), loaded when its card
+  /// is opened.
+  getOpeningQuestionDiscussion: (id: QuestionId) ->
+   (QuestionDiscussion) query;
   /// Read the daily-email setting (Admin only).
   getOpeningQuestionEmailSettings: () -> (EmailSettings) query;
   /// Read the Finish-by date with the computed days left or days overdue.
@@ -1363,8 +1385,8 @@ service : {
   getOpeningQuestionHistory: (id: QuestionId) ->
    (vec QuestionHistoryEntry) query;
   /// The Managers scoreboard: one row per current question owner, sorted by
-  /// most questions still needing approval first. Managing Partner and Admins
-  /// only; every other role is refused.
+  /// most questions still needing approval first, each carrying `nudgedToday`.
+  /// Managing Partner and Admins only; every other role is refused.
   getOpeningQuestionManagerScoreboard: () -> (vec ManagerScoreRow) query;
   /// The progress summary: answered and final counts plus per-section progress.
   getOpeningQuestionsProgress: () -> (ProgressSummary) query;
@@ -1394,6 +1416,10 @@ service : {
   /// Read a pending submission's photo bytes by id (Admin/Store Manager only).
   /// Returns null when the submission has no photo.
   getSignupPhoto: (id: SignupId) -> (opt PhotoRef) query;
+  /// Read the non-sensitive store details a demo viewer needs while demo mode
+  /// is on: store name, opening date and positions. Refused when demo mode is
+  /// off; every other store setting stays on the real role.
+  getStoreDemoView: () -> (StoreDemoView) query;
   /// Read the store configuration.
   getStoreInfo: () -> (StoreInfo) query;
   /// Read both store logos (main and secondary). Any caller, including Kiosk
@@ -1439,7 +1465,9 @@ service : {
   /// leadership roles. Readable by every role except Kiosk and Integration.
   /// Never carries phone or email.
   listLeaders: () -> (vec LeaderSummary) query;
-  /// List questions for a tab, applying the combined filters.
+  /// List questions for a tab, applying the combined filters. Each view carries
+  /// comment and reply counts only; load the discussion with
+  /// `getOpeningQuestionDiscussion` when a card is opened.
   listOpeningQuestions: (tab: QuestionTab, filter: QuestionFilter) ->
    (vec QuestionView) query;
   /// List the orientation sessions available for assignment, ordered by start
@@ -1527,6 +1555,7 @@ service : {
   /// Register the caller for approval. Any signed-in caller may call this once;
   /// it is idempotent and returns true when the caller is already registered or
   /// already pending. The first caller approved by an Admin becomes an Admin.
+  /// The anonymous (signed-out) identity is refused.
   requestAccess: () -> (bool);
   /// Re-sign a roadie's availability (Admin/Store Manager only).
   resignAvailability: (id: RoadieId, signature: SignatureRef) -> ();

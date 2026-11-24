@@ -551,14 +551,17 @@ function PaperworkChecklist({ roadie }: { roadie: Roadie }) {
   );
 
   const toggle = (index: number, next: boolean) => {
+    const item = applicable[index];
+    if (!item) return;
     const ids = new Set(checked);
     if (next) {
-      ids.add(applicable[index].id.toString());
+      ids.add(item.id.toString());
     } else {
       // Unchecking an item also clears every item below it, so the list can
       // never hold a checked item after an unchecked one.
       for (let i = index; i < applicable.length; i += 1) {
-        ids.delete(applicable[i].id.toString());
+        const below = applicable[i];
+        if (below) ids.delete(below.id.toString());
       }
     }
     save.mutate({ roadieId: id, paperworkItems: [...ids] });

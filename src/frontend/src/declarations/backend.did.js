@@ -499,6 +499,35 @@ export const AlertSummary = IDL.Record({
   'readyForFinal' : IDL.Nat,
   'needsMyApproval' : IDL.Nat,
 });
+export const SuggestionState = IDL.Variant({
+  'open' : IDL.Null,
+  'accepted' : IDL.Null,
+  'declined' : IDL.Null,
+});
+export const Suggestion = IDL.Record({
+  'id' : SuggestionId,
+  'discussionEndsAt' : Timestamp,
+  'note' : IDL.Text,
+  'createdAt' : Timestamp,
+  'author' : IDL.Principal,
+  'state' : SuggestionState,
+  'proposedAnswer' : IDL.Text,
+  'decidedAt' : IDL.Opt(Timestamp),
+  'decidedBy' : IDL.Opt(IDL.Principal),
+});
+export const CommentId = IDL.Nat;
+export const Comment = IDL.Record({
+  'id' : CommentId,
+  'suggestionId' : IDL.Opt(SuggestionId),
+  'createdAt' : Timestamp,
+  'text' : IDL.Text,
+  'author' : IDL.Principal,
+});
+export const QuestionDiscussion = IDL.Record({
+  'suggestions' : IDL.Vec(Suggestion),
+  'questionId' : QuestionId,
+  'comments' : IDL.Vec(Comment),
+});
 export const EmailSettings = IDL.Record({ 'enabled' : IDL.Bool });
 export const FinishByView = IDL.Record({
   'daysOverdue' : IDL.Nat,
@@ -530,6 +559,7 @@ export const ManagerScoreRow = IDL.Record({
   'ownedCount' : IDL.Nat,
   'approvedCount' : IDL.Nat,
   'role' : Role,
+  'nudgedToday' : IDL.Bool,
 });
 export const SectionProgress = IDL.Record({
   'final' : IDL.Nat,
@@ -684,8 +714,16 @@ export const SignupSubmission = IDL.Record({
   'photo' : IDL.Opt(PhotoRef),
   'profile' : RoadieProfile,
 });
-export const TimeOfDay = IDL.Nat;
 export const TimeZone = IDL.Text;
+export const StoreDemoView = IDL.Record({
+  'storeNumber' : IDL.Text,
+  'appName' : IDL.Text,
+  'openingDate' : DateOnly,
+  'locationName' : IDL.Text,
+  'positions' : IDL.Vec(Position),
+  'timeZone' : TimeZone,
+});
+export const TimeOfDay = IDL.Nat;
 export const StoreInfo = IDL.Record({
   'amShiftEnd' : TimeOfDay,
   'pmShiftStart' : TimeOfDay,
@@ -932,30 +970,6 @@ export const OwnerView = IDL.Record({
   'principal' : IDL.Principal,
   'displayName' : IDL.Text,
 });
-export const SuggestionState = IDL.Variant({
-  'open' : IDL.Null,
-  'accepted' : IDL.Null,
-  'declined' : IDL.Null,
-});
-export const Suggestion = IDL.Record({
-  'id' : SuggestionId,
-  'discussionEndsAt' : Timestamp,
-  'note' : IDL.Text,
-  'createdAt' : Timestamp,
-  'author' : IDL.Principal,
-  'state' : SuggestionState,
-  'proposedAnswer' : IDL.Text,
-  'decidedAt' : IDL.Opt(Timestamp),
-  'decidedBy' : IDL.Opt(IDL.Principal),
-});
-export const CommentId = IDL.Nat;
-export const Comment = IDL.Record({
-  'id' : CommentId,
-  'suggestionId' : IDL.Opt(SuggestionId),
-  'createdAt' : Timestamp,
-  'text' : IDL.Text,
-  'author' : IDL.Principal,
-});
 export const Approval = IDL.Record({
   'at' : Timestamp,
   'principal' : IDL.Principal,
@@ -990,6 +1004,8 @@ export const QuestionView = IDL.Record({
   'openSuggestionCount' : IDL.Nat,
   'readyForFinal' : IDL.Bool,
   'isFinal' : IDL.Bool,
+  'replyCount' : IDL.Nat,
+  'commentCount' : IDL.Nat,
   'finalizedByName' : IDL.Opt(IDL.Text),
 });
 export const OrientationSessionOption = IDL.Record({
@@ -1162,6 +1178,11 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getOpeningQuestionAlerts' : IDL.Func([], [AlertSummary], ['query']),
+  'getOpeningQuestionDiscussion' : IDL.Func(
+      [QuestionId],
+      [QuestionDiscussion],
+      ['query'],
+    ),
   'getOpeningQuestionEmailSettings' : IDL.Func([], [EmailSettings], ['query']),
   'getOpeningQuestionFinishBy' : IDL.Func([], [FinishByView], ['query']),
   'getOpeningQuestionHistory' : IDL.Func(
@@ -1196,6 +1217,7 @@ export const idlService = IDL.Service({
     ),
   'getSignup' : IDL.Func([SignupId], [IDL.Opt(SignupSubmission)], ['query']),
   'getSignupPhoto' : IDL.Func([SignupId], [IDL.Opt(PhotoRef)], ['query']),
+  'getStoreDemoView' : IDL.Func([], [StoreDemoView], ['query']),
   'getStoreInfo' : IDL.Func([], [StoreInfo], ['query']),
   'getStoreLogo' : IDL.Func([], [StoreLogos], ['query']),
   'getToday' : IDL.Func([], [TodayView], ['query']),
@@ -1845,6 +1867,35 @@ export const idlFactory = ({ IDL }) => {
     'readyForFinal' : IDL.Nat,
     'needsMyApproval' : IDL.Nat,
   });
+  const SuggestionState = IDL.Variant({
+    'open' : IDL.Null,
+    'accepted' : IDL.Null,
+    'declined' : IDL.Null,
+  });
+  const Suggestion = IDL.Record({
+    'id' : SuggestionId,
+    'discussionEndsAt' : Timestamp,
+    'note' : IDL.Text,
+    'createdAt' : Timestamp,
+    'author' : IDL.Principal,
+    'state' : SuggestionState,
+    'proposedAnswer' : IDL.Text,
+    'decidedAt' : IDL.Opt(Timestamp),
+    'decidedBy' : IDL.Opt(IDL.Principal),
+  });
+  const CommentId = IDL.Nat;
+  const Comment = IDL.Record({
+    'id' : CommentId,
+    'suggestionId' : IDL.Opt(SuggestionId),
+    'createdAt' : Timestamp,
+    'text' : IDL.Text,
+    'author' : IDL.Principal,
+  });
+  const QuestionDiscussion = IDL.Record({
+    'suggestions' : IDL.Vec(Suggestion),
+    'questionId' : QuestionId,
+    'comments' : IDL.Vec(Comment),
+  });
   const EmailSettings = IDL.Record({ 'enabled' : IDL.Bool });
   const FinishByView = IDL.Record({
     'daysOverdue' : IDL.Nat,
@@ -1876,6 +1927,7 @@ export const idlFactory = ({ IDL }) => {
     'ownedCount' : IDL.Nat,
     'approvedCount' : IDL.Nat,
     'role' : Role,
+    'nudgedToday' : IDL.Bool,
   });
   const SectionProgress = IDL.Record({
     'final' : IDL.Nat,
@@ -2030,8 +2082,16 @@ export const idlFactory = ({ IDL }) => {
     'photo' : IDL.Opt(PhotoRef),
     'profile' : RoadieProfile,
   });
-  const TimeOfDay = IDL.Nat;
   const TimeZone = IDL.Text;
+  const StoreDemoView = IDL.Record({
+    'storeNumber' : IDL.Text,
+    'appName' : IDL.Text,
+    'openingDate' : DateOnly,
+    'locationName' : IDL.Text,
+    'positions' : IDL.Vec(Position),
+    'timeZone' : TimeZone,
+  });
+  const TimeOfDay = IDL.Nat;
   const StoreInfo = IDL.Record({
     'amShiftEnd' : TimeOfDay,
     'pmShiftStart' : TimeOfDay,
@@ -2275,30 +2335,6 @@ export const idlFactory = ({ IDL }) => {
     'principal' : IDL.Principal,
     'displayName' : IDL.Text,
   });
-  const SuggestionState = IDL.Variant({
-    'open' : IDL.Null,
-    'accepted' : IDL.Null,
-    'declined' : IDL.Null,
-  });
-  const Suggestion = IDL.Record({
-    'id' : SuggestionId,
-    'discussionEndsAt' : Timestamp,
-    'note' : IDL.Text,
-    'createdAt' : Timestamp,
-    'author' : IDL.Principal,
-    'state' : SuggestionState,
-    'proposedAnswer' : IDL.Text,
-    'decidedAt' : IDL.Opt(Timestamp),
-    'decidedBy' : IDL.Opt(IDL.Principal),
-  });
-  const CommentId = IDL.Nat;
-  const Comment = IDL.Record({
-    'id' : CommentId,
-    'suggestionId' : IDL.Opt(SuggestionId),
-    'createdAt' : Timestamp,
-    'text' : IDL.Text,
-    'author' : IDL.Principal,
-  });
   const Approval = IDL.Record({
     'at' : Timestamp,
     'principal' : IDL.Principal,
@@ -2333,6 +2369,8 @@ export const idlFactory = ({ IDL }) => {
     'openSuggestionCount' : IDL.Nat,
     'readyForFinal' : IDL.Bool,
     'isFinal' : IDL.Bool,
+    'replyCount' : IDL.Nat,
+    'commentCount' : IDL.Nat,
     'finalizedByName' : IDL.Opt(IDL.Text),
   });
   const OrientationSessionOption = IDL.Record({
@@ -2513,6 +2551,11 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getOpeningQuestionAlerts' : IDL.Func([], [AlertSummary], ['query']),
+    'getOpeningQuestionDiscussion' : IDL.Func(
+        [QuestionId],
+        [QuestionDiscussion],
+        ['query'],
+      ),
     'getOpeningQuestionEmailSettings' : IDL.Func(
         [],
         [EmailSettings],
@@ -2551,6 +2594,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getSignup' : IDL.Func([SignupId], [IDL.Opt(SignupSubmission)], ['query']),
     'getSignupPhoto' : IDL.Func([SignupId], [IDL.Opt(PhotoRef)], ['query']),
+    'getStoreDemoView' : IDL.Func([], [StoreDemoView], ['query']),
     'getStoreInfo' : IDL.Func([], [StoreInfo], ['query']),
     'getStoreLogo' : IDL.Func([], [StoreLogos], ['query']),
     'getToday' : IDL.Func([], [TodayView], ['query']),

@@ -9,13 +9,15 @@ import Export "../types/export";
 import Access "../types/access";
 import Auth "auth";
 import ChangeLog "changelog";
+import Runtime "mo:core/Runtime";
 
 module {
   public type Counters = {
     var nextChangeLogId : Nat;
   };
 
-  /// Build the Shareable export (no contact set); available to Integration and above.
+  /// Build the Shareable export (no contact set). This is the only read the
+  /// Integration role may perform; every other read role may also build it.
   public func buildShareableExport(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -24,7 +26,10 @@ module {
     checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
     caller : Principal,
   ) : Export.ExportData {
-    ignore Auth.requireReadable(accessGrants, demoState, caller);
+    let role = Auth.requireRegistered(accessGrants, demoState, caller);
+    if (role == #kiosk) {
+      Runtime.trap("Access denied: Kiosk logins may only submit a sign-up");
+    };
     build(roadies, positions, checkoffs, false, Auth.demoActive(demoState));
   };
 

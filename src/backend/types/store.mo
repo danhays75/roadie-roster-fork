@@ -28,6 +28,18 @@ module {
     secondaryLogo : ?Common.PhotoRef;
   };
 
+  /// The non-sensitive store details a demo viewer may read while demo mode is
+  /// on: the store name, opening date and positions. Every other store setting
+  /// stays on the real role.
+  public type StoreDemoView = {
+    appName : Text;
+    storeNumber : Text;
+    locationName : Text;
+    openingDate : Common.DateOnly;
+    timeZone : Common.TimeZone;
+    positions : [Position];
+  };
+
   /// A position (station) with its build-to targets and requirements.
   public type Position = {
     id : Common.PositionId;

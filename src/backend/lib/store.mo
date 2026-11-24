@@ -24,6 +24,9 @@ module {
   /// Read the current store configuration. Readable by every real, non-expired
   /// role except Kiosk and Integration; the caller's real role is used, never a
   /// demo role, so demo mode can never raise anyone's access to real settings.
+  /// While demo mode is on, a signed-in caller with no real grant may still read
+  /// the non-sensitive demo subset (name, opening date, positions) through
+  /// `getStoreDemoView`; every other setting stays on the real role.
   public func getStoreInfo(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -40,6 +43,31 @@ module {
       Runtime.trap("Access denied: Integration role may only read the Shareable export");
     };
     storeInfo.value;
+  };
+
+  /// Read the non-sensitive store details a demo viewer needs while demo mode
+  /// is on: the store name, opening date and positions. Available to any
+  /// signed-in caller while demo mode is on; refused when demo mode is off.
+  public func getStoreDemoView(
+    demoState : Common.DemoState,
+    storeInfo : { var value : Store.StoreInfo },
+    positions : Map.Map<Common.PositionId, Store.Position>,
+    caller : Principal,
+  ) : Store.StoreDemoView {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Sign in to view the store");
+    };
+    if (not Auth.demoActive(demoState)) {
+      Runtime.trap("Demo mode is off");
+    };
+    {
+      appName = storeInfo.value.appName;
+      storeNumber = storeInfo.value.storeNumber;
+      locationName = storeInfo.value.locationName;
+      openingDate = storeInfo.value.openingDate;
+      timeZone = storeInfo.value.timeZone;
+      positions = positions.values().toArray();
+    };
   };
 
   /// Read both store logos (main and secondary). Callable by any caller,
