@@ -156,10 +156,11 @@ module {
     crews.values().find(func c = c.isDemo == demo and c.leaderPrincipal == ?acting);
   };
 
-  /// Internal: the number of non-cancelled events at which a roadie has 2 or
-  /// more can't-go answers or attended-no marks. A roadie is at risk when this
-  /// is non-zero.
-  func atRiskEventCount(
+  /// The number of non-cancelled events at which a roadie's answer is can't go
+  /// OR their attendance is no, counted once per event. A roadie is
+  /// "Orientation no-show risk" when this is 2 or more. Shared by the
+  /// crew-events domain and the My crew row so the two can never disagree.
+  public func atRiskEventCount(
     crewEvents : Map.Map<Common.CrewEventId, CrewEvents.CrewEvent>,
     eventInvites : Map.Map<Text, CrewEvents.EventInvite>,
     demo : Bool,
@@ -170,16 +171,41 @@ module {
       if (event.isDemo == demo and not event.cancelled) {
         switch (visibleInvite(eventInvites, demo, event.id, roadieId)) {
           case (?inv) {
-            var marks = 0;
-            if (inv.answer == #cantGo) { marks += 1 };
-            if (inv.attendance == #no) { marks += 1 };
-            if (marks >= atRiskThreshold) { count += 1 };
+            if (inv.answer == #cantGo or inv.attendance == #no) { count += 1 };
           };
           case null {};
         };
       };
     };
     count;
+  };
+
+  /// Internal: the active, non-archived roadies in any crew in the active
+  /// partition. Used for a viewer who leads no crew, so their event counts
+  /// cover every crewed roadie instead of showing zeros.
+  func allCrewedRoadies(
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    demo : Bool,
+  ) : [Roadie.Roadie] {
+    roadies.values()
+      .filter(func r = r.isDemo == demo and r.crewId != null and r.status != #archived)
+      .toArray();
+  };
+
+  /// Internal: the roadies whose answers an event's counts cover for the
+  /// viewer: their own crew when they lead one, otherwise every active,
+  /// non-archived roadie in any crew in the active partition.
+  func countMembers(
+    demoState : Common.DemoState,
+    crews : Map.Map<Common.CrewId, Roadie.Crew>,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    demo : Bool,
+    caller : Principal,
+  ) : [Roadie.Roadie] {
+    switch (viewerCrew(demoState, crews, caller)) {
+      case (?c) { crewRoadies(roadies, demo, c.id) };
+      case null { allCrewedRoadies(roadies, demo) };
+    };
   };
 
   /// Internal: whether a can't-go answer's follow-up note is still empty 48
@@ -302,10 +328,7 @@ module {
     ignore Auth.requireReadable(accessGrants, demoState, caller);
     let demo = Auth.demoActive(demoState);
     let now = Clock.effectiveNow(demoState, storeInfo);
-    let members = switch (viewerCrew(demoState, crews, caller)) {
-      case (?c) { crewRoadies(roadies, demo, c.id) };
-      case null { [] };
-    };
+    let members = countMembers(demoState, crews, roadies, demo, caller);
     let summaries = crewEvents.values()
       .filter(func e = e.isDemo == demo)
       .map(func(e) {
@@ -598,8 +621,8 @@ module {
     logWrite(changeLog, counters, demoState, caller, "markEventAttendance", ?roadieId, "Marked event attendance for " # event.name);
   };
 
-  /// List the at-risk roadies: those with 2 or more can't-go answers or
-  /// attended-no marks across non-cancelled events, flagged "Orientation
+  /// List the at-risk roadies: those with 2 or more non-cancelled events where
+  /// their answer is can't go or their attendance is no, flagged "Orientation
   /// no-show risk". Manager query for the Dashboard Needs attention row.
   public func listAtRiskRoadies(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
@@ -615,7 +638,7 @@ module {
       .filter(func r = r.isDemo == demo and r.status != #archived)
       .filterMap(func(r) {
         let count = atRiskEventCount(crewEvents, eventInvites, demo, r.id);
-        if (count == 0) {
+        if (count < atRiskThreshold) {
           null;
         } else {
           ?{
@@ -645,10 +668,7 @@ module {
     ignore Auth.requireReadable(accessGrants, demoState, caller);
     let demo = Auth.demoActive(demoState);
     let now = Clock.effectiveNow(demoState, storeInfo);
-    let members = switch (viewerCrew(demoState, crews, caller)) {
-      case (?c) { crewRoadies(roadies, demo, c.id) };
-      case null { [] };
-    };
+    let members = countMembers(demoState, crews, roadies, demo, caller);
     let upcoming = crewEvents.values()
       .filter(func e = e.isDemo == demo and not e.cancelled and e.start >= now)
       .toArray();

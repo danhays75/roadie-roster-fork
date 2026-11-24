@@ -51970,11 +51970,13 @@ function useDeleteLeaderTalk() {
 }
 /**
 * The query keys every crew event write invalidates: the events list, the event
-* crew list, My crew, Today and the Dashboard alerts, plus the change log.
+* crew list, the Today upcoming events card, My crew, Today and the Dashboard
+* alerts, plus the change log.
 */
 var CREW_EVENT_KEYS = [
 	"crewEvents",
 	"eventCrew",
+	"upcomingEvents",
 	"myCrew",
 	"today",
 	"dashboard",
@@ -104457,8 +104459,8 @@ var __vitePreload = function preload(baseModule, deps, importerUrl) {
 };
 //#endregion
 //#region src/pages/Dashboard.tsx
-var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-CyzNkgyC.js").then((m) => ({ default: m.KpiTiles })), []));
-var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-DcyYfHS0.js").then((m) => ({ default: m.OpeningTimelineView })), []));
+var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-C0YcjdiX.js").then((m) => ({ default: m.KpiTiles })), []));
+var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-COIYHyvd.js").then((m) => ({ default: m.OpeningTimelineView })), []));
 var KPI_SKELETON_TILES = [
 	"hired",
 	"needed",

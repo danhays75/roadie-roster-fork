@@ -121,6 +121,10 @@
 - Keep demo-mode partitioning on every new read and write
 - Builds on version 19 and keeps everything else exactly as it works today
 - Builds on version 20 and keeps everything else exactly as it works today
+- Builds on version 21 and keeps everything else exactly as it works today
+- Remove nothing; keep all migrations and stable variables
+- No new copy unless needed; if any, add it in both English and Spanish
+- Keep demo-mode partitioning on every read and write
 
 ## Accepted Requirements
 
@@ -480,6 +484,12 @@
 - LeaderTalkGroupDialog handleFill also skips roadies in assignedElsewhere and still only changes the dialog's selection
 - All new text in English and Spanish in lib/copy.ts with matching keys
 - Run the type check, build and existing tests and fix anything that fails, without changing unrelated screens, permissions or data
+- At-risk count is the number of non-cancelled events where the answer is can't go OR attendance is no, one per event
+- One shared at-risk helper used by both the crew-events domain and the My crew row
+- Orientation no-show risk at 2 or more, with the at-risk list, My crew flag and Dashboard row all using that rule
+- A crew leader sees only their own crew's event counts; every other viewer sees counts across all active, non-archived roadies in any crew in the current demo partition
+- upcomingEvents added to the query keys every crew event write invalidates
+- Run the type check, build and existing tests and fix anything that fails
 
 ## Verified Commands
 
@@ -489,11 +499,6 @@
 
 ## Learnings
 
-- hasReachedFinalSignOff in lib/schedule.ts compares dateToDateOnly(now) >= dateToDateOnly(event.start) so the sign-off day itself counts as arrived.
-- FinalSignOffForm in components/roadie is shared by the roadie card's Trainer notes tab and the Today My group tiles; SIGN_OFF_REASON_MAX_LENGTH is 1,000.
-- FlipCard takes an optional futureTrainer prop that renders the Future trainer chip; RoadieCardModal and RoadieCard pass it from useFinalSignOff.
-- Leader talks: listLeaderTalks and deleteLeaderTalk live in lib/phase23.mo and mixins/phase23-api.mo; requireLeaderTalkManager and requireLeaderTalkReader live in lib/auth.mo; group validation is one helper validateLeaderTalkGroup shared by createLeaderTalk and setLeaderTalkAttendance.
-- setLeaderTalkAttendance takes (id, name, attendees) and stores the new name, keeping a blank name as the existing one; the frontend forwards the dialog's name field through useSetLeaderTalkAttendance.
 - The leader talks page is src/frontend/src/pages/LeaderTalks.tsx with its group dialog in src/frontend/src/components/leader-talks/LeaderTalkGroupDialog.tsx; role helpers LEADER_TALKS_ROLES, LEADER_TALK_EDITOR_ROLES, canLeaderTalks and canEditLeaderTalks live in hooks/useAccess.ts.
 - Leader talk hooks use query key ['leaderTalks'] and invalidate it plus ['changeLog'] after create, attendance and delete.
 - The roadie card talk line lives in components/roadie/RoadieTile.tsx fed by useLeaderTalkLineMap with copy key roadie.card.leaderTalk in both dictionaries; the FlipCard pop-up design stays unchanged.
@@ -514,3 +519,8 @@
 - The Dashboard at-risk row gates on canArchive (Admin, Managing Partner, Store Manager), matching the backend manager check; canEvents would wrongly exclude Store Manager.
 - The Events page classifies past and upcoming by pretendDateToInstant(demoState.pretendDate, store) to match the backend effective date.
 - handleFill now skips both selected ids and assignedElsewhere ids; it still only calls setSelected and keeps the fill-none message path.
+- atRiskEventCount in lib/crewevents.mo is the single shared helper for the Orientation no-show risk count; lib/phase23.mo getMyCrew calls it through CrewEventsLib and keeps no duplicate.
+- The at-risk count adds one per non-cancelled event when the answer is can't go OR attendance is no, and listAtRiskRoadies returns only roadies at 2 or more.
+- listCrewEvents and listUpcomingEvents fall back to all active, non-archived roadies in any crew in the active partition when the viewer leads no crew; a crew leader still sees only their own crew.
+- upcomingEvents now sits in CREW_EVENT_KEYS in hooks/useQueries.ts, so all five crew-event mutations refresh the Today Upcoming events card.
+- api-doc.mo is one long source line; grep for distinctive phrases such as 'counted once per event' confirms doc text even when reads truncate at 2,000 chars.

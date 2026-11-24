@@ -2725,11 +2725,13 @@ export function useDeleteLeaderTalk() {
 
 /**
  * The query keys every crew event write invalidates: the events list, the event
- * crew list, My crew, Today and the Dashboard alerts, plus the change log.
+ * crew list, the Today upcoming events card, My crew, Today and the Dashboard
+ * alerts, plus the change log.
  */
 const CREW_EVENT_KEYS = [
   "crewEvents",
   "eventCrew",
+  "upcomingEvents",
   "myCrew",
   "today",
   "dashboard",
