@@ -111,6 +111,11 @@
 - Keep the stored TrainerNote type unchanged so no migration is needed
 - No change to who may read trainer notes
 - Approvals stays as it is
+- Builds on version 17 and keeps everything else exactly as it works today
+- The final trainer sign-off is the roadie's training sign-off and is separate from Opening Questions Final
+- No new stored variables if avoidable; if the FinalSignOff type must change, add the migration
+- Keep any copy key whose text wraps onto a second line
+- AGENTS.md Learnings: only add new lines, restore the 14 removed lines word for word, delete only the outdated usePendingSignups line
 
 ## Accepted Requirements
 
@@ -414,6 +419,18 @@
 - usePendingSignups gains an enabled parameter passed from Layout and Dashboard
 - The seven AGENTS.md Learnings lines are restored word for word
 - Frontend type-checks, backend builds, existing tests pass
+- Trainer, Training Manager, Kitchen Manager, Service Manager, Store Manager, Managing Partner and Admin may record a final sign-off, with a Trainer limited to their own stations
+- Only an active, non-archived roadie can be signed off; the other demo partition is Roadie not found
+- Needs more time requires a non-blank reason of at most 1,000 characters
+- Certified sets the roadie's status to Certified and Needs more time sets it to Needs more time, each sign-off replacing the last and logged
+- clearFinalSignOff for Admin, Managing Partner and Store Manager restores Active and is logged
+- getFinalSignOff returns the sign-off with the signer's display name, readable by every role that can read that roadie
+- Rehiring a roadie clears any sign-off
+- A Final sign-off section on the Trainer notes tab with the current sign-off, Sign off / Update sign-off form, Clear sign-off with confirm and a Future trainer chip
+- Today My group tiles get a Sign off button from the sign-off day on and show a Certified or Needs more time chip
+- The Dashboard Certified count and the Certified stage follow from the sign-off
+- Demo sign-offs stay demo sign-offs
+- The 14 version-16 AGENTS.md Learnings lines restored word for word and the outdated usePendingSignups line deleted
 
 ## Verified Commands
 
@@ -423,15 +440,6 @@
 
 ## Learnings
 
-- Orphan ui cluster: sidebar was the only importer of separator, sheet and tooltip, so those plus 30 more starter ui files were deletable; 12 ui files remain live.
-- Deleting a frontend hook can orphan its type imports; re-check SignupId, ShiftBoardView, RoadieId, QuestionFilter and translate after each removal.
-- OQL resolver imports (MapEntity, RecordValue, NatValue) in main.mo look unused but are required top-level for .toEntity/.payload derivation; keep them.
-- lib/copy.ts en and es blocks both hold 822 keys after the version 14 copy restore; verify parity by parsing the two literals, since CopyDictionary is Record<string, string> and typecheck cannot catch a missing key.
-- Kiosk copy lives in src/frontend/src/components/kiosk/copy.ts with its own en/es maps, not in lib/copy.ts, so kiosk t() keys resolve against that dictionary.
-- Version 13 copy text is recoverable from git commit 8df829b:src/frontend/src/lib/copy.ts (en literal lines 7-1090, es literal lines 1093-2190, values often wrapped onto the next line).
-- DashboardAlerts in src/frontend/src/pages/Dashboard.tsx is a Needs attention box: rows for new hires (usePendingSignups, SIGNUP_APPROVER_ROLES, /approvals), absent roadies (useAbsentAlerts, ABSENT_ALERT_ROLES, /today), paperwork (ARCHIVE_ROLES, /roster), Opening Questions (useRealAccessGrant role, hidden in demo, /opening-questions) and stored alerts with a Dismiss button; the box hides when every count is 0.
-- useAcknowledgeAlert in src/frontend/src/hooks/useQueries.ts calls actor.acknowledgeAlert and invalidates ['alerts'] so the Dashboard stored-alert rows refresh after Dismiss.
-- usePendingSignups has no enabled gate and is readable by every role, so the Dashboard can call it unconditionally like Approvals and Layout do.
 - Dashboard /opening-questions and /roster routes declare optional validateSearch, so Link needs no search prop.
 - This app gates every route behind Internet Identity, so a mock-backend visual pass only reaches the sign-in screen; Dashboard changes need an authenticated session to verify visually.
 - Integration role is refused on shift boards, Today, Dashboard and every read except buildShareableExport; INTEGRATION_REFUSED_ROUTES plus useMayOpenOpenRoute in App.tsx enforce the routes.
@@ -448,3 +456,12 @@
 - Biome lint/a11y/useSemanticElements rejects a div with role group; use fieldset and legend for a labelled button group.
 - Copy parity check: match keys only at line start so string values containing words like largo are not counted as keys.
 - Today My group check marks need a per-roadie notes query (useQueries over the group roadie ids) keyed trainerNotes plus the roadie id, matching the add and update mutation's invalidation key.
+- Final sign-off: recordFinalSignOff, clearFinalSignOff and getFinalSignOff live in lib/phase23.mo and mixins/phase23-api.mo; the stored FinalSignOff type and finalSignOffs map are unchanged, so no migration was needed.
+- FinalSignOffView adds signedByName for reads; SignOffOutcome is a __kind__ union, so narrow on outcome.__kind__ === 'needsMoreTime' to read the reason.
+- rehireRoadie in lib/roadie.mo clears the roadie's sign-off, so finalSignOffs is threaded through RoadieApi in main.mo.
+- Sign-off frontend: useFinalSignOff keyed ['finalSignOff', roadieId.toString()], useRecordFinalSignOff and useClearFinalSignOff invalidate it plus ['roadie', id], ['roadies'] and ['dashboard'].
+- FINAL_SIGN_OFF_ROLES in useAccess.ts covers admin, managingPartner, storeManager, trainingManager, kitchenManager, serviceManager and trainer; CLEAR_SIGN_OFF_ROLES covers admin, managingPartner and storeManager.
+- Today My group tiles must mount for every role that may sign off, not only the trainer view, or managers see no Sign off button.
+- hasReachedFinalSignOff in lib/schedule.ts compares dateToDateOnly(now) >= dateToDateOnly(event.start) so the sign-off day itself counts as arrived.
+- FinalSignOffForm in components/roadie is shared by the roadie card's Trainer notes tab and the Today My group tiles; SIGN_OFF_REASON_MAX_LENGTH is 1,000.
+- FlipCard takes an optional futureTrainer prop that renders the Future trainer chip; RoadieCardModal and RoadieCard pass it from useFinalSignOff.

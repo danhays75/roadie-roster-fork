@@ -22,6 +22,7 @@ mixin (
   shiftBoards : Map.Map<Text, Phase23.ShiftBoard>,
   groupChangeNotices : Map.Map<Nat, Phase23.GroupChangeNotice>,
   storeInfo : { var value : Store.StoreInfo },
+  finalSignOffs : Map.Map<Common.RoadieId, Phase23.FinalSignOff>,
 ) {
   /// List roadie cards visible to the caller.
   public query ({ caller }) func listRoadies() : async [Roadie.Roadie] {
@@ -65,9 +66,10 @@ mixin (
   };
 
   /// Rehire an archived roadie (Admin/Store Manager only). Returns the roadie
-  /// to pending and assigns the next upcoming orientation session.
+  /// to pending, assigns the next upcoming orientation session and clears any
+  /// final sign-off they had.
   public shared ({ caller }) func rehireRoadie(id : Common.RoadieId, reason : ?Text) : async () {
-    RoadieLib.rehireRoadie(accessGrants, demoState, roadies, schedule, storeInfo.value, changeLog, counters, caller, id, reason);
+    RoadieLib.rehireRoadie(accessGrants, demoState, roadies, finalSignOffs, schedule, storeInfo.value, changeLog, counters, caller, id, reason);
   };
 
   /// Read a roadie's contact set. Admin and Store Manager receive the contact

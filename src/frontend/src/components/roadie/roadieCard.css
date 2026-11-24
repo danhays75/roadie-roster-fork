@@ -370,6 +370,14 @@
   right: 2.2cqw;
   background: var(--gold);
 }
+.rc .tag.future {
+  top: auto;
+  bottom: 2.2cqw;
+  left: 2.2cqw;
+  background: var(--navy);
+  color: var(--cream);
+  border: .4cqw solid var(--gold);
+}
 .rc .b-top {
   display: flex;
   align-items: center;

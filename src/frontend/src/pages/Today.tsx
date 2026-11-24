@@ -1,4 +1,5 @@
 import type {
+  FinalSignOffView,
   GroupChangeNotice,
   MyCrewRoadieRow,
   MyGroupView,
@@ -16,6 +17,7 @@ import { AbsentAlertsList } from "@/components/alerts/AbsentAlertsList";
 import { CheckInBoard } from "@/components/checkin/CheckInBoard";
 import { useDashboardCopy } from "@/components/dashboard/copy";
 import { PracticeRunCard } from "@/components/demo/PracticeRunCard";
+import { FinalSignOffForm } from "@/components/roadie/FinalSignOffForm";
 import {
   type CardEntry,
   RoadieCardModal,
@@ -36,6 +38,7 @@ import {
   canManageCheckIns,
   canOpeningQuestions,
   canReadTrainerNotes,
+  canRecordFinalSignOff,
   canSeeManagerToday,
   isTodayReadOnly,
   useAccessState,
@@ -51,6 +54,7 @@ import {
   useMyOpeningQuestionNudges,
   useOpeningQuestionAlerts,
   useRoadies,
+  useSchedule,
   useStoreInfo,
   useToday,
 } from "@/hooks/useQueries";
@@ -60,10 +64,12 @@ import {
   pretendDateToInstant,
   refToDataUrl,
 } from "@/lib/format";
+import { hasReachedFinalSignOff } from "@/lib/schedule";
 import { useActor } from "@caffeineai/core-infrastructure";
 import { useQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
+  BadgeCheck,
   BellRing,
   CalendarClock,
   CheckCircle2,
@@ -172,7 +178,10 @@ function GroupChangeNoticeCard({ notice }: { notice: GroupChangeNotice }) {
 /**
  * One roadie in the trainer's group: photo and name, tappable to open the card.
  * A role that may add a note gets a small Add note button, and a check mark
- * appears once the caller has written today's note for this roadie.
+ * appears once the caller has written today's note for this roadie. From the
+ * final sign-off day on, a role that may sign off also gets a Sign off button
+ * (Update sign-off once a sign-off exists) and a Certified or Needs more time
+ * chip showing the current outcome.
  */
 function GroupRoadieCard({
   roadie,
@@ -181,6 +190,9 @@ function GroupRoadieCard({
   canAddNote,
   hasTodayNote,
   onAddNote,
+  canSignOff,
+  signOff,
+  onSignOff,
 }: {
   roadie: ShiftBoardRoadie;
   index: number;
@@ -188,8 +200,13 @@ function GroupRoadieCard({
   canAddNote: boolean;
   hasTodayNote: boolean;
   onAddNote: () => void;
+  canSignOff: boolean;
+  signOff: FinalSignOffView | null | undefined;
+  onSignOff: () => void;
 }) {
   const { t } = useDashboardCopy();
+  const showSignOff = canSignOff;
+  const hasFooter = canAddNote || showSignOff;
 
   return (
     <li data-ocid={`today.myGroup.item.${index}`} className="h-full">
@@ -224,31 +241,77 @@ function GroupRoadieCard({
             </span>
           </span>
         </button>
-        {canAddNote && (
-          <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2">
-            {hasTodayNote ? (
-              <span
-                data-ocid={`today.myGroup.item.${index}.note_done`}
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary"
-              >
-                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                <span className="sr-only">{t("today.myGroup.noteDone")}</span>
-              </span>
-            ) : (
-              <span aria-hidden="true" />
+        {hasFooter && (
+          <div className="flex flex-col gap-2 border-t border-border px-3 py-2">
+            {showSignOff && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {signOff ? (
+                  <span
+                    data-ocid={`today.myGroup.item.${index}.sign_off_chip`}
+                    className={
+                      signOff.outcome.__kind__ === "certified"
+                        ? "inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary"
+                        : "inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive"
+                    }
+                  >
+                    {signOff.outcome.__kind__ === "certified" ? (
+                      <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    {signOff.outcome.__kind__ === "certified"
+                      ? t("signOff.chip.certified")
+                      : t("signOff.chip.needsMoreTime")}
+                  </span>
+                ) : (
+                  <span aria-hidden="true" />
+                )}
+                <Button
+                  type="button"
+                  variant={signOff ? "outline" : "default"}
+                  size="sm"
+                  className="touch-target"
+                  aria-label={
+                    signOff ? t("signOff.tileUpdate") : t("signOff.tileButton")
+                  }
+                  data-ocid={`today.myGroup.item.${index}.sign_off_button`}
+                  onClick={onSignOff}
+                >
+                  {signOff ? t("signOff.tileUpdate") : t("signOff.tileButton")}
+                </Button>
+              </div>
             )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="touch-target"
-              aria-label={t("today.myGroup.addNoteFor", { name: roadie.name })}
-              data-ocid={`today.myGroup.item.${index}.add_note_button`}
-              onClick={onAddNote}
-            >
-              <NotebookPen className="mr-1.5 h-4 w-4" aria-hidden="true" />
-              {t("today.myGroup.addNote")}
-            </Button>
+            {canAddNote && (
+              <div className="flex items-center justify-between gap-2">
+                {hasTodayNote ? (
+                  <span
+                    data-ocid={`today.myGroup.item.${index}.note_done`}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary"
+                  >
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                    <span className="sr-only">
+                      {t("today.myGroup.noteDone")}
+                    </span>
+                  </span>
+                ) : (
+                  <span aria-hidden="true" />
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="touch-target"
+                  aria-label={t("today.myGroup.addNoteFor", {
+                    name: roadie.name,
+                  })}
+                  data-ocid={`today.myGroup.item.${index}.add_note_button`}
+                  onClick={onAddNote}
+                >
+                  <NotebookPen className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                  {t("today.myGroup.addNote")}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -471,12 +534,14 @@ function hasTodayNote(
 }
 
 /**
- * The trainer's own group for the current or next shift: the shift label, the
+ * The caller's own group for the current or next shift: the shift label, the
  * filled-of-capacity count, the roadies' photos and names, and a link to all
  * groups. Tapping a roadie opens the shared card pop-up. A role that may add a
  * note gets a small Add note button on each tile that opens the shared note
  * form for that roadie and today's shift, and a check mark once the caller has
- * written today's note for that roadie.
+ * written today's note for that roadie. A role that may record a final sign-off
+ * gets a Sign off button and the Certified or Needs more time chip from the
+ * sign-off day on.
  */
 function MyGroupSection({
   group,
@@ -490,12 +555,17 @@ function MyGroupSection({
   const { data: demo } = useDemoState();
   const { data: store } = useStoreInfo();
   const { data: access } = useMyAccess();
+  const { data: schedule } = useSchedule();
   const { actor, isFetching } = useActor(createActor);
   const [cardIndex, setCardIndex] = useState<number | null>(null);
   const [noteRoadie, setNoteRoadie] = useState<ShiftBoardRoadie | null>(null);
+  const [signOffRoadie, setSignOffRoadie] = useState<ShiftBoardRoadie | null>(
+    null,
+  );
 
   const canAddNote = canAddTrainerNote(role);
   const canReadNotes = canReadTrainerNotes(role);
+  const canSignOff = canRecordFinalSignOff(role);
   const principal = access?.grant?.principal.toText() ?? null;
 
   // Today's day in store time, or the demo pretend date when demo mode is on,
@@ -575,6 +645,54 @@ function MyGroupSection({
     return map;
   }, [groupRoadieIds, groupNotesQueries]);
 
+  // The sign-off window opens on the schedule's Final trainer sign-off day,
+  // compared against the demo pretend date when demo mode is on so the demo
+  // practice run can reach it.
+  const signOffOpen = useMemo(() => {
+    if (!schedule) return false;
+    const pretendDate = demo?.enabled ? demo.pretendDate : undefined;
+    const instant = pretendDate
+      ? pretendDateToInstant(pretendDate, {
+          timeZone: store?.timeZone,
+          amShiftStart: store?.amShiftStart,
+          pmShiftStart: store?.pmShiftStart,
+        })
+      : null;
+    return hasReachedFinalSignOff(schedule, instant ?? new Date());
+  }, [
+    schedule,
+    demo?.enabled,
+    demo?.pretendDate,
+    store?.amShiftStart,
+    store?.pmShiftStart,
+    store?.timeZone,
+  ]);
+
+  // Every group roadie's current sign-off, so each tile shows its own Certified
+  // or Needs more time chip. Only read for a role that may sign off, matching
+  // the button's visibility.
+  const showSignOff = canSignOff && signOffOpen;
+  const signOffQueries = useQueries({
+    queries: groupRoadieIds.map((roadieId) => ({
+      queryKey: ["finalSignOff", roadieId.toString()],
+      queryFn: async (): Promise<FinalSignOffView | null> => {
+        if (!actor || roadieId === undefined) return null;
+        return actor.getFinalSignOff(roadieId);
+      },
+      enabled: showSignOff && !!actor && !isFetching,
+    })),
+  });
+  const signOffByRoadie = useMemo(() => {
+    const map = new Map<string, FinalSignOffView | null>();
+    groupRoadieIds.forEach((roadieId, index) => {
+      const query = signOffQueries[index];
+      if (query?.data !== undefined) {
+        map.set(roadieId.toString(), query.data);
+      }
+    });
+    return map;
+  }, [groupRoadieIds, signOffQueries]);
+
   return (
     <section className="space-y-4" data-ocid="today.myGroup.section">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -620,6 +738,9 @@ function MyGroupSection({
                 principal,
               )}
               onAddNote={() => setNoteRoadie(roadie)}
+              canSignOff={showSignOff}
+              signOff={signOffByRoadie.get(roadie.roadieId.toString())}
+              onSignOff={() => setSignOffRoadie(roadie)}
               onOpen={() =>
                 setCardIndex(
                   entryIndexById.get(roadie.roadieId.toString()) ?? null,
@@ -662,6 +783,29 @@ function MyGroupSection({
               roadieId={noteRoadie.roadieId}
               onDone={() => setNoteRoadie(null)}
               onCancel={() => setNoteRoadie(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={signOffRoadie !== null}
+        onOpenChange={(next) => {
+          if (!next) setSignOffRoadie(null);
+        }}
+      >
+        <DialogContent data-ocid="today.myGroup.sign_off_dialog">
+          <DialogTitle>
+            {t("signOff.title")}
+            {signOffRoadie ? ` · ${signOffRoadie.name}` : ""}
+          </DialogTitle>
+          <DialogDescription>{t("signOff.subtitle")}</DialogDescription>
+          {signOffRoadie && (
+            <FinalSignOffForm
+              roadieId={signOffRoadie.roadieId}
+              signOff={signOffByRoadie.get(signOffRoadie.roadieId.toString())}
+              onDone={() => setSignOffRoadie(null)}
+              onCancel={() => setSignOffRoadie(null)}
             />
           )}
         </DialogContent>
@@ -893,6 +1037,19 @@ function ReadyForFinalAlertCard() {
       </div>
     </section>
   );
+}
+
+/**
+ * The caller's own group tiles for the current or next shift, read on their
+ * own so a manager who does not train a group still gets the tiles (and their
+ * Sign off buttons) when they lead one. Renders nothing while loading, on
+ * error, or when the caller leads no group on that shift, so it is safe to
+ * mount for any role that may read the shift boards.
+ */
+function MyGroupTiles({ role }: { role: Role | undefined }) {
+  const { data: group } = useMyGroup();
+  if (!group) return null;
+  return <MyGroupSection group={group} role={role} />;
 }
 
 /**
@@ -1223,6 +1380,8 @@ function ManagerToday({
       <ReadyForFinalAlertCard />
 
       <MyCrewSection />
+
+      {canRecordFinalSignOff(role) && <MyGroupTiles role={role} />}
 
       <AbsentAlertsList role={role} />
 

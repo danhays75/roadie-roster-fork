@@ -131,7 +131,7 @@ actor {
     counters,
     demoState,
   );
-  include RoadieApi(accessGrants, roadies, crews, positions, schedule, checklists, orientationCheckoffs, checkIns, changeLog, counters, demoState, shiftBoards, groupChangeNotices, storeInfo);
+  include RoadieApi(accessGrants, roadies, crews, positions, schedule, checklists, orientationCheckoffs, checkIns, changeLog, counters, demoState, shiftBoards, groupChangeNotices, storeInfo, finalSignOffs);
   include SignupApi(accessGrants, signups, roadies, positions, schedule, storeInfo, changeLog, counters, demoState);
   include AccessApi(accessGrants, pendingUsers, accessControlState, demoState, changeLog, counters);
   include Phase23Api(

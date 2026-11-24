@@ -15,7 +15,12 @@ import {
   useAccessState,
 } from "@/hooks/useAccess";
 import { useI18n } from "@/hooks/useI18n";
-import { useCrews, usePositions, useRoadie } from "@/hooks/useQueries";
+import {
+  useCrews,
+  useFinalSignOff,
+  usePositions,
+  useRoadie,
+} from "@/hooks/useQueries";
 import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Component, type ReactNode } from "react";
@@ -68,6 +73,7 @@ function RoadieCardContent() {
   const mayEdit = canEditRoadie(role);
   const mayArchive = canArchive(role);
   const canReadNotes = canReadTrainerNotes(role);
+  const { data: signOff } = useFinalSignOff(id, canReadNotes);
 
   const positionList = positions ?? [];
   const positionById = (positionId: bigint | undefined) =>
@@ -184,6 +190,7 @@ function RoadieCardContent() {
                     ? undefined
                     : crews?.find((crew) => crew.id === roadie.crewId)
                 }
+                futureTrainer={signOff?.futureTrainer ?? false}
               />
             </TabsContent>
 

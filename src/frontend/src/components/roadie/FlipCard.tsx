@@ -201,6 +201,7 @@ export function FlipCard({
   crossTrainedPosition,
   crew,
   trainerPositions,
+  futureTrainer,
 }: {
   roadie?: Roadie;
   leader?: LeaderSummary;
@@ -209,6 +210,8 @@ export function FlipCard({
   crossTrainedPosition?: Position;
   crew?: Crew;
   trainerPositions?: Position[];
+  /** Whether the roadie was signed off as a future trainer; shows a chip. */
+  futureTrainer?: boolean;
 }) {
   const { t } = useI18n();
   const [flipped, setFlipped] = useState(false);
@@ -395,6 +398,15 @@ export function FlipCard({
                 {isMinor && (
                   <span className="tag minor" data-ocid="roadie.minor_badge">
                     MINOR
+                  </span>
+                )}
+
+                {!isLeader && futureTrainer && (
+                  <span
+                    className="tag future"
+                    data-ocid="roadie.future_trainer_chip"
+                  >
+                    {t("signOff.chip.futureTrainer")}
                   </span>
                 )}
 

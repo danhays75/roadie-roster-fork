@@ -291,6 +291,15 @@ export interface FinalSignOff {
   'outcome' : SignOffOutcome,
   'futureTrainer' : boolean,
 }
+export interface FinalSignOffView {
+  'roadieId' : RoadieId,
+  'isDemo' : boolean,
+  'signedByName' : string,
+  'signedAt' : Timestamp,
+  'signedBy' : Principal,
+  'outcome' : SignOffOutcome,
+  'futureTrainer' : boolean,
+}
 export interface FinishByView {
   'daysOverdue' : bigint,
   'finishBy' : [] | [DateOnly],
@@ -1134,6 +1143,12 @@ export interface _SERVICE {
    */
   'clearDemoData' : ActorMethod<[], DemoDataSummary>,
   /**
+   * / Clear a roadie's final sign-off and put their status back to #active
+   * / (Admin, Managing Partner or Store Manager only). Refused while the
+   * / sign-off belongs to the other demo partition.
+   */
+  'clearFinalSignOff' : ActorMethod<[RoadieId], undefined>,
+  /**
    * / Clear all questions (Admin only, `confirm` must be "CLEAR").
    */
   'clearOpeningQuestions' : ActorMethod<[string], undefined>,
@@ -1243,6 +1258,12 @@ export interface _SERVICE {
    * / caller's own demo role.
    */
   'getDemoState' : ActorMethod<[], DemoStateView>,
+  /**
+   * / Read a roadie's final sign-off with the signer's display name, or null.
+   * / Readable by every role that can read that roadie (not Kiosk or Integration;
+   * / a Trainer only for their stations).
+   */
+  'getFinalSignOff' : ActorMethod<[RoadieId], [] | [FinalSignOffView]>,
   /**
    * / Build the Gift Bags shopping list and printable labels for the selected
    * / filter, across active (non-archived) roadies only. Visible to Admin, Store
@@ -1587,12 +1608,20 @@ export interface _SERVICE {
     undefined
   >,
   /**
-   * / Record a final sign-off for a roadie (Admin/Store Manager only).
+   * / Record a final sign-off for a roadie. Trainer (only roadies in their own
+   * / stations), Training Manager, Kitchen Manager, Service Manager, Store
+   * / Manager, Managing Partner and Admin may record. Only an active,
+   * / non-archived roadie can be signed off. A Needs more time outcome requires a
+   * / non-blank reason of at most 1,000 characters. Certified sets the roadie's
+   * / status to #certified; Needs more time sets it to #needsMoreTime. A later
+   * / sign-off replaces the earlier one. A sign-off recorded while demo mode is
+   * / on is a demo sign-off.
    */
   'recordFinalSignOff' : ActorMethod<[FinalSignOff], undefined>,
   /**
    * / Rehire an archived roadie (Admin/Store Manager only). Returns the roadie
-   * / to pending and assigns the next upcoming orientation session.
+   * / to pending, assigns the next upcoming orientation session and clears any
+   * / final sign-off they had.
    */
   'rehireRoadie' : ActorMethod<[RoadieId, [] | [string]], undefined>,
   /**

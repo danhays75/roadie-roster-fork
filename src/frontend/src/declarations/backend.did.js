@@ -380,6 +380,19 @@ export const DemoStateView = IDL.Record({
   'demoTrainerStations' : IDL.Vec(PositionId),
   'demoManagerAs' : IDL.Opt(IDL.Principal),
 });
+export const SignOffOutcome = IDL.Variant({
+  'certified' : IDL.Null,
+  'needsMoreTime' : IDL.Text,
+});
+export const FinalSignOffView = IDL.Record({
+  'roadieId' : RoadieId,
+  'isDemo' : IDL.Bool,
+  'signedByName' : IDL.Text,
+  'signedAt' : Timestamp,
+  'signedBy' : IDL.Principal,
+  'outcome' : SignOffOutcome,
+  'futureTrainer' : IDL.Bool,
+});
 export const GiftBagFilter = IDL.Variant({
   'all' : IDL.Null,
   'boh' : IDL.Null,
@@ -1062,10 +1075,6 @@ export const BatchFinalResult = IDL.Record({
   'markedCount' : IDL.Nat,
   'skippedCount' : IDL.Nat,
 });
-export const SignOffOutcome = IDL.Variant({
-  'certified' : IDL.Null,
-  'needsMoreTime' : IDL.Text,
-});
 export const FinalSignOff = IDL.Record({
   'roadieId' : RoadieId,
   'isDemo' : IDL.Bool,
@@ -1149,6 +1158,7 @@ export const idlService = IDL.Service({
     ),
   'checkKioskPin' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
   'clearDemoData' : IDL.Func([], [DemoDataSummary], []),
+  'clearFinalSignOff' : IDL.Func([RoadieId], [], []),
   'clearOpeningQuestions' : IDL.Func([IDL.Text], [], []),
   'clearShiftBoard' : IDL.Func([EventId, Shift], [], []),
   'copyShiftBoard' : IDL.Func([EventId, Shift, EventId, Shift], [], []),
@@ -1182,6 +1192,11 @@ export const idlService = IDL.Service({
   'getDashboard' : IDL.Func([], [DashboardView], ['query']),
   'getDemoDataSummary' : IDL.Func([], [DemoDataSummary], ['query']),
   'getDemoState' : IDL.Func([], [DemoStateView], ['query']),
+  'getFinalSignOff' : IDL.Func(
+      [RoadieId],
+      [IDL.Opt(FinalSignOffView)],
+      ['query'],
+    ),
   'getGiftBags' : IDL.Func([GiftBagFilter], [GiftBagsData], ['query']),
   'getMyAccess' : IDL.Func([], [MyAccessView], ['query']),
   'getMyCrew' : IDL.Func([], [IDL.Opt(MyCrewView)], ['query']),
@@ -1773,6 +1788,19 @@ export const idlFactory = ({ IDL }) => {
     'enabled' : IDL.Bool,
     'demoTrainerStations' : IDL.Vec(PositionId),
     'demoManagerAs' : IDL.Opt(IDL.Principal),
+  });
+  const SignOffOutcome = IDL.Variant({
+    'certified' : IDL.Null,
+    'needsMoreTime' : IDL.Text,
+  });
+  const FinalSignOffView = IDL.Record({
+    'roadieId' : RoadieId,
+    'isDemo' : IDL.Bool,
+    'signedByName' : IDL.Text,
+    'signedAt' : Timestamp,
+    'signedBy' : IDL.Principal,
+    'outcome' : SignOffOutcome,
+    'futureTrainer' : IDL.Bool,
   });
   const GiftBagFilter = IDL.Variant({
     'all' : IDL.Null,
@@ -2453,10 +2481,6 @@ export const idlFactory = ({ IDL }) => {
     'markedCount' : IDL.Nat,
     'skippedCount' : IDL.Nat,
   });
-  const SignOffOutcome = IDL.Variant({
-    'certified' : IDL.Null,
-    'needsMoreTime' : IDL.Text,
-  });
   const FinalSignOff = IDL.Record({
     'roadieId' : RoadieId,
     'isDemo' : IDL.Bool,
@@ -2540,6 +2564,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'checkKioskPin' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
     'clearDemoData' : IDL.Func([], [DemoDataSummary], []),
+    'clearFinalSignOff' : IDL.Func([RoadieId], [], []),
     'clearOpeningQuestions' : IDL.Func([IDL.Text], [], []),
     'clearShiftBoard' : IDL.Func([EventId, Shift], [], []),
     'copyShiftBoard' : IDL.Func([EventId, Shift, EventId, Shift], [], []),
@@ -2577,6 +2602,11 @@ export const idlFactory = ({ IDL }) => {
     'getDashboard' : IDL.Func([], [DashboardView], ['query']),
     'getDemoDataSummary' : IDL.Func([], [DemoDataSummary], ['query']),
     'getDemoState' : IDL.Func([], [DemoStateView], ['query']),
+    'getFinalSignOff' : IDL.Func(
+        [RoadieId],
+        [IDL.Opt(FinalSignOffView)],
+        ['query'],
+      ),
     'getGiftBags' : IDL.Func([GiftBagFilter], [GiftBagsData], ['query']),
     'getMyAccess' : IDL.Func([], [MyAccessView], ['query']),
     'getMyCrew' : IDL.Func([], [IDL.Opt(MyCrewView)], ['query']),

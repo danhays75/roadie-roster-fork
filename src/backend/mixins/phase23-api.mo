@@ -215,9 +215,30 @@ mixin (
     Phase23Lib.setLeaderTalkAttendance(accessGrants, demoState, leaderTalks, changeLog, counters, caller, id, attendees);
   };
 
-  /// Record a final sign-off for a roadie (Admin/Store Manager only).
+  /// Record a final sign-off for a roadie. Trainer (only roadies in their own
+  /// stations), Training Manager, Kitchen Manager, Service Manager, Store
+  /// Manager, Managing Partner and Admin may record. Only an active,
+  /// non-archived roadie can be signed off. A Needs more time outcome requires a
+  /// non-blank reason of at most 1,000 characters. Certified sets the roadie's
+  /// status to #certified; Needs more time sets it to #needsMoreTime. A later
+  /// sign-off replaces the earlier one. A sign-off recorded while demo mode is
+  /// on is a demo sign-off.
   public shared ({ caller }) func recordFinalSignOff(signOff : Phase23.FinalSignOff) : async () {
-    Phase23Lib.recordFinalSignOff(accessGrants, demoState, finalSignOffs, changeLog, counters, storeInfo.value, caller, signOff);
+    Phase23Lib.recordFinalSignOff(accessGrants, demoState, finalSignOffs, roadies, changeLog, counters, storeInfo.value, caller, signOff);
+  };
+
+  /// Clear a roadie's final sign-off and put their status back to #active
+  /// (Admin, Managing Partner or Store Manager only). Refused while the
+  /// sign-off belongs to the other demo partition.
+  public shared ({ caller }) func clearFinalSignOff(roadieId : Common.RoadieId) : async () {
+    Phase23Lib.clearFinalSignOff(accessGrants, demoState, finalSignOffs, roadies, changeLog, counters, caller, roadieId);
+  };
+
+  /// Read a roadie's final sign-off with the signer's display name, or null.
+  /// Readable by every role that can read that roadie (not Kiosk or Integration;
+  /// a Trainer only for their stations).
+  public query ({ caller }) func getFinalSignOff(roadieId : Common.RoadieId) : async ?Phase23.FinalSignOffView {
+    Phase23Lib.getFinalSignOff(accessGrants, demoState, finalSignOffs, roadies, caller, roadieId);
   };
 
   /// List alerts (Admin/Store Manager only).

@@ -8,7 +8,12 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useCrews, usePositions, useRoadiePhoto } from "@/hooks/useQueries";
+import {
+  useCrews,
+  useFinalSignOff,
+  usePositions,
+  useRoadiePhoto,
+} from "@/hooks/useQueries";
 import { staffDisplayName } from "@/lib/format";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, ExternalLink, X } from "lucide-react";
@@ -265,6 +270,8 @@ export function RoadieCardModal({
 
   const roadie = current?.roadie;
   const leader = current?.leader;
+  const { data: signOff } = useFinalSignOff(roadie?.id, open && !!roadie);
+  const futureTrainer = signOff?.futureTrainer ?? false;
   const title = roadie
     ? roadie.profile.preferredName || roadie.profile.name
     : leader
@@ -332,6 +339,7 @@ export function RoadieCardModal({
                   ? undefined
                   : crewById.get(roadie.crewId.toString())
               }
+              futureTrainer={futureTrainer}
             />
           )}
           {leader && <FlipCard leader={leader} />}

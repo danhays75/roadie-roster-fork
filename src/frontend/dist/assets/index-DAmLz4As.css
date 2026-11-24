@@ -484,6 +484,14 @@
   right: 2.2cqw;
   background: var(--gold);
 }
+.rc .tag.future {
+  top: auto;
+  bottom: 2.2cqw;
+  left: 2.2cqw;
+  background: var(--navy);
+  color: var(--cream);
+  border: .4cqw solid var(--gold);
+}
 .rc .b-top {
   display: flex;
   align-items: center;
@@ -1469,6 +1477,10 @@ video {
 .size-4 {
   width: 1rem;
   height: 1rem;
+}
+.size-5 {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 .size-9 {
   width: 2.25rem;

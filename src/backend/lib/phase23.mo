@@ -1981,31 +1981,153 @@ module {
     logWrite(changeLog, counters, demoState, caller, "setLeaderTalkAttendance", null, false, "Recorded leader talk attendance");
   };
 
-  /// Record a final sign-off for a roadie (Admin/Store Manager only). A
-  /// sign-off recorded while demo mode is on is a demo sign-off; a write to the
-  /// other partition is rejected.
+  /// Record a final sign-off for a roadie. Trainer (only roadies in their own
+  /// stations), Training Manager, Kitchen Manager, Service Manager, Store
+  /// Manager, Managing Partner and Admin may record. Only an active,
+  /// non-archived roadie can be signed off. A Needs more time outcome requires a
+  /// non-blank reason of at most 1,000 characters. Certified sets the roadie's
+  /// status to #certified; Needs more time sets it to #needsMoreTime. A later
+  /// sign-off replaces the earlier one. A sign-off recorded while demo mode is
+  /// on is a demo sign-off; a write to the other partition is rejected.
   public func recordFinalSignOff(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
     finalSignOffs : Map.Map<Common.RoadieId, Phase23.FinalSignOff>,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
     changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
     counters : Counters,
     storeInfo : Store.StoreInfo,
     caller : Principal,
     signOff : Phase23.FinalSignOff,
   ) : () {
-    Auth.requireManager(accessGrants, demoState, caller);
+    let role = Auth.requireReadable(accessGrants, demoState, caller);
+    let maySignOff = switch (role) {
+      case (#trainer) { true };
+      case (#trainingManager) { true };
+      case (#kitchenManager) { true };
+      case (#serviceManager) { true };
+      case (#storeManager) { true };
+      case (#managingPartner) { true };
+      case (#admin) { true };
+      case (_) { false };
+    };
+    if (not maySignOff) {
+      Runtime.trap("Access denied: Trainer, Training Manager, Kitchen Manager, Service Manager, Store Manager, Managing Partner or Admin role required");
+    };
+    let roadie = requireVisibleRoadie(roadies, demoState, signOff.roadieId);
+    if (roadie.status == #archived) {
+      Runtime.trap("Cannot sign off an archived roadie");
+    };
+    if (roadie.rosterState != #active) {
+      Runtime.trap("Only an active roadie can be signed off");
+    };
+    if (role == #trainer and not roadieVisibleToRole(roadie, role, accessGrants, demoState, caller)) {
+      Runtime.trap("Access denied: this roadie is not in your stations");
+    };
+    let outcome = switch (signOff.outcome) {
+      case (#certified) { #certified };
+      case (#needsMoreTime(reason)) {
+        let trimmed = reason.trim(#predicate(func(c : Char) : Bool { c.isWhitespace() }));
+        if (trimmed.size() == 0) {
+          Runtime.trap("A Needs more time sign-off needs a reason");
+        };
+        let limit = OpeningQuestionsLib.maxNoteLength;
+        if (reason.size() > limit) {
+          Runtime.trap("The reason is too long: the limit is " # limit.toText() # " characters");
+        };
+        #needsMoreTime(reason);
+      };
+    };
     let demo = Auth.demoActive(demoState);
-    switch (finalSignOffs.get(signOff.roadieId)) {
-      case (?existing) {
-        if (existing.isDemo != demo) {
-          Runtime.trap("Final sign-off not found");
+    finalSignOffs.add(signOff.roadieId, {
+      roadieId = signOff.roadieId;
+      outcome;
+      futureTrainer = signOff.futureTrainer;
+      signedBy = caller;
+      signedAt = Clock.effectiveNow(demoState, storeInfo);
+      isDemo = demo;
+    });
+    let newStatus : Roadie.RoadieStatus = switch (outcome) {
+      case (#certified) { #certified };
+      case (#needsMoreTime(_)) { #needsMoreTime };
+    };
+    roadies.add(signOff.roadieId, { roadie with status = newStatus });
+    let detail = switch (outcome) {
+      case (#certified) { "Recorded final sign-off: Certified" };
+      case (#needsMoreTime(_)) { "Recorded final sign-off: Needs more time" };
+    };
+    logWrite(changeLog, counters, demoState, caller, "recordFinalSignOff", ?signOff.roadieId, false, detail);
+  };
+
+  /// Clear a roadie's final sign-off and put their status back to #active
+  /// (Admin, Managing Partner or Store Manager only). Refused while the
+  /// sign-off belongs to the other demo partition. Logged in the change log.
+  public func clearFinalSignOff(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    finalSignOffs : Map.Map<Common.RoadieId, Phase23.FinalSignOff>,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
+    counters : Counters,
+    caller : Principal,
+    roadieId : Common.RoadieId,
+  ) : () {
+    let role = Auth.requireReadable(accessGrants, demoState, caller);
+    let mayClear = switch (role) {
+      case (#admin) { true };
+      case (#managingPartner) { true };
+      case (#storeManager) { true };
+      case (_) { false };
+    };
+    if (not mayClear) {
+      Runtime.trap("Access denied: Admin, Managing Partner or Store Manager role required");
+    };
+    let roadie = requireVisibleRoadie(roadies, demoState, roadieId);
+    let existing = finalSignOffs.get(roadieId) ?? Runtime.trap("Final sign-off not found");
+    if (existing.isDemo != Auth.demoActive(demoState)) {
+      Runtime.trap("Final sign-off not found");
+    };
+    finalSignOffs.remove(roadieId);
+    if (roadie.status != #archived) {
+      roadies.add(roadieId, { roadie with status = #active });
+    };
+    logWrite(changeLog, counters, demoState, caller, "clearFinalSignOff", ?roadieId, false, "Cleared final sign-off");
+  };
+
+  /// Read a roadie's final sign-off with the signer's display name, or null.
+  /// Readable by every role that can read that roadie (not Kiosk or Integration;
+  /// a Trainer only for their stations).
+  public func getFinalSignOff(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    finalSignOffs : Map.Map<Common.RoadieId, Phase23.FinalSignOff>,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    caller : Principal,
+    roadieId : Common.RoadieId,
+  ) : ?Phase23.FinalSignOffView {
+    let role = Auth.requireReadable(accessGrants, demoState, caller);
+    let roadie = requireVisibleRoadie(roadies, demoState, roadieId);
+    if (not roadieVisibleToRole(roadie, role, accessGrants, demoState, caller)) {
+      return null;
+    };
+    let demo = Auth.demoActive(demoState);
+    switch (finalSignOffs.get(roadieId)) {
+      case (?s) {
+        if (s.isDemo != demo) {
+          return null;
+        };
+        ?{
+          roadieId = s.roadieId;
+          outcome = s.outcome;
+          futureTrainer = s.futureTrainer;
+          signedBy = s.signedBy;
+          signedByName = principalName(accessGrants, s.signedBy);
+          signedAt = s.signedAt;
+          isDemo = s.isDemo;
         };
       };
-      case null {};
+      case null { null };
     };
-    finalSignOffs.add(signOff.roadieId, { signOff with signedBy = caller; signedAt = Clock.effectiveNow(demoState, storeInfo); isDemo = demo });
-    logWrite(changeLog, counters, demoState, caller, "recordFinalSignOff", ?signOff.roadieId, false, "Recorded final sign-off");
   };
 
   /// List alerts (Admin/Store Manager only).

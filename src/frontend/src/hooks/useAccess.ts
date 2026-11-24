@@ -260,6 +260,27 @@ export const TRAINER_NOTE_WRITE_ROLES: Role[] = [
 ];
 
 /**
+ * Roles allowed to record a final trainer sign-off: Trainer, Training Manager,
+ * Kitchen Manager, Service Manager, Store Manager, Managing Partner and Admin.
+ * A Trainer is limited to roadies in their own stations, which the backend
+ * enforces.
+ */
+export const FINAL_SIGN_OFF_ROLES: Role[] = [
+  ...ADMIN_ROLES,
+  Role.storeManager,
+  Role.trainingManager,
+  Role.kitchenManager,
+  Role.serviceManager,
+  Role.trainer,
+];
+
+/**
+ * Roles allowed to clear a final sign-off: Admin, Managing Partner and Store
+ * Manager. Every other sign-off role may record one but not clear it.
+ */
+export const CLEAR_SIGN_OFF_ROLES: Role[] = [...ADMIN_ROLES, Role.storeManager];
+
+/**
  * Roles that see the Today screen read-only: they may read the day's summary
  * but cannot record a check-in. Every role that can reach Today but is not a
  * check-in role is read-only.
@@ -646,6 +667,23 @@ export function canReadTrainerNotes(role: Role | undefined): boolean {
  */
 export function canAddTrainerNote(role: Role | undefined): boolean {
   return !!role && TRAINER_NOTE_WRITE_ROLES.includes(role);
+}
+
+/**
+ * Whether the given role may record a final trainer sign-off. Trainer, Training
+ * Manager, Kitchen Manager, Service Manager, Store Manager, Managing Partner
+ * and Admin may; a Trainer is limited to their own stations by the backend.
+ */
+export function canRecordFinalSignOff(role: Role | undefined): boolean {
+  return !!role && FINAL_SIGN_OFF_ROLES.includes(role);
+}
+
+/**
+ * Whether the given role may clear a final sign-off. Admin, Managing Partner
+ * and Store Manager may.
+ */
+export function canClearFinalSignOff(role: Role | undefined): boolean {
+  return !!role && CLEAR_SIGN_OFF_ROLES.includes(role);
 }
 
 /** Whether the given role sees the Today screen read-only. */

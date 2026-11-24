@@ -216,6 +216,18 @@ module {
     isDemo : Bool;
   };
 
+  /// A final sign-off as returned to the client: the stored sign-off plus the
+  /// signer's display name. The stored `FinalSignOff` type is unchanged.
+  public type FinalSignOffView = {
+    roadieId : Common.RoadieId;
+    outcome : SignOffOutcome;
+    futureTrainer : Bool;
+    signedBy : Principal;
+    signedByName : Text;
+    signedAt : Common.Timestamp;
+    isDemo : Bool;
+  };
+
   /// An alert.
   public type Alert = {
     id : Common.AlertId;

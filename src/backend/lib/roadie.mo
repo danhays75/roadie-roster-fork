@@ -284,12 +284,13 @@ module {
 
   /// Rehire an archived roadie (Admin/Store Manager only). A non-blank reason
   /// is always required. The roadie returns to pending and is assigned to the
-  /// next upcoming orientation session; the rehire is logged with who and the
-  /// reason.
+  /// next upcoming orientation session; any final sign-off they had is cleared.
+  /// The rehire is logged with who and the reason.
   public func rehireRoadie(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
     roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    finalSignOffs : Map.Map<Common.RoadieId, Phase23.FinalSignOff>,
     schedule : Map.Map<Common.EventId, Store.ScheduleEvent>,
     storeInfo : Store.StoreInfo,
     changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
@@ -304,21 +305,23 @@ module {
       case null { "" };
     };
     if (trimmed.size() == 0) {
-      Runtime.trap("A rehire reason is required");
+      Runtime.trap("A rehire needs a reason");
     };
     let roadie = requireVisibleRoadie(roadies, demoState, id);
-    let nextSession = switch (StoreLib.nextOrientationEvent(schedule, Clock.effectiveNow(demoState, storeInfo))) {
+    let now = Clock.effectiveNow(demoState, storeInfo);
+    let orientationEventId = switch (StoreLib.nextOrientationEvent(schedule, now)) {
       case (?event) { ?event.id };
-      case null { roadie.orientationEventId };
+      case null { null };
     };
     roadies.add(id, {
       roadie with
       status = #hired;
+      rosterState = #pending;
       archivedReason = null;
       archivedAt = null;
-      rosterState = #pending;
-      orientationEventId = nextSession;
+      orientationEventId;
     });
+    finalSignOffs.remove(id);
     logWrite(changeLog, counters, demoState, caller, "rehireRoadie", ?id, false, "Rehired roadie: " # trimmed);
   };
 

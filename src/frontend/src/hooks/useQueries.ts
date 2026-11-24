@@ -19,6 +19,8 @@ import {
   type DuplicateMatch,
   type EmailSettings,
   type EventId,
+  type FinalSignOff,
+  type FinalSignOffView,
   type FinishByView,
   type GroupChangeNotice,
   type ImportFile,
@@ -2522,6 +2524,80 @@ export function useUpdateTrainerNote() {
       void queryClient.invalidateQueries({
         queryKey: ["trainerNotes", note.roadieId.toString()],
       });
+    },
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   Final trainer sign-off
+--------------------------------------------------------------------------- */
+
+/**
+ * A roadie's current final sign-off, with the signer's display name, or null
+ * when they have none. Readable by every role that can read the roadie, so
+ * callers pass `enabled` (typically `canReadTrainerNotes(role)`) to avoid a
+ * trapping read for Kiosk and Integration.
+ */
+export function useFinalSignOff(
+  roadieId: RoadieId | undefined,
+  enabled = true,
+) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery({
+    queryKey: ["finalSignOff", roadieId?.toString()],
+    queryFn: async (): Promise<FinalSignOffView | null> => {
+      if (!actor || roadieId === undefined) return null;
+      return actor.getFinalSignOff(roadieId);
+    },
+    enabled: enabled && !!actor && !isFetching && roadieId !== undefined,
+  });
+}
+
+/**
+ * Record or replace a roadie's final sign-off (Trainer limited to their own
+ * stations, Training Manager, Kitchen Manager, Service Manager, Store Manager,
+ * Managing Partner or Admin). Refreshes the sign-off, the roadie and the
+ * dashboard so the stage tag and the Certified count follow the sign-off.
+ */
+export function useRecordFinalSignOff() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (signOff: FinalSignOff) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.recordFinalSignOff(signOff);
+    },
+    onSuccess: (_result, signOff) => {
+      const roadieId = signOff.roadieId.toString();
+      void queryClient.invalidateQueries({
+        queryKey: ["finalSignOff", roadieId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["roadie", roadieId] });
+      void queryClient.invalidateQueries({ queryKey: ["roadies"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+/**
+ * Clear a roadie's final sign-off (Admin, Managing Partner or Store Manager),
+ * restoring the roadie to Active. Refreshes the sign-off, the roadie and the
+ * dashboard so the stage tag and the Certified count follow the clear.
+ */
+export function useClearFinalSignOff() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (roadieId: RoadieId) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.clearFinalSignOff(roadieId);
+    },
+    onSuccess: (_result, roadieId) => {
+      const id = roadieId.toString();
+      void queryClient.invalidateQueries({ queryKey: ["finalSignOff", id] });
+      void queryClient.invalidateQueries({ queryKey: ["roadie", id] });
+      void queryClient.invalidateQueries({ queryKey: ["roadies"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }
