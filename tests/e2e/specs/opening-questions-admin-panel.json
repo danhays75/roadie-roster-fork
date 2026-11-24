@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "spec": {
+    "id": "opening-questions-admin-panel",
+    "kind": "interactive",
+    "goal": "Sign in, complete the profile form, and reach the Opening Questions admin panel with its import, clear and daily email controls",
+    "requirementIndexes": [
+      3,
+      4,
+      12,
+      18
+    ],
+    "acceptanceCriteriaIndexes": [
+      3,
+      4,
+      5,
+      15
+    ],
+    "steps": [
+      "Sign in",
+      "Fill in the profile form with the full name Dan Rivera, the role Store Manager, the title Store Manager, the home store number 975 and the home store city Waco, and press Continue",
+      "Open the Admin page"
+    ],
+    "checks": [
+      {
+        "afterStep": 0,
+        "expectText": "Tell us who you are"
+      },
+      {
+        "afterStep": 1,
+        "expectText": "Admin"
+      },
+      {
+        "afterStep": 2,
+        "expectText": "Admin"
+      }
+    ]
+  }
+}

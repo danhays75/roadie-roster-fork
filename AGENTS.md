@@ -1,0 +1,353 @@
+# Project Guidance
+
+## User Preferences
+
+- Red, white and blue look: navy #14284B header, red #B22234 primary buttons and accents, blue #2B5DA8 for hired/done, warm white #F5F3EE page, white cards
+- Oswald uppercase headings, Inter body text, thin red-and-white stripe under the header
+- Touch targets at least 44px
+- Fully responsive and installable as a PWA
+- Store logo appears in the header, on roadie cards and as the app icon
+- Match the attached reference card image for the roadie card's visual styling
+- Leader cards reuse the roadie card component and roadieCard.css with tier ribbons and gold, platinum and legend variants
+- Leader About Me fields use the same labels, placeholders, Spanish copy and 200-character caps as the kiosk
+- Leaders never count toward on-hand or build-to and never appear in the position roster
+- No contact information on any card or gift bag label
+- Do not touch tests and change nothing else
+- Uniform defaults, size curve and buffer are Admin/Store Manager editable; the Uniforms page is viewable by Admin, Store Manager and Training Manager
+- Roadie shirt and hat sizes are not contact information and are visible to leaders
+- Keep demo-mode partitioning and the requireReal* guards on every new uniform write
+- Do not touch tests and change nothing outside the uniforms batch
+- The roadie card front badge is always the drawn scalloped StoreSeal with the store number; never a logo badge
+- The card back has no ROADIE STATS section and no Favorite movie row; the back order is Hometown, Crew, Day off, Favorite team, Favorite candy, Favorite drink, Favorite color, Fun fact, Hired, then MY GOAL
+- The card front keeps the MINOR tag but never a birthday tag
+- Position uniforms use one field set: shirtType, shirtQty, hatType, hatQty
+- Never change app behavior to satisfy outdated tests
+- Keep demo-mode partitioning and the requireReal* guards on every new write
+- Do not touch tests and change nothing outside the current batch
+- Every new record carries isDemo and every write is logged
+- Use effectiveNow (the pretend date) everywhere for schedule windows and check-in availability
+- Demo people use realistic names, ages, positions and About Me answers with photo URLs; no placeholder text
+- Demo photo URLs are demo-only and never touch real records
+- Crews are owned by a manager: new crews require an owner picked from approved Admin, Store Manager or Training Manager leaders, and a manager can own only one crew
+- The kiosk approval Crew dropdown shows each crew's pending + active roadie count and preselects the crew with the fewest roadies
+- Crew owners get a My crew section on Today and a My crew chip on the Roster
+- The demo banner shows a Manager picker for the Store Manager and Training Manager demo roles, used only for crew ownership matching
+- Do not update, add, remove or run-to-fix any tests
+- Do not change the card design (roadieCard.css), crews, check-in rules, shift boards (saveShiftBoard keeps dropArchivedFromBoard) or contact-info rules
+- Publish when it compiles
+- Leave rosterState in the backend and the Dashboard numbers as they are
+- Manager tab copy uses real wording, never raw copy keys, in English and Spanish
+- Manager tab availability shows exactly one badge: Signed with the date, or Not signed
+- Manager tab change history uses plain-language labels, names the paperwork items checked or unchecked, and merges repeated same-action entries from the same person within two minutes
+- Do not change the card design (roadieCard.css), crews, stage rules, check-in rules, shift boards (saveShiftBoard keeps dropArchivedFromBoard) or contact-info rules
+- Demo seed data must stay internally consistent: every non-archived demo roadie is booked into the demo Orientation event
+- Demo practice run card lives at the top of Today and is visible only to the real Admin while demo mode is on
+- Practice run step completion is derived from demo data, never from a manual tick
+- Take me there buttons use the existing demo setters (setDemoRole, setDemoTrainerAs, setDemoManagerAs, setPretendDate) and then navigate
+- Paperwork checklist order is Digital Paperwork, I-9 / W-4, Alcohol Certificate, Policies & Procedures, then minor-only items
+- Paperwork items are checked in order only; later boxes stay disabled with a "Finish <previous item> first" hint and unchecking clears the items below
+- While a roadie is Hired the stage tag shows their latest completed paperwork step in the Hired tag color
+- Do not change the card design (roadieCard.css), crews, check-in rules, shift boards or contact-info rules
+- Keep the in-order paperwork steps and tags exactly as built
+- Change nothing else
+- The Paperwork Done stage is labelled "Ready for Orientation" and shows the seal image instead of a text tag
+- The seal artwork lives at src/frontend/public/assets/ready-for-orientation-seal.png with the area outside the circular badge transparent
+- Do not update, add, remove or run-to-fix any tests; known failing tests stay untouched and publish as soon as it compiles
+- Never change app behavior to satisfy old tests
+- All time math (effectiveNow, shiftWindow, isToday/localDate) lives in backend/lib/clock.mo; modules call Clock and keep no local copies, with identical pretend-date, shift-window and Today semantics
+- A roadie's status changes only through archiveRoadie, rehireRoadie and (later) final sign-off; there is no manual updateRoadieStatus
+- While a roadie is Hired, the step tag reads "<shortLabel or item text> ✓" for the highest checked applicable enabled paperwork item, including custom items; the backend returns the label text, not a fixed variant
+- Paperwork checklist items carry an optional Short label editable in Admin > Checklists > Paperwork (placeholder "Optional, e.g. Alcohol Cert"); blank saves null and the tag falls back to the item text
+- The Dashboard page content sits inside an error boundary reading "Something went wrong loading the dashboard. Reload." with Reload as a button, keeping header, nav and demo banner visible; OpeningTimeline and KPI tiles are lazy-loaded behind small grey skeletons
+- Never change app behavior to satisfy old tests; delete or rewrite stale test cases instead.
+- The roadie card is seal-only: scalloped store seal with store number next to the TLC wordmark; no logo badge, stats bars, birthday badge or favorite movie row.
+- Uploaded main/secondary logos belong in the app header and Dashboard store banner, not on the card; the sign-in/waiting screen shows the main logo large (about 128px) and centered.
+- Never change app behavior to satisfy a test.
+- Only test files may change when repairing the suite.
+- Keep every passing test; delete a test whose only intent is removed behavior.
+- The Batch 4b alerts and nudges work ships exactly as it is in the saved checkpoint.
+- Publish when the suite passes.
+- Do not change the card design (roadieCard.css), crews, stage rules, check-in rules, shift boards, paperwork order or contact-info rules
+- Do not add invite links or change how new users sign up or get approved
+- Every write is logged in the change log
+- English and Spanish copy for the Opening Questions page chrome; question text stays as imported
+- Opening question area colors: Kitchen orange #C2571A, Service teal #1E7B8C, Both purple #6B4C9A, Dan navy #14284B
+- Keep the existing card design, crews, stage rules, check-in rules, shift boards, paperwork order and contact-info rules unchanged
+- Every write must be recorded in the change log
+- Keep demo-mode partitioning and the requireReal guards intact
+- English and Spanish page chrome copy; imported question text stays as imported
+- Every write is recorded in the change log
+- Build a preview only; do not go live
+- Leader card badges show the leader's current Role, never the old leader type/title text
+- Market Partner appears only for leaders actually set as market partners
+- Do not change any other data
+- Do not change any other data or features
+- Build a preview only; do not go live or publish
+- Do not change roles, ownership, who can mark Final or Reopen, or how the progress counts work
+- Do not change approvals, roles, ownership, Final, batch Final, Reopen, History, sections, the scoreboard counts, the My questions tab or the existing search box
+- English and Spanish copy for the Opening Questions page chrome
+- Touch targets at least 44px; fully responsive
+- Preview only; do not go live or publish
+- Do not change roles, permissions for other pages, the card design, Opening Questions or any data
+
+## Accepted Requirements
+
+- Photos and signatures upload to real storage and are role-gated (Admin/Store Manager for signatures)
+- submitSignup requires Kiosk, Store Manager or Admin and caps text field lengths
+- The roadie's drawn signature is kept in the contact set; the manager's approval signature is stored separately and drawn on-device
+- Multi-stroke signatures survive resize and rotation
+- Real age in store time blocks under-minimum-age positions; isMinor and birthdayMonthDay are exposed without date of birth
+- Sign out in the header, waiting/error gates and a PIN-protected kiosk spot
+- Kiosk auto-reset after 10 seconds and on 90 seconds idle; kiosk renders without app header/nav; no listPendingUsers for non-admins
+- Store Manager sees approvals; only admins see pending users; suggested orientation is saved; reject asks for confirmation
+- Date-only displays use UTC; schedule times use store time zone
+- Access end dates build 11:59:59 PM America/Chicago; admins can change end dates and trainer stations after approval
+- On-hand counts each roadie once under their main position only
+- updateRoadieStatus cannot archive; archive requires a reason and rehire requires a non-blank reason
+- Trainer with no stations sees no roadies; Integration sees only the Shareable export
+- Last admin cannot be demoted, overwritten or end-dated; approveUser only for pending principals
+- Full export runs only on Download tap and includes the whole contact set; totals rows show Total Par and Need
+- Route guards block pages a role cannot use and hide Edit/Change Position
+- Waiting screen polls getMyAccess; bootstrapAdmin only when no admin exists; ensureSeeded only for Admin
+- RoadieCard validates the id before BigInt and has an error boundary
+- Service worker caches only the app shell and hashed assets, skips non-OK responses, and versions the cache per build
+- PWA has 192 and 512 icons (one non-transparent maskable), apple-touch-icon and iOS meta tags
+- The header title text is "Roadie Roster"
+- The browser tab title, PWA manifest name and short_name, and apple-mobile-web-app-title are "Roadie Roster"
+- The store name and location stay as the subtitle
+- Store info carries an optional secondary logo defaulting to null
+- The public logo query returns both logos for the kiosk and sign-in screens
+- Admin > Store info has a Secondary logo upload with preview and Remove, reusing the main logo's resize/compress helper and image-type detection
+- The secondary logo replaces the star badge next to the store name in the header and dashboard banner, at the same height as the main logo, with nothing shown when absent
+- The main logo stays exactly as it is now
+- Both logos refresh after Save without a page reload
+- Fix the blank Card tab so the roadie card renders between the tabs and the Flip card button
+- Restyle the roadie card as a collectible trading card with a holographic foil shell and a 3D flip
+- Card text at least 14px, no sideways scrolling, and no phone, email or date of birth on the card
+- Change nothing outside the card component
+- Self-host Archivo Black and Oswald so the card's display fonts load reliably
+- Replace the card-front badge with the inline SVG store seal showing the store number
+- Replace the card-front stars with 16 positioned star spans and remove the birthday tag
+- Add a hireDate to the Roadie record, set it from the sign-up's submission time on approval, and fall back for existing roadies
+- Show the hire date as "Roadie since" on the front and "HIRED:" on the back
+- Remove the ROADIE STATS section and list every non-empty About Me field in the back table
+- Keep the MY GOAL quote under the back table
+- Never show phone, email or date of birth on the card
+- Opening and after-opening build-to are editable number inputs (inputMode numeric, min 0, max 999, integers only) that keep the minus and plus buttons and save on blur or Enter
+- On-hand stays read-only and the roster summary refreshes after a build-to save
+- Checklist toggles renamed to 'Only alcohol positions' and 'Only under 18' with the hint 'Leave both off if the item applies to everyone.' and Spanish copy
+- The seeded and stored 'Minor work permit' paperwork item is renamed 'LA employment certificate (LWC confirmation received)' keeping minorOnly = true and its id
+- Download template produces a .json with schedule (days relative to opening), positions, checklists, leader talk name and sizes, and a version number, with no people data, logos, store number, city or opening date
+- Load template (Admin only) validates a .json, shows a preview with counts, then confirms, replacing positions, schedule and checklists only when there are no roadies
+- Imported schedule dates are recomputed from this store's opening date
+- A 'Tell us who you are' form appears after a new Internet Identity sign-in and before the waiting screen, storing the profile on the pending request and carrying it onto the access grant
+- The pending approval card shows the profile, pre-selects the requested role and stations, and pre-fills the access end date from the departure date at 11:59 PM store time, still editable
+- Users are shown by preferred/full name and title everywhere, with an admin-only Show ID toggle revealing the principal
+- Work phone and email are visible only to Admin and Store Manager
+- Existing users with no profile see the form on next sign-in, keep their access, and show 'Unnamed user' plus Show ID until filled in
+- Users can edit their own profile from a 'My profile' menu item
+- Leader About Me fields (hometown, hobbies, favoriteTeam, favoriteSnack, favoriteDrink, favoriteColor, funFact, goalHere, shirt size, hat size) added to the staff profile form and My profile, optional, with kiosk labels, placeholders, Spanish copy and 200-character caps
+- Leader cards reuse the roadie card component and roadieCard.css with a tier ribbon and gold/plat/legend variants
+- Roadie cards also get the ROADIE tier ribbon
+- A Leaders nav item and page grouping leader cards by tier (Legend, Platinum, Gold), hidden from kiosk and integration
+- Leaders never count toward on-hand or build-to and never appear in the position roster
+- Gift Bags Roadies/Leaders/All filter across the shopping list, labels and Excel download, with leader labels showing the title
+- No contact information on any card or label
+- Add a Crews tab in Admin (Admin and Store Manager) listing crews with name, leader (name and photo from staffProfile) and member count
+- Add crew by picking a leader from approved leaders (Admin, Store Manager, Training Manager, Visiting Manager), with the name auto-filling as "<preferred or first name>'s Crew" and staying editable
+- Rename, change leader and delete crews; delete is blocked while the crew has members, showing "Move its roadies first."
+- Backend Crew gains leaderPrincipal : ?Principal (migration, default null), plus updateCrew(id, name, leaderPrincipal) and deleteCrew(id)
+- All crew writes are Admin or Store Manager only; listCrews stays readable
+- Record every crew change in the change log
+- On the Approve sign-up screen, pre-select the crew led by the approving user, otherwise default to "No crew", still changeable
+- Replace "Card #0 matched on phone" with the matched roadie's name and main position, what matched (phone, email, or both) and whether they're archived, linked to their card, never showing a raw id, and checking archived roadies too
+- Fix the roadie photo in the position roster dialog so it loads the roadie's own photo
+- A shared RoadieTile used in the position roster dialog and on the Roster page
+- A shared card pop-up modal used on the Roster page, position roster dialog, Leaders page and Crews member list
+- A "Show former (n)" toggle for archived roadies on the position dialog and Roster page
+- Do not touch tests and change nothing else
+- Admin > Store settings gets a Demo mode switch, OFF by default, only an Admin can turn it on, and they must type DEMO to confirm
+- Demo mode turns itself off automatically after 8 hours and every on/off is written to the change log
+- While demo mode is on, every screen including the kiosk and the sign-in/waiting screens shows a sticky orange banner 'DEMO MODE · fake data · not for real hires' with a Turn off button for Admins
+- Demo records are completely separate from real ones across roadies, sign-ups, crews, leaders, check-ins and notes; while demo mode is on every query and export returns only demo records, and while it is off demo records are invisible and never count toward on-hand, build-to, exports, gift bags or the store template
+- While demo mode is on the banner has a View as picker (Admin, Store Manager, Training Manager, NSO Trainer with stations, Visiting Manager, Leadership, Kiosk); any signed-in caller, even unapproved, acts as the chosen demo role against demo data only, with the backend enforcing the same permission rules as for a real user with that role
+- Load demo data and Clear demo data buttons (Admin, demo mode only) seed about 40 roadies with illustrated avatars and full About Me answers, 2 minors, 2 archived, 3 crews, 4 leaders (Legend, Platinum, 2 Gold trainers with stations, home stores and dates) and 3 pending kiosk sign-ups including one phone duplicate
+- While demo mode is on the banner has a Pretend it's picker (date plus AM/PM) that overrides now for schedule windows, countdowns, the Today screen, check-in availability and age math, and the pretend date is shown in the banner
+- In demo mode only, every signature pad shows a Sign as Test button that fills in a sample signature
+- In demo mode, kiosk sign-ups are saved as demo sign-ups
+- Remove the separate Pending tile, the 'Showed at orientation' tile, the 'Build-to total' tile and the top bar's active/pending legend
+- One hiring progress bar reading 'Hired X of Y' filled to hired/build-to, hired = pending + active with archived excluded
+- Always-shown HIRED tile with the hired count and, during the orientation window only, a line 'X showed up · Y waiting'
+- Always-shown STILL NEEDED tile with build-to minus hired and the subtitle 'to reach <build-to>'
+- SHOWED UP tile hidden until the orientation window opens (Paperwork due date through final sign-off date), then 'X of Y' (active of hired), and after the orientation date 'Z no-shows' linking to the Orientation screen
+- CERTIFIED tile hidden until the final sign-off date, then 'X of Y certified'
+- Per-position rows show one line 'N hired · need M' plus the NEEDED badge, with the pending/active split only during the orientation window
+- All dates come from the schedule and respect the demo 'Pretend it's' date
+- Keep the countdown card, the timeline and the per-position lists; do not touch tests
+- Replace the unused TrainingGroup shape with a per-shift ShiftBoard model (groups of trainer+capacity+roadieIds, plus offRoadieIds)
+- A roadie may appear in at most one group, or in Off, per shift; the backend rejects duplicates
+- Default capacity comes from Admin trainingGroupSize (default 4); the Training Manager can change it per trainer per shift
+- Edit boards: Admin, Store Manager, Training Manager (new Auth.requireGroupEditor); demo boards editable in demo, real boards blocked by the real-settings guard
+- View all boards read-only: every read role except kiosk and integration
+- Trainers can see all roadie cards (names, photos, card fields); contact info stays Admin/Store Manager only
+- New nav item 'Groups' with a shift picker of day chips (Training Day 1-4, F&F nights) plus AM/PM defaulting to the current or next shift
+- Laptop/iPad drag-and-drop board with one column per trainer, an Unassigned tray and an Off this shift tray
+- Keyboard-accessible 'Move to…' alternative to dragging
+- Phone list grouped by trainer with tap-then-'Move to…' (a trainer, Off this shift, or the same day's other shift)
+- Roadie chip shows photo, name and position code plus a yellow dot with 'Marked unavailable' tooltip when scheduled while unavailable
+- Add trainer to this shift from approved NSO trainers whose access covers that date, plus managers and the Training Manager
+- Toolbar: 'Copy from…', 'Make groups for me' and 'Clear board'
+- Warnings banner (yellow, never blocking): unassigned active roadies, trainer over capacity, roadies scheduled while unavailable
+- 'Your group changed' notices stored per trainer and shown as a dismissible card on Today and Groups
+- Trainer 'My group · <shift>' view on Today with roadie photos and names and a link to all groups
+- Every new record carries isDemo and follows the demo partition; every write is logged
+- One derived stage tag per roadie on every view, replacing the separate Pending/Active tag
+- Roster tabs All, Hired, Paperwork Done, Oriented, In Training, Certified with counts, keeping Show former
+- Stage computed on read, never hand-set; existing statuses migrate to Hired
+- Every non-archived demo roadie is booked into the demo Orientation event
+- The Manager tab uniform sizes section shows real copy instead of raw keys
+- The Manager tab availability area shows exactly one badge
+- The Manager tab change history shows plain-language labels with item-level paperwork detail and collapses consecutive same-action entries by the same person within 2 minutes
+- All 38 non-archived demo roadies are booked into the demo Orientation event, rosterState #pending, with no orientation attendance records, no check-in records, no shift boards and no uniform check-offs
+- About 18 demo roadies have all applicable paperwork items checked (stage Paperwork Done); the other 20 have 0-3 items checked (stage Hired), with mixed positions and crews and the two minors fully done
+- The 2 archived roadies, the 3 pending kiosk sign-ups, crews, managers, trainers and Renee stay as they are
+- Load demo data resets the caller's pretend date to none, View as to Admin, and clears any demo practice progress
+- The highlighted current event is the one whose store-local date is today; if none is today, the next upcoming event, compared by store-local calendar date
+- Past events show a muted Done label; a past #deadline shows Past due (red) only if any active roadie still has incomplete paperwork, otherwise Done
+- NOW appears only on the event whose date is today and never on a past event
+- A demo-mode-only 'Practice run' card at the top of Today, shown only to the real Admin while demo mode is on
+- A progress line ('Step 2 of 6') and a 'Hide' link; Load demo data shows the card again and resets progress
+- Six steps, each with number, title, one-line instruction, 'Take me there' button, and a green check when done
+- A step counts as done automatically by looking at demo data, never by a manual tick
+- Step 1 Approve a new roadie: View as Admin, pretend date cleared, opens Approve New Hires; done when a demo kiosk sign-up has been approved
+- Step 2 Finish someone's paperwork: View as Admin, opens Roster on the Hired tab; done when any demo roadie moved from Hired to Paperwork Done after Load demo data
+- Step 3 Orientation day: Pretend it's = the demo Orientation date AM, View as Admin, opens Orientation; done when at least 10 demo roadies are Oriented
+- Step 4 Build Training Day 1 groups: Pretend it's = Training Day 1 AM, View as Admin, opens Groups on Training Day 1 · AM; done when a demo shift board exists for Training Day 1 AM with at least one roadie in a group
+- Step 5 Check in as a trainer: Pretend it's = Training Day 1 AM, View as NSO Trainer with Trainer = the first demo trainer who leads a group on that board, opens Today; done when that trainer's group has a check-in record for every roadie in it
+- Step 6 Handle the absence as a manager: same pretend date, View as Store Manager with Manager = the crew owner of the absent roadie, opens Today; done when a demo absent alert has been excused, moved or archived
+- After step 6: 'Practice run complete! Turn off demo mode when you're done.'
+- 'Take me there' uses the existing demo setters (setDemoRole, setDemoTrainerAs, setDemoManagerAs, setPretendDate), then navigates
+- Steps can be done in any order, but the card highlights the first step that isn't done
+- Demo mode only; nothing changes when demo mode is off
+- Each paperwork checklist item gets an enabled flag, migrated true for all existing items
+- Disabled paperwork items are hidden everywhere as if they did not exist
+- The Food Handler Card returns as a paperwork item disabled by default in real and demo data
+- Admin > Checklists > Paperwork shows an On/Off switch and Move up / Move down buttons per item
+- The admin list order is the completion order and the order the card tag moves through
+- Turning an item on inserts it at its position and moves an already-passed roadie's stage back to that step until checked
+- Checklist changes are logged and blocked while demo mode is on for real settings
+- The enabled Food Handler Card step tag reads "Food Handler ✓"
+- Repair backend and frontend tests so the suite passes against unchanged app code
+- Replace 'exactly 40 roadies' assertions with seed-derived counts or at least 38 non-archived and 2 archived
+- Delete tests of the removed updateRoadieStatus API
+- Update pretend-date tests to Clock.effectiveNow store-local date plus AM/PM shift start plus 30 minutes
+- Update fixtures to current record shapes including demoPhotoUrl, stage, paperworkStep, leaderPrincipal, enabled, shortLabel and isDemo
+- Update stage assertions to Hired, Ready for Orientation, Oriented, In Training, Certified and Former
+- Update roster tab assertions to All, Hired, Ready for Orientation, Oriented, In Training, Certified plus Show former
+- Assert Today is the landing page after sign-in for every role except Kiosk
+- Keep Batch 4b test files only if they pass against the current code
+- Report final pass/fail counts
+- Own approvals count toward Final, others show as Input, nobody approves for someone else
+- Owners and Admin edit answers; an answer change resets approvals
+- 48-hour suggestion discussions with Admin Accept or Decline
+- Opening Qs page at /opening-questions after Orientation with tabs, progress card, filters and question cards
+- In-app alerts on Today and a nav count badge
+- Daily 7 AM store-time email to Manager-area leaders and Admin, toggleable by Admin
+- Demo mode hides the section and refuses every Opening Questions write
+- Every Opening Questions write is logged in the change log
+- New tests for this section; existing passing tests keep passing
+- Managing Partner, Kitchen Manager and Service Manager leader roles assigned by Admin on the Leaders page and the approval card
+- Migrate Manager area Kitchen Manager and Service Manager to the matching roles, then remove the Manager area picker
+- The Managing Partner has full Admin permissions and the current Admin account (Dan) becomes the Managing Partner
+- Kitchen Manager owns Kitchen and Both questions, Service Manager owns Service and Both, Dan questions belong to the Managing Partner
+- Everyone who could read the section before still can, and can comment and suggest changes
+- No automatic finalizing; all owners approved shows a Ready for final badge
+- A Ready for final (N) tab and a Today alert visible only to the Managing Partner
+- Only the Managing Partner can mark final (anytime) or reopen, enforced in the backend
+- Reopen clears Final, keeps the answer, discussion and status, and updates the card and progress card right away
+- Fix the zero-owner auto-final cause and reset questions wrongly marked final, including Question 1, without deleting or re-importing anything
+- Complete the outstanding code review and fix what it finds, adding or updating tests as needed
+- Leader card badges show the leader's current Role instead of the old leader type/title field
+- Dan's leader record no longer shows Market Partner anywhere
+- Market Partner is kept only for leaders actually set as market partners
+- Admin can change a leader's type on the leader card
+- No other data is changed
+- Build a preview only; do not go live
+- Remove the question Status dropdown, Status filter, status in the progress card, and status in the Word download and print view
+- Hide the 'who' line on the question card, in the Word download and in print
+- Importer accepts a blank 'who' and a missing 'status' and ignores both fields, while still accepting old files that include them
+- A question counts as Final only when the Managing Partner marked it Final; owner approvals alone do not count
+- The progress panel shows a Final count instead of an Answered count
+- A separate Ready for final count shows questions where all owners approved but the Managing Partner has not marked Final
+- By Section bars fill by Final questions per section
+- Reopen removes a question from the Final count
+- Approvals, roles and who can mark Final stay unchanged
+- A 'My questions (N)' tab listing every question the signed-in person owns, approved or not, in imported order, as the default tab for owners
+- Needs my approval (N) stays its own tab and keeps an approved card in place with a green 'You approved' chip until the person leaves or refreshes the tab
+- Every card the person has approved shows a green 'You approved · <date>' chip on every tab
+- Anyone can untick their own approval only, enforced in the backend, logged in the change log, returning the question to Needs my approval and removing it from Ready for final
+- Approval boxes on a Final question are locked with 'Final · reopen to change' until the Managing Partner reopens it
+- Roles, ownership, who can mark Final or Reopen, and the progress counts stay unchanged
+- A small History link on each question card, shown only to the Managing Partner and Admins, with the backend refusing everyone else
+- A History popup listing that question's changes newest first: answer edits with old and new text, approvals, unapprovals, Mark final, Reopen, and accepted or declined suggestions, each with the person's name and date and time
+- Use existing change-log entries for that question where they hold this, and record every one of these changes from now on
+- Show 'No changes recorded yet' when a question has no history
+- On every tab, group questions under their 18 section headers in the imported order, each starting closed and opening or closing with a tap
+- Each section header shows the section title, 'X of Y Final' for that section, and, for an owner, how many questions in that section still need their approval
+- Open all and Close all buttons at the top of the list
+- Filters and search still work; when on, show only sections with matching questions, opened
+- Do not change approvals, roles, ownership, Final, Reopen, the progress counts, the My questions tab or unapprove
+- Build a preview only; do not go live or publish
+- A Managers card at the top of the Opening Qs page, shown only to the Managing Partner and Admins, with the backend refusing everyone else
+- The scoreboard lists every current question owner with name, role, owned count, approved count and still-needing count, sorted by most still needing approval first
+- Tapping a name filters the list to the questions still waiting on that person
+- Scoreboard counts follow live ownership and update right away after an approval or unapproval
+- In the Ready for final tab, a checkbox per card, a Select all checkbox and a 'Mark final (N)' button for the Managing Partner only
+- Batch Mark final shows a confirm step 'Mark N questions final?' and marks them all Final as the Managing Partner with one History and change-log entry per question
+- Batch Mark final is enforced Managing Partner only in the backend
+- Questions no longer ready at confirm time are skipped and the user is told how many were skipped
+- Do not change approvals, roles, ownership, single Mark final, Reopen, History, sections, the My questions tab or the progress counts
+- Managing Partner and Admins can set or clear a Finish-by date in Admin > Opening Questions
+- The Opening Qs page shows 'Finish by <date> · N days left' when set and 'N days overdue' in red after it passes, and nothing when unset
+- After approving an owned question, a Next button jumps to the next question still needing that person's approval, opening its section, and shows 'All caught up' when none remain
+- A Nudge button beside managers with pending questions on the Managers scoreboard, Managing Partner and Admin only, enforced in the backend
+- A nudge creates an in-app alert on the manager's Today page and adds to their Opening Qs badge, opening the Needs my approval tab when tapped
+- One nudge per manager per day, with the button showing 'Nudged today' after, and each nudge logged in the change log
+- Open full profile in the card pop-up opens the full page for leaders and roadies from the Leaders, Roster, Groups and Crews pop-ups
+- The Managing Partner and Admins can open every leader's and roadie's full profile whatever role that leader has, including Managing Partner, Kitchen Manager and Service Manager; other roles keep today's access
+- Closing the pop-up by opening a full profile does not navigate back, and the phone's back button on the full profile returns to the list
+- Do not change roles, permissions for other pages, the card design, Opening Questions or any data
+
+## Verified Commands
+
+- **typecheck**: `cd src/frontend && pnpm typecheck`
+- **fix**: `mops check --fix && cd src/frontend && pnpm fix`
+- **build**: `mops build && cd src/frontend && pnpm build`
+
+## Learnings
+
+- getMyPendingOpeningQuestionApprovals returns the caller's own pending-approval count; the Needs my approval tab badge must read it, never progress.answered.
+- approve and withdrawApproval in lib/openingquestions.mo both trap while a question is Final, and withdrawApproval removes only the caller's own principal from approvals.
+- index.css defines --success/--success-foreground in light and dark; tailwind.config.js must map success DEFAULT and foreground for text-success/bg-success to emit CSS.
+- Keeping an approved card in place on Needs my approval needs a list-skipping approve mutation plus a page-level merge that a reset effect clears on tab switch, or the card outlives the count.
+- Opening Questions section header Final and need-you counts must read the unfiltered All list (allQuestions from useOpeningQuestions(QuestionTab.all, EMPTY_FILTER)), never the tab or filtered rows, or they undercount on narrowed tabs.
+- The Opening Questions history popup resolves names through staffDisplayName with a localized non-empty fallback (oq.history.unknownPerson), never an empty string, so no line shows a blank or a principal fragment.
+- QuestionHistoryEntry.kind is a generated enum; switch on string literals and map to copy keys without a value import.
+- openingQuestionHistory is exposed as an OQL manual entity in main.mo's Expose call with controllerOnly, and getOpeningQuestionHistory is documented in api-doc.mo as Managing Partner and Admin only.
+- Opening Questions batch selection is keyed by id.toString() and mapped back with BigInt(id); batch mode clears the selection whenever the tab leaves Ready for final.
+- The Opening Questions scoreboard row role label uses t(`profile.role.${row.role}`); only admin/managingPartner/kitchenManager/serviceManager keys exist in copy.ts.
+- Manager scoreboard rows derive from accessGrants filtered by isRealLeader and an owner role; pendingCount excludes Final questions.
+- Batch mark final reuses isReadyForFinal per id so already-Final or unapproved questions count as skipped, not errors.
+- Motoko string literals reject \uXXXX escapes; write the actual character instead, and never double-escape inner quotes in api-doc.mo.
+- Opening Questions Finish-by date lives in a settings singleton with a FinishByView carrying finishBy plus daysLeft/daysOverdue bigints; the date itself is 0 days left, computed from Clock.localDayStart.
+- Nudges are stored per manager with the sender, store-local day and pending count; a second nudge the same store-local day is refused, and the scoreboard derives Nudged today from change-log entries with action openingQuestion.nudgeSent.
+- TodayView now requires openingQuestionNudges, so src/frontend/src/mocks/backend.ts getToday must include it.
+- The /opening-questions route validates a tab search param so a nudge alert can open the Needs my approval tab; the page reads it while keeping its default tab.
+- ManagersScoreboard takes canNudge, changeLog, onNudge, nudgingPrincipal and nudgeErrorPrincipal props; OpeningQuestions.tsx must pass all five or the Nudge button never appears.
+- api-doc.mo's getApiDoc literal must stay one line with every inner double quote escaped; a split literal or raw quote fails M0097/M0057.
+- main.mo counters must declare nextNudgeId to match migration 00000031 or M0216 stable compatibility fails.
+- The shared card pop-up's closeForNavigation replaceState-strips ?card instead of calling history.back(), which keeps the full page open while the phone's back button still returns to the list.
+- FULL_PROFILE_ROLES and canOpenFullProfile in src/frontend/src/hooks/useAccess.ts are the single rule for the Open full profile link; Roster and PositionRosterDialog gate the link with it, while Leaders, Groups and Crews always pass renderFullProfile and rely on their route guards.
+- RoadieCardModal renderFullProfile receives (entry, onNavigate); onNavigate must be called before navigating so the pushed ?card history entry is cleared.
+- The roadie full page's local MANAGER_ROLES in src/frontend/src/pages/RoadieCard.tsx must include managingPartner so the Managing Partner sees the manager view.
+- listLeaders is readable by every non-kiosk, non-integration role, so the leader full page needs no extra role filter beyond the existing canLeaders guard.

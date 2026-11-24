@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-22T23:06:48.753Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "type",
+        "summary": "type \"Dan Rivera\" into textbox \"Full name\"",
+        "target": {
+          "role": "textbox",
+          "name": "Full name",
+          "placeholder": "Jordan Rivera"
+        },
+        "value": "Dan Rivera"
+      },
+      {
+        "name": "type",
+        "summary": "type \"Store Manager\" into textbox \"Title\"",
+        "target": {
+          "role": "textbox",
+          "name": "Title",
+          "placeholder": "Store Manager"
+        },
+        "value": "Store Manager"
+      },
+      {
+        "name": "type",
+        "summary": "type \"975\" into textbox \"Home store number\"",
+        "target": {
+          "role": "textbox",
+          "name": "Home store number",
+          "placeholder": "975"
+        },
+        "value": "975"
+      },
+      {
+        "name": "type",
+        "summary": "type \"Waco\" into textbox \"Home store city\"",
+        "target": {
+          "role": "textbox",
+          "name": "Home store city",
+          "placeholder": "Lake Charles"
+        },
+        "value": "Waco"
+      },
+      {
+        "name": "tap",
+        "summary": "tap combobox \"Role\"",
+        "target": {
+          "role": "combobox",
+          "name": "Role"
+        }
+      },
+      {
+        "name": "tap",
+        "summary": "tap option \"Store Manager\"",
+        "target": {
+          "role": "option",
+          "name": "Store Manager"
+        }
+      },
+      {
+        "name": "tap",
+        "summary": "tap button \"Continue\"",
+        "target": {
+          "role": "button",
+          "name": "Continue"
+        }
+      }
+    ],
+    "executor": {
+      "name": "e2e-default-agent",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "opening-questions-page.e2e.ts::opening-questions-page",
+      "targetId": "web",
+      "instructionDigest": "9bfe6567299e58b0675818a7e5cd67b374234c1fbee8d8641235f852515943c6",
+      "paramsDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "callIndex": 0,
+      "agent": "default"
+    },
+    "recordedBy": {
+      "provider": "caffeine-inference.chat",
+      "model": "deepseek-v4.1-flash"
+    },
+    "summary": "Filled the profile form (Full name Dan Rivera, Role Store Manager, Title Store Manager, Home store number 975, Home store city Waco) and pressed Continue. The form submitted and the app navigated to the Today page (/today) with the signed-in nav and Sign out control.",
+    "startPath": "/",
+    "endPath": "/",
+    "endAnchors": [
+      {
+        "text": "Roadie Roster"
+      },
+      {
+        "text": "Restaurant crew hiring roster"
+      },
+      {
+        "text": "Today"
+      },
+      {
+        "text": "Dashboard"
+      },
+      {
+        "text": "Roster"
+      },
+      {
+        "text": "Groups"
+      },
+      {
+        "text": "Orientation"
+      },
+      {
+        "text": "Opening Qs"
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "heading",
+        "name": "Tell us who you are"
+      },
+      {
+        "text": "Add your name and title so the team knows who you are. An admin still needs to approve your access."
+      },
+      {
+        "text": "Role"
+      },
+      {
+        "text": "Select a role"
+      },
+      {
+        "role": "button",
+        "name": "Add photo"
+      },
+      {
+        "text": "Optional. Your photo is resized before it is saved."
+      },
+      {
+        "text": "Full name"
+      },
+      {
+        "role": "textbox",
+        "name": "Full name",
+        "placeholder": "Jordan Rivera"
+      }
+    ],
+    "endWaitMs": 12018,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "403fcccf39e2650a7e389bda5a9246bfe8c725769a98b3a749be67a096c16423",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "aec5acc8a8d7ba14d388c35095196d67ae7ad7199ff1168a3230addcf190cf8d",
+      "agentContextDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

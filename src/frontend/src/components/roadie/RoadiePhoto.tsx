@@ -1,0 +1,65 @@
+import type { RoadieId } from "@/backend";
+import { useRoadiePhoto } from "@/hooks/useQueries";
+import { refToDataUrl } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { ImageIcon } from "lucide-react";
+import { useMemo } from "react";
+
+/**
+ * A roadie's photo, read on demand by id. The photo bytes are fetched once per
+ * roadie (React Query caches them under the id) and converted to a displayable
+ * data URL once per roadie, memoized so a re-render does not re-read the bytes.
+ * A roadie with no stored photo shows the placeholder icon, never a broken
+ * image.
+ */
+export function RoadiePhoto({
+  id,
+  name,
+  demoPhotoUrl,
+  className,
+  iconClassName,
+  ocid,
+  fallback,
+}: {
+  id: RoadieId;
+  name: string;
+  /**
+   * A demo-only photo URL. Used only when the roadie has no stored photo, so a
+   * real upload always wins. Demo URLs never touch real records.
+   */
+  demoPhotoUrl?: string;
+  className?: string;
+  iconClassName?: string;
+  ocid?: string;
+  /** Shown instead of the default icon when the roadie has no photo. */
+  fallback?: React.ReactNode;
+}) {
+  const { data: photo } = useRoadiePhoto(id);
+  const storedSrc = useMemo(() => refToDataUrl(photo), [photo]);
+  const src = storedSrc ?? demoPhotoUrl ?? null;
+
+  return (
+    <span
+      data-ocid={ocid}
+      className={cn(
+        "flex items-center justify-center overflow-hidden rounded-full border-2 border-primary bg-muted",
+        className,
+      )}
+    >
+      {src ? (
+        <img
+          src={src}
+          alt={name}
+          className="h-full w-full object-cover object-top"
+        />
+      ) : (
+        (fallback ?? (
+          <ImageIcon
+            className={cn("h-6 w-6 text-muted-foreground", iconClassName)}
+            aria-hidden="true"
+          />
+        ))
+      )}
+    </span>
+  );
+}

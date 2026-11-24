@@ -1,0 +1,19 @@
+{
+  "overview": "A hiring and onboarding roster app for a store team, with roadie and leader cards, crews, training groups, paperwork tracking and opening questions.",
+  "features": [
+    "Open a leader's or roadie's full profile from any card pop-up",
+    "Managing Partner and Admins can open every full profile",
+    "Back button returns to the list after opening a full profile",
+    "Roadie and leader cards with tiers and About Me details",
+    "Crews, training groups and paperwork tracking"
+  ],
+  "category": "team-management",
+  "tags": [
+    "roster",
+    "hiring",
+    "onboarding",
+    "team",
+    "cards"
+  ],
+  "last_updated": "2026-11-24T02:50:49.134Z"
+}

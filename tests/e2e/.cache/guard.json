@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "flows": {
+    "opening-questions-admin-panel": {
+      "plan": [
+        "0914a687fb13a1e3",
+        "3e3a503428415141",
+        "5584920cfb43fb5f",
+        "5f9e03a354ab1063",
+        "88e20575122523ec",
+        "af3bd6e834801552",
+        "e33c1a9977555108",
+        "f16a01818a7f9723"
+      ],
+      "last": "failed"
+    },
+    "opening-questions-page": {
+      "plan": [
+        "01c187cb27fe3b4a",
+        "045af18b581db1e5",
+        "097cacaf40cad6c9",
+        "0cc3f5fab4158a7d",
+        "0d1046a79c86d45b",
+        "0d592018a53cd110",
+        "0d690b1ae82ce9f1",
+        "18e68e9df3f749b4",
+        "1a0275c63b334d0f",
+        "1ada5317d44f6c18",
+        "1b4eb9ca9e1273a5",
+        "1c70c01be5bca31f",
+        "1d7645bde2dd0596",
+        "1ffc9c3fd9d2a531",
+        "28521ebca7cb3ee6",
+        "434930e8240442a8",
+        "45446f60062e3a6b",
+        "4ab6610a98286867",
+        "4ca06f53372c4e5c",
+        "4e32414804a51f89",
+        "51df0e3b7a213fcc",
+        "5c17d7f8ba40a7be",
+        "5ddfbc0957e720ef",
+        "6246c50ff8c51133",
+        "6734a5192fbc816a",
+        "6e75141a9576dd97",
+        "7faf40852fa14de3",
+        "801e90d3984bfdf7",
+        "8a795b314ac6e18e",
+        "9185b50213c5ff92",
+        "93f2bbd52b38502d",
+        "978bf743928d1444",
+        "9a7b60f91278ec92",
+        "a4d871efa13940c6",
+        "a55055f211172361",
+        "a59dfb7417fc9118",
+        "adbb0fbc032e7f55",
+        "b7cc2438fefd5fd7",
+        "c20ada421b8fbac9",
+        "c3bc5b4ac28583ba",
+        "c6b557e21362bd88",
+        "c717315a07ce212b",
+        "c72f0582325a52b7",
+        "c9e416f139557710",
+        "caaa255092e8b72e",
+        "d60bb7064798f305",
+        "e620641c9b59866c",
+        "f3fb49e5a42fea66",
+        "f74d4c865036091f"
+      ],
+      "last": "failed"
+    }
+  },
+  "order": [
+    "opening-questions-page",
+    "opening-questions-admin-panel"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "flows": {
+    "opening-questions-admin-panel": {
+      "flowId": "opening-questions-admin-panel",
+      "specDigest": "1ab4129fffe0acff25b1c3d8c6d4583f4b3bd895e7226a6052a6164b01c5bc35",
+      "status": "record-failed",
+      "recordedAt": "2026-11-22T23:07:38.625Z",
+      "recordedBy": "deepseek-v4.1-flash",
+      "entries": [],
+      "quarantined": true,
+      "quarantineFailure": "at steps[0] (\"Sign in\"): expect ASSERTION_FAILED: expect.toBeVisible failed locator: getByText(/Tell\\s*us\\s*who\\s*you\\s*are/i, visible: true).first() expected: visible observed: no node (match count 0)"
+    },
+    "opening-questions-page": {
+      "flowId": "opening-questions-page",
+      "specDigest": "f7b48db625f3dd83371c56f320b391e31bdacc3554c1b1fc6fc703e1e3ea90b4",
+      "status": "record-failed",
+      "recordedAt": "2026-11-22T23:07:38.625Z",
+      "recordedBy": "deepseek-v4.1-flash",
+      "entries": [
+        "1344509afac34e1290478d8a8d1926b7c0b7b73eafe28bb88a1583cbd3cbdfca.json",
+        "f901c5e92e51f76bf819b23e700d654cbccc948e4b65d9c465497d7d7047be37.json"
+      ],
+      "quarantined": true,
+      "quarantineFailure": "at steps[2] (\"Open the Opening Qs page\"): act APP_UNREACHABLE: agent.act blocked: Tapped the \"Opening Qs\" nav link, but the page target crashed (\"Target crashed\") and every subsequent action (observe, navigate to /opening-questions, screenshot) failed with the same error. The app could not be reached to verify the Opening Qs page."
+    }
+  }
+}

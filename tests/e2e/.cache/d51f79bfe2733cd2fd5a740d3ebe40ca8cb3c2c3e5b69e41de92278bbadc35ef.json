@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-22T23:05:18.474Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "tap",
+        "summary": "tap button \"Sign in with Internet Identity\" in \"Sign in to Roadie\"",
+        "target": {
+          "role": "button",
+          "name": "Sign in with Internet Identity",
+          "within": "Sign in to Roadie"
+        }
+      }
+    ],
+    "executor": {
+      "name": "e2e-default-agent",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "opening-questions-page.e2e.ts::opening-questions-page",
+      "targetId": "web",
+      "instructionDigest": "e7c40a7186bf3191abc0378a036bfed5600f4956a4ac648052d0257da2965610",
+      "paramsDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "callIndex": 0,
+      "agent": "default"
+    },
+    "recordedBy": {
+      "provider": "caffeine-inference.chat",
+      "model": "deepseek-v4.1-flash"
+    },
+    "summary": "Signed in with Internet Identity; the app now shows the profile setup screen \"Tell us who you are\" with a Sign out control. No form fields were filled.",
+    "startPath": "/",
+    "endPath": "/",
+    "endAnchors": [
+      {
+        "role": "image",
+        "name": "Roadie store logo"
+      },
+      {
+        "role": "heading",
+        "name": "Tell us who you are"
+      },
+      {
+        "text": "Add your name and title so the team knows who you are. An admin still needs to approve your access."
+      },
+      {
+        "text": "Role"
+      },
+      {
+        "text": "Select a role"
+      },
+      {
+        "role": "button",
+        "name": "Add photo"
+      },
+      {
+        "text": "Optional. Your photo is resized before it is saved."
+      },
+      {
+        "text": "Full name"
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "heading",
+        "name": "Sign in to Roadie"
+      },
+      {
+        "text": "Sign in with Internet Identity to view the store roster and hiring pipeline."
+      },
+      {
+        "role": "button",
+        "name": "Sign in with Internet Identity"
+      },
+      {
+        "role": "region",
+        "name": "Sign in"
+      }
+    ],
+    "endWaitMs": 20056,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "403fcccf39e2650a7e389bda5a9246bfe8c725769a98b3a749be67a096c16423",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "aec5acc8a8d7ba14d388c35095196d67ae7ad7199ff1168a3230addcf190cf8d",
+      "agentContextDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

@@ -1,0 +1,227 @@
+import type { backendInterface } from "../backend";
+import { Role } from "../backend";
+
+const principal = (text: string) => ({ toString: () => text }) as never;
+
+const dan = principal("dan-managing-partner");
+const renee = principal("renee-store-manager");
+const marcus = principal("marcus-trainer");
+const priya = principal("priya-leadership");
+
+const staff = (
+  fullName: string,
+  preferredName: string,
+  title: string,
+  requestedRole: Role,
+) => ({
+  fullName,
+  preferredName,
+  title,
+  requestedRole,
+  homeStoreNumber: "975",
+  homeStoreCity: "Lake Charles",
+  trainerPositionIds: [],
+  hometown: "Lake Charles, LA",
+  hobbies: "Fishing on the weekends",
+  favoriteTeam: "LSU Tigers",
+  favoriteSnack: "Snickers",
+  favoriteDrink: "Sweet tea",
+  favoriteColor: "Navy blue",
+  funFact: "I once met a Saints legend",
+  goalHere: "Open the best store in the district",
+});
+
+const leaders = [
+  {
+    principal: dan,
+    role: Role.managingPartner,
+    title: "Market Partner",
+    trainerPositionIds: [],
+    staffProfile: staff("Dan Broussard", "Dan", "Market Partner", Role.managingPartner),
+  },
+  {
+    principal: priya,
+    role: Role.leadership,
+    title: "Leadership",
+    trainerPositionIds: [],
+    staffProfile: staff("Priya Nair", "Priya", "Leadership", Role.leadership),
+  },
+  {
+    principal: renee,
+    role: Role.storeManager,
+    title: "Store Manager",
+    trainerPositionIds: [],
+    staffProfile: staff("Renee Carter", "Renee", "Store Manager", Role.storeManager),
+  },
+  {
+    principal: marcus,
+    role: Role.trainer,
+    title: "NSO Trainer",
+    trainerPositionIds: [1n],
+    staffProfile: staff("Marcus Lee", "Marcus", "NSO Trainer", Role.trainer),
+  },
+];
+
+const grant = {
+  principal: dan,
+  role: Role.managingPartner,
+  approvedAt: 0n,
+  approvedBy: dan,
+  trainerPositionIds: [],
+  staffProfile: staff("Dan Broussard", "Dan", "Market Partner", Role.managingPartner),
+};
+
+const storeInfo = {
+  amShiftEnd: 0n,
+  pmShiftStart: 0n,
+  storeNumber: "975",
+  leaderTalkName: "Leader Talk",
+  appName: "Roadie Roster",
+  leaderTalkSize: 0n,
+  amShiftStart: 0n,
+  openingDate: 0n,
+  pmShiftEnd: 0n,
+  trainingGroupSize: 4n,
+  address: "Lake Charles, LA",
+  locationName: "Lake Charles",
+  timeZone: "America/Chicago",
+  storePhone: "",
+};
+
+const position = {
+  id: 1n,
+  openingBuildTo: 0n,
+  defaultHats: 0n,
+  defaultShirts: 0n,
+  house: "foh" as never,
+  afterOpeningBuildTo: 0n,
+  minimumAge: 0n,
+  code: "SRV",
+  name: "Server",
+  shirtQty: 0n,
+  shirtType: "",
+  hatType: "",
+  hatQty: 0n,
+  needsAlcoholCert: false,
+};
+
+export const mockBackend = {
+  getMyAccess: async () => ({ grant, demoRole: undefined }),
+  getDemoState: async () => ({
+    enabled: false,
+    demoTrainerStations: [],
+  }),
+  getMyPendingRequest: async () => null,
+  bootstrapAdmin: async () => false,
+  requestAccess: async () => true,
+  submitStaffProfile: async () => undefined,
+  updateMyStaffProfile: async () => undefined,
+  listLeaders: async () => leaders,
+  listAccessGrants: async () => [grant],
+  adminCount: async () => 1n,
+  updateUserRole: async () => undefined,
+  listPositions: async () => [position],
+  listCrews: async () => [],
+  listCrewSummaries: async () => [],
+  getStoreInfo: async () => storeInfo,
+  getStoreLogo: async () => ({ logo: undefined, secondaryLogo: undefined }),
+  listPendingSignups: async () => [],
+  listPendingUsers: async () => [],
+  getOpeningQuestionAlerts: async () => ({
+    decisionsDue: 0n,
+    newSuggestionsOrReplies: 0n,
+    readyForFinal: 0n,
+    needsMyApproval: 0n,
+  }),
+  getToday: async () => ({
+    shiftSummaries: [],
+    role: Role.managingPartner,
+    openingQuestionsReadyForFinal: 0n,
+    absentAlerts: [],
+    openingQuestionNudges: [],
+  }),
+  getMyCrew: async () => null,
+  getMyGroup: async () => null,
+  listGroupChangeNotices: async () => [],
+  listRoadies: async () => [],
+  listSchedule: async () => [],
+  getDashboard: async () => ({
+    boh: [],
+    foh: [],
+    active: 0n,
+    hired: 0n,
+    pending: 0n,
+    stillNeeded: 0n,
+    buildToTotal: 0n,
+  }),
+  getRosterSummary: async () => [],
+  listAlerts: async () => [],
+  getDemoDataSummary: async () => ({
+    roadies: 0n,
+    leaders: 0n,
+    signups: 0n,
+    crews: 0n,
+    attendance: 0n,
+    notes: 0n,
+  }),
+  loadDemoData: async () => ({
+    roadies: 0n,
+    leaders: 0n,
+    signups: 0n,
+    crews: 0n,
+    attendance: 0n,
+    notes: 0n,
+  }),
+  clearDemoData: async () => ({
+    roadies: 0n,
+    leaders: 0n,
+    signups: 0n,
+    crews: 0n,
+    attendance: 0n,
+    notes: 0n,
+  }),
+  setDemoMode: async () => ({ __kind__: "err", err: "demo off" }),
+  setDemoRole: async () => ({ __kind__: "err", err: "demo off" }),
+  setDemoTrainerAs: async () => ({ __kind__: "err", err: "demo off" }),
+  setDemoManagerAs: async () => ({ __kind__: "err", err: "demo off" }),
+  setPretendDate: async () => ({ __kind__: "err", err: "demo off" }),
+  hasKioskPin: async () => false,
+  getChecklists: async () => ({ paperwork: [], orientationUniform: [] }),
+  getRetentionSettings: async () => ({
+    notesDays: 0n,
+    archivedContactSetDays: 0n,
+    archivedPhotoDays: 0n,
+    changeLogDays: 0n,
+  }),
+  listOrientationSessions: async () => [],
+  getOrientationSessionView: async () => null,
+  getGiftBags: async () => ({ groups: [], labels: [] }),
+  getUniformSettings: async () => ({
+    sizeCurve: { shirts: [], hats: [] },
+    bufferPercent: 0n,
+  }),
+  getUniformOrder: async () => ({
+    rows: [],
+    filter: "all" as never,
+    sizeUnknown: [],
+    totals: [],
+    bufferPercent: 0n,
+  }),
+  listOpeningQuestions: async () => [],
+  getMyPendingOpeningQuestionApprovals: async () => 0n,
+  getOpeningQuestionManagerScoreboard: async () => [],
+  markOpeningQuestionsFinal: async () => ({
+    markedCount: 0n,
+    skippedCount: 0n,
+  }),
+  getOpeningQuestionsProgress: async () => ({
+    final: 0n,
+    total: 0n,
+    answered: 0n,
+    readyForFinal: 0n,
+    openSuggestions: 0n,
+    sections: [],
+  }),
+  getOpeningQuestionEmailSettings: async () => ({ enabled: false }),
+  getPhoto: async () => null,
+} satisfies Partial<backendInterface>;
