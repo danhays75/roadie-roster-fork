@@ -54,9 +54,6 @@ export const UNIFORM_FILTER_LABEL_KEY: Record<
   [UniformHouseFilter.boh]: "uniformsFilterBoh",
 };
 
-/** The two uniform items, in display order. */
-export const UNIFORM_ITEMS = ["Shirts", "Hats"] as const;
-
 /** One item's size rows, in the order the backend returned them. */
 export interface UniformItemGroup {
   item: string;

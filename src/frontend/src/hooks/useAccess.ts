@@ -489,11 +489,6 @@ export function canGroups(role: Role | undefined): boolean {
   return !!role && GROUPS_ROLES.includes(role);
 }
 
-/** Whether the given role may edit a shift board. */
-export function canEditGroups(role: Role | undefined): boolean {
-  return !!role && GROUP_EDITOR_ROLES.includes(role);
-}
-
 /** Whether the given role may open the Orientation check-in surface. */
 export function canOrientation(role: Role | undefined): boolean {
   return !!role && ORIENTATION_ROLES.includes(role);

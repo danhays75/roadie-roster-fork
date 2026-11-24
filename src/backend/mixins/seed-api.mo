@@ -2,7 +2,6 @@ import Map "mo:core/Map";
 import Principal "mo:core/Principal";
 import Common "../types/common";
 import Store "../types/store";
-import Roadie "../types/roadie";
 import Access "../types/access";
 import SeedLib "../lib/seed";
 

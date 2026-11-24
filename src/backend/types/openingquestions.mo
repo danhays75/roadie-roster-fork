@@ -159,17 +159,6 @@ module {
     sentAt : Common.Timestamp;
   };
 
-  /// One recipient's daily digest: how many questions need their approval, how
-  /// many open discussions they are in, and (Admin only) how many decisions are
-  /// due.
-  public type DigestEntry = {
-    principal : Principal;
-    email : Text;
-    needsApproval : Nat;
-    openDiscussions : Nat;
-    decisionsDue : Nat;
-  };
-
   /// The stored state of the daily Opening Questions email: the last send time
   /// and recipient count (for the Admin screen), and the store-local day each
   /// person was last emailed, so a late or repeated run the same store day sends

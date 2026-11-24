@@ -1,5 +1,5 @@
 import { QuestionArea, QuestionTab, type Role } from "@/backend";
-import type { FinishByView, QuestionFilter, QuestionView } from "@/backend";
+import type { FinishByView, QuestionView } from "@/backend";
 import { ownsOpeningQuestionArea } from "@/hooks/useAccess";
 import { formatDateOnly } from "@/lib/format";
 
@@ -88,20 +88,6 @@ export const AREA_FILTERS: QuestionArea[] = [
   QuestionArea.both,
   QuestionArea.dan,
 ];
-
-/** A stable query key for a tab + filter pair. */
-export function questionListKey(
-  tab: QuestionTab,
-  filter: QuestionFilter,
-): (string | undefined)[] {
-  return [
-    "openingQuestions",
-    tab,
-    filter.area,
-    filter.sectionTitle,
-    filter.search,
-  ];
-}
 
 /** Whether a question's 48-hour suggestion discussion window is still open. */
 export function isDiscussionOpen(

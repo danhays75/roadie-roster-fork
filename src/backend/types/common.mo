@@ -24,9 +24,6 @@ module {
   /// Identifier for a change-log entry.
   public type ChangeLogId = Nat;
 
-  /// Identifier for a training group.
-  public type TrainingGroupId = Nat;
-
   /// Identifier for a leader talk.
   public type LeaderTalkId = Nat;
 
@@ -85,9 +82,6 @@ module {
   /// A store-local time zone identifier (IANA name, e.g. "America/Chicago").
   public type TimeZone = Text;
 
-  /// A free-text reason supplied by a manager.
-  public type Reason = Text;
-
   /// A person's full name.
   public type PersonName = Text;
 
@@ -112,20 +106,6 @@ module {
   /// reference (the uploaded blob's hash). Fetchable only by signed-in users
   /// with a read-capable role.
   public type PhotoRef = Storage.ExternalBlob;
-
-  /// A generic error returned to callers.
-  public type ApiError = {
-    #unauthorized : Text;
-    #notFound : Text;
-    #invalid : Text;
-    #conflict : Text;
-  };
-
-  /// A generic result wrapper.
-  public type ApiResult<T> = {
-    #ok : T;
-    #err : ApiError;
-  };
 
   /// The type of an orientation uniform checklist item: a simple checkbox, or
   /// a counted item (for example shirts or hats given).

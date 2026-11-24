@@ -152,19 +152,6 @@ export function useResignAvailability() {
   });
 }
 
-/** Whether a roadie is a minor as of now. */
-export function useIsMinor(id: RoadieId | undefined) {
-  const { actor, isFetching } = useActor(createActor);
-  return useQuery({
-    queryKey: ["isMinor", id?.toString()],
-    queryFn: async () => {
-      if (!actor || id === undefined) return false;
-      return actor.isMinor(id);
-    },
-    enabled: !!actor && !isFetching && id !== undefined,
-  });
-}
-
 /** Read the editable paperwork and orientation checklists. */
 export function useChecklists() {
   const { actor, isFetching } = useActor(createActor);

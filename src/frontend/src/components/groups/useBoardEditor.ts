@@ -1,6 +1,5 @@
 import type {
   EventId,
-  RoadieId,
   Shift,
   ShiftBoard,
   ShiftBoardGroup,
@@ -68,21 +67,6 @@ function removeFromAll(board: EditableBoard, roadieId: bigint): EditableBoard {
     offRoadieIds: board.offRoadieIds.filter((id) => id !== roadieId),
     unassigned: board.unassigned,
   };
-}
-
-/** Find a roadie chip by id across the board. */
-export function findRoadie(
-  view: ShiftBoardView | null,
-  roadieId: bigint,
-): ShiftBoardRoadie | undefined {
-  if (!view) return undefined;
-  for (const group of view.groups) {
-    const found = group.roadies.find((roadie) => roadie.roadieId === roadieId);
-    if (found) return found;
-  }
-  const off = view.offThisShift.find((roadie) => roadie.roadieId === roadieId);
-  if (off) return off;
-  return view.unassigned.find((roadie) => roadie.roadieId === roadieId);
 }
 
 /**
@@ -258,9 +242,4 @@ export function useBoardEditor(
  */
 function principalFromText(text: string): ShiftBoardGroup["trainerPrincipal"] {
   return Principal.fromText(text);
-}
-
-/** A roadie id list as a stable string, for memo keys. */
-export function roadieIdsKey(ids: RoadieId[]): string {
-  return ids.map((id) => id.toString()).join(",");
 }

@@ -170,20 +170,6 @@ module {
     openSpots : Nat;
   };
 
-  /// Pending and active counts for one position or for the whole store.
-  public type RosterCounts = {
-    pending : Nat;
-    active : Nat;
-  };
-
-  /// The Hired → Active funnel shown on the dashboard: everyone hired, how
-  /// many have shown up (active) and how many are still pending.
-  public type RosterFunnel = {
-    hired : Nat;
-    active : Nat;
-    pending : Nat;
-  };
-
   /// A single change-log entry. `isDemo` marks entries written while demo mode
   /// was on, so the change log can separate demo activity from real activity.
   /// `paperworkDetail` carries the item-by-item paperwork change for a

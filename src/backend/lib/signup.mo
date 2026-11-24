@@ -25,9 +25,6 @@ module {
   /// Maximum accepted length of a phone/email field.
   let maxContactLength : Nat = 320;
 
-  /// The store's default time zone when none is configured.
-  let _defaultTimeZone : Common.TimeZone = "America/Chicago";
-
   /// Submit a new sign-up from the kiosk. Callable by Kiosk, Store Manager or
   /// Admin; every text field is length-capped. A sign-up submitted while demo
   /// mode is on is saved as a demo sign-up.

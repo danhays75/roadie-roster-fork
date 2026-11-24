@@ -2786,19 +2786,6 @@ module {
     );
   };
 
-  /// Internal: find the attendance record for a roadie at an event, with its
-  /// map key so callers can update it in place.
-  func findAttendance(
-    attendance : Map.Map<Nat, Phase23.AttendanceRecord>,
-    demo : Bool,
-    roadieId : Common.RoadieId,
-    eventId : Common.EventId,
-  ) : ?(Nat, Phase23.AttendanceRecord) {
-    attendance.entries().find(func((_, a)) =
-      a.isDemo == demo and a.roadieId == roadieId and a.eventId == ?eventId
-    );
-  };
-
   /// Internal: remove every attendance record for a roadie at an event.
   func removeAttendance(
     attendance : Map.Map<Nat, Phase23.AttendanceRecord>,

@@ -48,6 +48,3 @@ export function archiveReasonLabel(
 export const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
 
 export const HAT_SIZES = ["One size", "S/M", "L/XL"] as const;
-
-export type ShirtSizeValue = (typeof SHIRT_SIZES)[number];
-export type HatSizeValue = (typeof HAT_SIZES)[number];

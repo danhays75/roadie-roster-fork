@@ -99,6 +99,10 @@
 - Keep everything in version 12 and change nothing else
 - Only these four areas; do not change any other permission
 - Kitchen Manager and Service Manager have Store Manager access only for contact info, groups, check-ins and sign-ups
+- Keep every feature exactly as it works today
+- When unsure whether something is used, keep it
+- Keep every data migration, the .old/ and deployed/ backend.most files, every stable variable, map and counter, every public endpoint, the who and status fields on the Opening Questions import type, the alerts storage and the Dashboard alert list
+- Keep tests
 
 ## Accepted Requirements
 
@@ -373,6 +377,14 @@
 - Kitchen Manager and Service Manager get Store Manager access in exactly four areas: see contact info, edit groups, check people in, approve sign-ups, in backend and frontend
 - No other permission changes; the shared manager and group-editor helpers are not widened
 - Report what changed for each item and which tests passed or failed
+- Delete unused starter-template UI components under components/ui and components/kiosk/KioskWelcome.tsx if nothing imports them
+- Remove unused frontend functions, constants and imports
+- Remove copy keys no code looks up, in English and Spanish together, keeping any that could be built dynamically
+- Remove npm packages no source file imports, keeping anything the build, tests, tooling or Caffeine components need
+- Remove unused private backend functions and unused backend types
+- Keep every migration, the .old/ and deployed/ backend.most files, every stable variable, map and counter, every public endpoint, the who and status fields on the Opening Questions import type, the alerts storage, the Dashboard alert list and tests
+- Frontend type-checks, backend builds, and existing tests still pass
+- Report every removal, the copy key count, anything kept because of uncertainty, and the type-check, build and test results
 
 ## Verified Commands
 
@@ -382,10 +394,6 @@
 
 ## Learnings
 
-- OpeningQuestions.tsx mounts useOpeningQuestionAlerts and useMyOpeningQuestionNudges and refetches both after a nudge; the nudge mutation invalidates both keys via OPENING_QUESTION_KEYS.
-- The card pop-up keeps router history state by spreading window.history.state on push and stripping only ?card on replaceState, so back from a full profile returns to the list.
-- Biome noUnusedVariables defaults ignoreRestSiblings true, so the rest-sibling destructure used to strip ?card passes lint.
-- QuestionView carries commentCount and replyCount only; QuestionDiscussion loads its own discussion via useOpeningQuestionDiscussion(id, open), and openingQuestionDiscussion is part of OPENING_QUESTION_KEYS so writes refresh it.
 - ManagerScoreRow.nudgedToday is the stored nudge state derived from the nudge record in store time; the scoreboard no longer reads the change log or a hardcoded Chicago day key.
 - Demo leaders are identified by approvedBy == systemActor() (aaaaa-aa), never by work email; migration 32 strips legacy DEMO work emails from system-created grants.
 - getStoreInfo traps for a demo-only caller; getStoreDemoView serves non-sensitive store details while demo is on, and useDemoAwareStoreInfo falls back to it on Dashboard and Groups.
@@ -407,3 +415,7 @@
 - Kitchen/Service Manager four-area access uses dedicated helpers: backend Auth.roleHasFourAreaAccess/requireContactViewer/requireGroupEditorFourArea/requireCheckInManager/requireSignupApprover, frontend canSeeContactInfo/canEditShiftBoards/canManageCheckIns/canApproveSignups; isManager, requireManager, requireGroupEditor and the shared frontend role lists stay unwidened.
 - ManagerCheckInSection in Today.tsx mounts the shared CheckInBoard for Kitchen/Service Managers; it renders nothing when today has no shift summaries.
 - getCheckInBoard returns null when the caller has no group on the board, so a manager board only shows roadies in a group they train; the section still renders the shift picker.
+- lib/copy.ts holds two flat object literals en and es typed CopyDictionary; the en block starts near line 7 and the es block near line 1052, and every key removal must delete both locale entries together so the two key sets stay identical.
+- Orphan ui cluster: sidebar was the only importer of separator, sheet and tooltip, so those plus 30 more starter ui files were deletable; 12 ui files remain live.
+- Deleting a frontend hook can orphan its type imports; re-check SignupId, ShiftBoardView, RoadieId, QuestionFilter and translate after each removal.
+- OQL resolver imports (MapEntity, RecordValue, NatValue) in main.mo look unused but are required top-level for .toEntity/.payload derivation; keep them.

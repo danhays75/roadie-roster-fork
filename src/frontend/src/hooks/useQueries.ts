@@ -148,18 +148,6 @@ export function usePendingSignups() {
   });
 }
 
-export function useSignup(id: SignupId | undefined) {
-  const { actor, isFetching } = useActor(createActor);
-  return useQuery({
-    queryKey: ["signup", id?.toString()],
-    queryFn: async () => {
-      if (!actor || id === undefined) return null;
-      return actor.getSignup(id);
-    },
-    enabled: !!actor && !isFetching && id !== undefined,
-  });
-}
-
 export function useSignupDuplicates(id: SignupId | undefined) {
   const { actor, isFetching } = useActor(createActor);
   return useQuery({
@@ -1153,18 +1141,6 @@ export function useDeleteCrew() {
   });
 }
 
-export function useChangeLog() {
-  const { actor, isFetching } = useActor(createActor);
-  return useQuery({
-    queryKey: ["changeLog"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.listChangeLog();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
 /* ---------------------------------------------------------------------------
    Dashboard & export
 --------------------------------------------------------------------------- */
@@ -1609,23 +1585,6 @@ export function useShiftBoard(
       !isFetching &&
       eventId !== undefined &&
       shift !== undefined,
-  });
-}
-
-/**
- * Every shift board for the current partition. Readable by every read role
- * except Kiosk and Integration, so callers pass `enabled` (typically
- * `canGroups(role)`) to avoid a trapping read for those roles.
- */
-export function useShiftBoards(enabled = true) {
-  const { actor, isFetching } = useActor(createActor);
-  return useQuery({
-    queryKey: ["shiftBoards"],
-    queryFn: async (): Promise<ShiftBoardView[]> => {
-      if (!actor) return [];
-      return actor.listShiftBoards();
-    },
-    enabled: enabled && !!actor && !isFetching,
   });
 }
 

@@ -7,7 +7,6 @@ import type {
   Timestamp,
 } from "@/backend";
 import { DemoShift, RoadieStage } from "@/backend";
-import { translate } from "@/hooks/useI18n";
 
 /**
  * A stored photo/signature reference is the raw uploaded bytes. Render it as a
@@ -350,22 +349,6 @@ export function formatDateOnlyMonthDay(dateOnly: DateOnly): string | null {
 }
 
 /**
- * Format a timestamp as a long date in the store's time zone (e.g. for the
- * opening-day countdown). Falls back to an em dash when invalid.
- */
-export function formatTimestampLongDate(
-  timestamp: Timestamp,
-  timeZone?: string,
-): string {
-  const date = timestampToDate(timestamp);
-  if (!date) return "—";
-  return date.toLocaleDateString(undefined, {
-    dateStyle: "long",
-    timeZone,
-  });
-}
-
-/**
  * Format a timestamp as a medium date in the store's time zone (e.g. for the
  * opening timeline). Falls back to an em dash when invalid.
  */
@@ -377,25 +360,6 @@ export function formatTimestampMediumDate(
   if (!date) return "—";
   return date.toLocaleDateString(undefined, {
     dateStyle: "medium",
-    timeZone,
-  });
-}
-
-/**
- * Format a timestamp as a short month, day and year (e.g. "Jan 30, 2027") in
- * the store's time zone, so the roadie card's hire date reads the same on every
- * device. Falls back to an em dash when invalid.
- */
-export function formatTimestampMonthDayYear(
-  timestamp: Timestamp,
-  timeZone?: string,
-): string {
-  const date = timestampToDate(timestamp);
-  if (!date) return "—";
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
     timeZone,
   });
 }
@@ -458,21 +422,6 @@ export function roadieStageTagText(
   t: (key: string) => string,
 ): string {
   return tag.label ?? t(tag.key);
-}
-
-/**
- * Human label for a roadie's derived hiring stage. Pass the surface's
- * translator to render the label in the active locale; without one the English
- * label is returned. While the stage is Hired, pass the roadie's derived
- * `paperworkStep` so the tag shows the latest completed paperwork step.
- */
-export function roadieStageLabel(
-  stage: RoadieStage | undefined,
-  t?: (key: string) => string,
-  paperworkStep?: string,
-): string {
-  const tag = roadieStageTag(stage, paperworkStep);
-  return roadieStageTagText(tag, t ?? ((key) => translate("en", key)));
 }
 
 /** Human label for a role enum value. */
