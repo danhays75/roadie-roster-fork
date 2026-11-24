@@ -6,6 +6,7 @@ import Roadie "../types/roadie";
 import Phase23 "../types/phase23";
 import Access "../types/access";
 import OpeningQuestions "../types/openingquestions";
+import CrewEvents "../types/crewevents";
 import Phase23Lib "../lib/phase23";
 
 mixin (
@@ -32,6 +33,8 @@ mixin (
   openingQuestions : Map.Map<Nat, OpeningQuestions.OpeningQuestion>,
   openingQuestionEmailSettings : { var value : OpeningQuestions.EmailSettings },
   openingQuestionNudges : Map.Map<Principal, OpeningQuestions.Nudge>,
+  crewEvents : Map.Map<Common.CrewEventId, CrewEvents.CrewEvent>,
+  eventInvites : Map.Map<Text, CrewEvents.EventInvite>,
 ) {
   /// Dashboard summary tiles and per-position progress, including the
   /// pending/active breakdown and the Hired → Active funnel.
@@ -179,7 +182,7 @@ mixin (
   /// The caller's own crew for the Today screen: the crew they own and one row
   /// per roadie assigned to it. Null when the caller owns no crew.
   public query ({ caller }) func getMyCrew() : async ?Phase23.MyCrewView {
-    Phase23Lib.getMyCrew(accessGrants, demoState, crews, roadies, positions, checklists, orientationCheckoffs, schedule, checkIns, storeInfo.value, caller);
+    Phase23Lib.getMyCrew(accessGrants, demoState, crews, roadies, positions, checklists, orientationCheckoffs, schedule, checkIns, crewEvents, eventInvites, storeInfo.value, caller);
   };
 
   /// Add a trainer note (Trainer, Training Manager, Kitchen Manager, Service
@@ -325,6 +328,6 @@ mixin (
 
   /// The Today page payload, shaped by the caller's role.
   public query ({ caller }) func getToday() : async Phase23.TodayView {
-    Phase23Lib.getToday(accessGrants, demoState, shiftBoards, roadies, positions, crews, checklists, orientationCheckoffs, schedule, storeInfo.value, checkIns, absentAlerts, openingQuestions, openingQuestionEmailSettings, openingQuestionNudges, caller);
+    Phase23Lib.getToday(accessGrants, demoState, shiftBoards, roadies, positions, crews, checklists, orientationCheckoffs, schedule, storeInfo.value, checkIns, absentAlerts, openingQuestions, openingQuestionEmailSettings, openingQuestionNudges, crewEvents, eventInvites, caller);
   };
 };

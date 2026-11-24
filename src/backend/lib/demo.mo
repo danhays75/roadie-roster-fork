@@ -10,6 +10,7 @@ import Store "../types/store";
 import Roadie "../types/roadie";
 import Signup "../types/signup";
 import Phase23 "../types/phase23";
+import CrewEvents "../types/crewevents";
 import Access "../types/access";
 import Auth "auth";
 import ChangeLog "changelog";
@@ -607,6 +608,8 @@ module {
     storeInfo : { var value : Store.StoreInfo },
     changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
     counters : Counters,
+    _crewEvents : Map.Map<Common.CrewEventId, CrewEvents.CrewEvent>,
+    _eventInvites : Map.Map<Text, CrewEvents.EventInvite>,
     caller : Principal,
   ) : Demo.DemoDataSummary {
     Auth.requireRealAdmin(accessGrants, caller);
@@ -780,6 +783,8 @@ module {
     finalSignOffs : Map.Map<Common.RoadieId, Phase23.FinalSignOff>,
     changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
     counters : Counters,
+    crewEvents : Map.Map<Common.CrewEventId, CrewEvents.CrewEvent>,
+    eventInvites : Map.Map<Text, CrewEvents.EventInvite>,
     caller : Principal,
   ) : Demo.DemoDataSummary {
     Auth.requireRealAdmin(accessGrants, caller);
@@ -800,6 +805,8 @@ module {
     removeWhere(groupChangeNotices, Nat.compare, func(n) = n.isDemo);
     removeWhere(leaderTalks, Nat.compare, func(t) = t.isDemo);
     removeWhere(finalSignOffs, Nat.compare, func(s) = s.isDemo);
+    removeWhere(crewEvents, Nat.compare, func(e) = e.isDemo);
+    removeWhere(eventInvites, Text.compare, func(i) = i.isDemo);
     removeWhere(accessGrants, Principal.compare, func(g) = isDemoLeader(g));
     ignore ChangeLog.record(changeLog, counters, caller, "clearDemoData", null, false, "Cleared demo data");
     removed;

@@ -120,6 +120,7 @@
 - No change to the stored LeaderTalk type, so no migration
 - Keep demo-mode partitioning on every new read and write
 - Builds on version 19 and keeps everything else exactly as it works today
+- Builds on version 20 and keeps everything else exactly as it works today
 
 ## Accepted Requirements
 
@@ -460,6 +461,25 @@
 - Delete the stray placeholder LeaderTalkGroupDialog.tsx file
 - Add any new copy key in both English and Spanish with the same keys in both
 - Frontend type-checks, backend builds and existing tests pass, with results reported
+- New CrewEvent store with name, start date and time, place, optional note, cancelled flag and isDemo, with no built-in dates
+- New EventInvite store, one per event and roadie, with answer, reason, follow-up note, attendance, updatedBy, updatedAt and isDemo
+- Managing Partner and Admin create, edit (including moving the date and time), cancel and un-cancel events; no delete
+- Moving an event keeps every answer, reason, follow-up and attendance already recorded
+- Every signed-in role that can read the roster can list events, except kiosk and integration, respecting the demo partition
+- Crew leaders record answers for their own crew; Admin, Managing Partner and Store Manager for any roadie; only active, non-archived roadies
+- Attendance can be marked only after the event's start; cancelled events take no new answers
+- Reason required when can't go, max 1,000 characters; follow-up note max 1,000 characters
+- Orientation no-show risk at 2 or more can't go answers or attended-no marks across non-cancelled events, with atRiskEvents on the My crew row and the flag shown on My crew
+- A manager query listing at-risk roadies, shown as a Needs attention row in the Dashboard alerts
+- Follow up due on the event's crew list when a can't go follow-up note is still empty 48 hours after it was recorded
+- Events page in the nav for the My crew roles plus Admin and Managing Partner, upcoming first then past, with counts and New/Edit/Cancel for Managing Partner and Admin
+- Opening an event shows the viewer's own crew, with Admin, Managing Partner and Store Manager able to pick any crew
+- Roadie row with name, photo, answer buttons, reason box when can't go, follow-up note, attended toggle after the event, Save per row and a clear inline error when the reason is missing
+- Today Upcoming events card with the next 3 non-cancelled events and the viewer's crew counts, tapping opens the event
+- Mutations refresh events, the event crew list, myCrew, Today and the Dashboard alerts
+- LeaderTalkGroupDialog handleFill also skips roadies in assignedElsewhere and still only changes the dialog's selection
+- All new text in English and Spanish in lib/copy.ts with matching keys
+- Run the type check, build and existing tests and fix anything that fails, without changing unrelated screens, permissions or data
 
 ## Verified Commands
 
@@ -469,16 +489,6 @@
 
 ## Learnings
 
-- A module-level let in a Motoko lib file must be a literal; 24 * 60 * 60 * 1_000_000_000 fails M0014, so write 86_400_000_000_000.
-- Biome lint/a11y/useSemanticElements rejects a div with role group; use fieldset and legend for a labelled button group.
-- Copy parity check: match keys only at line start so string values containing words like largo are not counted as keys.
-- Today My group check marks need a per-roadie notes query (useQueries over the group roadie ids) keyed trainerNotes plus the roadie id, matching the add and update mutation's invalidation key.
-- Final sign-off: recordFinalSignOff, clearFinalSignOff and getFinalSignOff live in lib/phase23.mo and mixins/phase23-api.mo; the stored FinalSignOff type and finalSignOffs map are unchanged, so no migration was needed.
-- FinalSignOffView adds signedByName for reads; SignOffOutcome is a __kind__ union, so narrow on outcome.__kind__ === 'needsMoreTime' to read the reason.
-- rehireRoadie in lib/roadie.mo clears the roadie's sign-off, so finalSignOffs is threaded through RoadieApi in main.mo.
-- Sign-off frontend: useFinalSignOff keyed ['finalSignOff', roadieId.toString()], useRecordFinalSignOff and useClearFinalSignOff invalidate it plus ['roadie', id], ['roadies'] and ['dashboard'].
-- FINAL_SIGN_OFF_ROLES in useAccess.ts covers admin, managingPartner, storeManager, trainingManager, kitchenManager, serviceManager and trainer; CLEAR_SIGN_OFF_ROLES covers admin, managingPartner and storeManager.
-- Today My group tiles must mount for every role that may sign off, not only the trainer view, or managers see no Sign off button.
 - hasReachedFinalSignOff in lib/schedule.ts compares dateToDateOnly(now) >= dateToDateOnly(event.start) so the sign-off day itself counts as arrived.
 - FinalSignOffForm in components/roadie is shared by the roadie card's Trainer notes tab and the Today My group tiles; SIGN_OFF_REASON_MAX_LENGTH is 1,000.
 - FlipCard takes an optional futureTrainer prop that renders the Future trainer chip; RoadieCardModal and RoadieCard pass it from useFinalSignOff.
@@ -494,3 +504,13 @@
 - Leader talk Fill is pure dialog state: handleFill only calls setSelected, so New group and Edit group share one code path and Save is the sole mutation trigger; the page passes notYetMet and no longer calls setLeaderTalkAttendance on fill.
 - FlipCard takes an optional leaderTalkLine prop rendered as a caption below the card, so the talk line shows on the roadie page and the card pop-up without touching roadieCard.css.
 - The card talk line is gated by canLeaderTalks(role) in RoadieCard, RoadieCardModal and Roster, so all three surfaces show it to exactly the same reader roles.
+- Crew events live in src/backend/lib/crewevents.mo with mixins/crewevents-api.mo and types/crewevents.mo; the invite key is partition#eventId#roadieId text, matching the demo/real split.
+- Migration 00000034_000000.mo adds the crewEvents and eventInvites maps; adding a counter needs a distinct NewCounters type in the migration or M0170 fires.
+- MapEntity.toEntityManual takes two type args <K, V>; eventInvites is Map<Text, EventInvite> so pass <Text, CrewEvents.EventInvite>.
+- Crew event hooks use query keys crewEvents, eventCrew, upcomingEvents, atRiskRoadies; every mutation invalidates crewEvents, eventCrew, myCrew, today, dashboard, atRiskRoadies, changeLog.
+- EventAnswer and EventAttendance are generated enums; import as values and compare with EventAnswer.cantGo, not string literals.
+- EventCrewView.crewId is non-optional; pass crewId null to useEventCrew for the caller's own crew, a CrewId to pick another.
+- MyCrewRoadieRow.atRiskEvents is a bigint; the Orientation no-show risk flag shows when Number(atRiskEvents) >= 2.
+- The Dashboard at-risk row gates on canArchive (Admin, Managing Partner, Store Manager), matching the backend manager check; canEvents would wrongly exclude Store Manager.
+- The Events page classifies past and upcoming by pretendDateToInstant(demoState.pretendDate, store) to match the backend effective date.
+- handleFill now skips both selected ids and assignedElsewhere ids; it still only calls setSelected and keeps the fill-none message path.

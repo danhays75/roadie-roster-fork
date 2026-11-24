@@ -1,18 +1,20 @@
 {
-  "overview": "A store hiring and training roster app for TLC: track roadies from sign-up through paperwork, orientation, training groups and certification, with leader cards, crews, gift bags and leader talks.",
+  "overview": "A hiring and orientation roster for a restaurant opening team, with crew events, paperwork tracking, training groups and manager dashboards.",
   "features": [
-    "Track roadies from sign-up through paperwork, orientation, training and certification",
-    "Leader talks groups with a fill-from-not-yet-met helper",
-    "Roadie and leader collectible cards with a leader talk line",
-    "Crews, gift bags, check-ins and shift boards",
-    "English and Spanish copy throughout"
+    "Create, edit, move, cancel and un-cancel crew events",
+    "Record each roadie's answer, reason, follow-up note and attendance per event",
+    "See going, can't go and no answer counts for every event",
+    "Flag roadies at risk of missing orientation on My crew and the Dashboard",
+    "See the next three upcoming events on Today",
+    "Fill a leader talk group while skipping roadies already in another group"
   ],
-  "category": "productivity",
+  "category": "team-management",
   "tags": [
     "roster",
     "hiring",
-    "training",
-    "store-management"
+    "events",
+    "restaurant",
+    "managers"
   ],
-  "last_updated": "2026-11-24T15:31:04.375Z"
+  "last_updated": "2026-11-24T15:51:26.817Z"
 }

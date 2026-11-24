@@ -8,6 +8,7 @@ import type {
   ShiftBoardRoadie,
   ShiftCheckInSummary,
   TrainerNoteView,
+  UpcomingEventView,
 } from "@/backend";
 import { Role, createActor } from "@/backend";
 import { PageHeader } from "@/components/PageHeader";
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   canAddTrainerNote,
+  canEvents,
   canFinalizeOpeningQuestions,
   canManageCheckIns,
   canOpeningQuestions,
@@ -57,6 +59,7 @@ import {
   useSchedule,
   useStoreInfo,
   useToday,
+  useUpcomingEvents,
 } from "@/hooks/useQueries";
 import {
   dateOnlyToDate,
@@ -69,6 +72,7 @@ import { useActor } from "@caffeineai/core-infrastructure";
 import { useQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   BadgeCheck,
   BellRing,
   CalendarClock,
@@ -335,6 +339,10 @@ function MyCrewRow({
   index: number;
   onOpen: () => void;
 }) {
+  const { t } = useDashboardCopy();
+  const atRiskEvents = Number(row.atRiskEvents);
+  const atRisk = atRiskEvents >= 2;
+
   return (
     <li data-ocid={`today.myCrew.item.${index}`}>
       <button
@@ -400,6 +408,19 @@ function MyCrewRow({
                 ocid={`today.myCrew.item.${index}.overdue`}
               >
                 Paperwork overdue
+              </StatusBadge>
+            )}
+            {atRisk && (
+              <StatusBadge
+                tone="danger"
+                ocid={`today.myCrew.item.${index}.at_risk`}
+                className="gap-1"
+              >
+                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                {t("events.riskFlag")}
+                <span className="sr-only">
+                  {t("events.riskFlagHint", { count: atRiskEvents })}
+                </span>
               </StatusBadge>
             )}
           </span>
@@ -1355,6 +1376,104 @@ function ManagerCheckInSection({
 }
 
 /**
+ * One upcoming event row: the event name, its date and time, and the viewer's
+ * crew counts for going, can't go and no answer. The whole row is a link that
+ * opens the event on the Events page.
+ */
+function UpcomingEventRow({
+  event,
+  index,
+}: {
+  event: UpcomingEventView;
+  index: number;
+}) {
+  const { t } = useDashboardCopy();
+  const going = Number(event.goingCount);
+  const cantGo = Number(event.cantGoCount);
+  const noAnswer = Number(event.noAnswerCount);
+
+  return (
+    <li data-ocid={`today.events.item.${index}`}>
+      <Link
+        to="/events"
+        data-ocid={`today.events.item.${index}.link`}
+        aria-label={t("today.events.open", { name: event.name })}
+        className="group flex min-h-[44px] items-center gap-3 rounded-lg border border-border bg-card p-3 shadow-subtle transition-smooth hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <CalendarClock className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span
+            data-ocid={`today.events.item.${index}.name`}
+            className="block truncate font-display text-sm font-semibold uppercase tracking-wide text-foreground"
+          >
+            {event.name}
+          </span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+            {formatTimestamp(event.start)}
+          </span>
+          <span
+            data-ocid={`today.events.item.${index}.counts`}
+            className="mt-1 block text-xs font-medium tabular-nums text-foreground"
+          >
+            {t("today.events.counts", { going, cantGo, noAnswer })}
+          </span>
+        </span>
+        <ChevronRight
+          className="h-4 w-4 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * The manager's Upcoming events card: the next three non-cancelled events with
+ * the viewer's crew going, can't go and no answer counts, each tappable to open
+ * the event, plus a link to all events. Renders nothing while the read loads,
+ * on error, or when no event is upcoming, so the rest of Today is unchanged.
+ */
+function UpcomingEventsCard() {
+  const { t } = useDashboardCopy();
+  const access = useAccessState();
+  const role = access.kind === "granted" ? access.grant.role : undefined;
+  const maySeeEvents = canEvents(role);
+  const { data } = useUpcomingEvents(maySeeEvents);
+
+  if (!maySeeEvents || !data || data.length === 0) return null;
+
+  const events = data.slice(0, 3);
+
+  return (
+    <section className="space-y-4" data-ocid="today.events.section">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h2 className="font-display text-xl font-bold uppercase tracking-wide text-foreground">
+          {t("today.events.title")}
+        </h2>
+        <Button asChild variant="outline" className="touch-target">
+          <Link to="/events" data-ocid="today.events.view_all_link">
+            {t("today.events.viewAll")}
+            <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
+          </Link>
+        </Button>
+      </div>
+
+      <ul className="space-y-3" data-ocid="today.events.list">
+        {events.map((event, index) => (
+          <UpcomingEventRow
+            key={event.id.toString()}
+            event={event}
+            index={index}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
  * The manager-facing Today content: the caller's own crew (when they own one)
  * first, then the absent alerts list, then today's shifts with an "x / y
  * checked in" count per shift, each tappable to open that shift's check-in
@@ -1380,6 +1499,8 @@ function ManagerToday({
       <ReadyForFinalAlertCard />
 
       <MyCrewSection />
+
+      <UpcomingEventsCard />
 
       {canRecordFinalSignOff(role) && <MyGroupTiles role={role} />}
 

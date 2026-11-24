@@ -2,11 +2,16 @@ import type {
   AbsentAlertView,
   AccessGrant,
   ApprovalRequest,
+  AtRiskRoadie,
   CheckInBoardView,
   CheckInRow,
+  CrewEventId,
+  CrewEventSummary,
   DemoDataSummary,
   DemoRole,
   DemoStateView,
+  EventCrewRow,
+  EventCrewView,
   GroupChangeNotice,
   LeaderSummary,
   MyAccessView,
@@ -36,22 +41,29 @@ import type {
   TodayView,
   UniformCheckoffItem,
   UniformCheckoffView,
+  UpcomingEventView,
 } from "@/backend";
 import type { Principal } from "@icp-sdk/core/principal";
 
-// `CheckInState` is a generated enum (a runtime value), so it is re-exported as
-// a value rather than a type-only export.
-export { CheckInState } from "@/backend";
+// `CheckInState`, `EventAnswer` and `EventAttendance` are generated enums
+// (runtime values), so they are re-exported as values rather than type-only
+// exports.
+export { CheckInState, EventAnswer, EventAttendance } from "@/backend";
 
 export type {
   AbsentAlertView,
   AccessGrant,
   ApprovalRequest,
+  AtRiskRoadie,
   CheckInBoardView,
   CheckInRow,
+  CrewEventId,
+  CrewEventSummary,
   DemoDataSummary,
   DemoRole,
   DemoStateView,
+  EventCrewRow,
+  EventCrewView,
   GroupChangeNotice,
   LeaderSummary,
   MyAccessView,
@@ -80,6 +92,7 @@ export type {
   TodayView,
   UniformCheckoffItem,
   UniformCheckoffView,
+  UpcomingEventView,
 };
 
 /**

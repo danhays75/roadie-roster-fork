@@ -152,6 +152,10 @@ module {
     /// Hired; null when nothing is checked and for every other stage. Drives
     /// the in-between stage tag.
     paperworkStep : ?Text;
+    /// The number of non-cancelled crew events at which this roadie has 2 or
+    /// more can't-go answers or attended-no marks. Non-zero flags the roadie
+    /// "Orientation no-show risk" on My crew.
+    atRiskEvents : Nat;
   };
 
   /// A crew owner's "My crew" section on the Today screen: the crew name and

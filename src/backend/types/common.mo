@@ -30,6 +30,9 @@ module {
   /// Identifier for an alert.
   public type AlertId = Nat;
 
+  /// Identifier for a crew event (a pre-opening get-together).
+  public type CrewEventId = Nat;
+
   /// The application roles. `#managingPartner` holds every Admin permission;
   /// `#kitchenManager` and `#serviceManager` are the Opening Questions leader
   /// roles.

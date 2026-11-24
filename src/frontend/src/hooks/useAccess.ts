@@ -147,6 +147,28 @@ export const LEADER_TALK_EDITOR_ROLES: Role[] = [
 ];
 
 /**
+ * Roles allowed to see the Events surface: the roles that can see My crew plus
+ * Admin and Managing Partner. Kiosk and Integration are refused, matching the
+ * backend's crew event read restriction.
+ */
+export const EVENTS_ROLES: Role[] = [
+  ...ADMIN_ROLES,
+  Role.storeManager,
+  Role.trainingManager,
+  Role.kitchenManager,
+  Role.serviceManager,
+  Role.trainer,
+  Role.visitingManager,
+  Role.leadership,
+];
+
+/**
+ * Roles allowed to create, edit, cancel and un-cancel a crew event: Admin and
+ * Managing Partner only, matching the backend.
+ */
+export const EVENT_EDITOR_ROLES: Role[] = [...ADMIN_ROLES];
+
+/**
  * Roles allowed to see the Orientation check-in surface: the roles that may
  * read an orientation session view on the backend.
  */
@@ -341,6 +363,11 @@ export const NAV_ITEMS: NavItem[] = [
     labelKey: "nav.leaderTalks",
     to: "/leader-talks",
     allowedRoles: LEADER_TALKS_ROLES,
+  },
+  {
+    labelKey: "nav.events",
+    to: "/events",
+    allowedRoles: EVENTS_ROLES,
   },
   {
     labelKey: "nav.orientation",
@@ -567,6 +594,16 @@ export function canLeaders(role: Role | undefined): boolean {
 /** Whether the given role may view the Groups shift boards. */
 export function canGroups(role: Role | undefined): boolean {
   return !!role && GROUPS_ROLES.includes(role);
+}
+
+/** Whether the given role may open the Events surface. */
+export function canEvents(role: Role | undefined): boolean {
+  return !!role && EVENTS_ROLES.includes(role);
+}
+
+/** Whether the given role may create, edit, cancel or un-cancel an event. */
+export function canEditEvents(role: Role | undefined): boolean {
+  return !!role && EVENT_EDITOR_ROLES.includes(role);
 }
 
 /** Whether the given role may open the Orientation check-in surface. */

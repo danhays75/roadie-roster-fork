@@ -70,6 +70,13 @@ export type ArchiveReason = { 'noShow' : null } |
   { 'letGo' : null } |
   { 'ncnsOrientation' : null } |
   { 'tookAnotherJob' : null };
+export interface AtRiskRoadie {
+  'demoPhotoUrl' : [] | [string],
+  'roadieId' : RoadieId,
+  'name' : string,
+  'atRiskEvents' : bigint,
+  'photo' : [] | [PhotoRef],
+}
 export interface AttendanceRecord {
   'eventId' : [] | [EventId],
   'roadieId' : RoadieId,
@@ -162,6 +169,19 @@ export interface Crew {
   'isDemo' : boolean,
   'leaderPrincipal' : [] | [Principal],
 }
+export type CrewEventId = bigint;
+export interface CrewEventSummary {
+  'id' : CrewEventId,
+  'noAnswerCount' : bigint,
+  'cantGoCount' : bigint,
+  'cancelled' : boolean,
+  'goingCount' : bigint,
+  'name' : string,
+  'note' : [] | [string],
+  'isDemo' : boolean,
+  'start' : DateTime,
+  'place' : string,
+}
 export type CrewId = bigint;
 export interface CrewSummary {
   'id' : CrewId,
@@ -241,6 +261,36 @@ export type Error = { 'FrontendOriginsNotConfigured' : null } |
   { 'UntrustedSsoSource' : { 'domain' : string } } |
   { 'MissingField' : string } |
   { 'FrontendOriginMismatch' : { 'got' : string, 'expected' : Array<string> } };
+export type EventAnswer = { 'noAnswer' : null } |
+  { 'going' : null } |
+  { 'cantGo' : null };
+export type EventAttendance = { 'no' : null } |
+  { 'yes' : null } |
+  { 'notMarked' : null };
+export interface EventCrewRow {
+  'demoPhotoUrl' : [] | [string],
+  'roadieId' : RoadieId,
+  'name' : string,
+  'answer' : EventAnswer,
+  'updatedAt' : [] | [Timestamp],
+  'updatedBy' : [] | [Principal],
+  'attendance' : EventAttendance,
+  'followUpDue' : boolean,
+  'photo' : [] | [PhotoRef],
+  'reason' : [] | [string],
+  'followUpNote' : [] | [string],
+}
+export interface EventCrewView {
+  'roadies' : Array<EventCrewRow>,
+  'eventId' : CrewEventId,
+  'cancelled' : boolean,
+  'name' : string,
+  'note' : [] | [string],
+  'crewId' : CrewId,
+  'start' : DateTime,
+  'crewName' : string,
+  'place' : string,
+}
 export type EventId = bigint;
 export type EventKind = { 'other' : null } |
   { 'signOff' : null } |
@@ -436,6 +486,7 @@ export interface MyCrewRoadieRow {
   'roadieId' : RoadieId,
   'paperworkOverdue' : boolean,
   'name' : string,
+  'atRiskEvents' : bigint,
   'positionName' : string,
   'positionId' : PositionId,
   'stage' : [] | [RoadieStage],
@@ -1011,6 +1062,15 @@ export interface UniformSizeUnknownRow {
   'missingHat' : boolean,
   'missingShirt' : boolean,
 }
+export interface UpcomingEventView {
+  'id' : CrewEventId,
+  'noAnswerCount' : bigint,
+  'cantGoCount' : bigint,
+  'goingCount' : bigint,
+  'name' : string,
+  'start' : DateTime,
+  'place' : string,
+}
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
@@ -1180,6 +1240,13 @@ export interface _SERVICE {
    */
   'createCrew' : ActorMethod<[string, Principal], CrewId>,
   /**
+   * / Create a crew event (Managing Partner or Admin).
+   */
+  'createCrewEvent' : ActorMethod<
+    [string, DateTime, string, [] | [string]],
+    CrewEventId
+  >,
+  /**
    * / Create a leader talk. Allowed for Admin, Managing Partner, Store Manager
    * / and Training Manager. A blank name defaults to the store's leaderTalkName
    * / plus " · Group N". The group is refused when larger than leaderTalkSize,
@@ -1279,6 +1346,14 @@ export interface _SERVICE {
    * / caller's own demo role.
    */
   'getDemoState' : ActorMethod<[], DemoStateView>,
+  /**
+   * / Read one event's crew list with each roadie's answer, reason, follow-up
+   * / note, attendance and Follow up due state.
+   */
+  'getEventCrew' : ActorMethod<
+    [CrewEventId, [] | [CrewId]],
+    [] | [EventCrewView]
+  >,
   /**
    * / Read a roadie's final sign-off with the signer's display name, or null.
    * / Readable by every role that can read that roadie (not Kiosk or Integration;
@@ -1476,6 +1551,11 @@ export interface _SERVICE {
    */
   'listAlerts' : ActorMethod<[], Array<Alert>>,
   /**
+   * / List the at-risk roadies (2+ can't-go answers or attended-no marks across
+   * / non-cancelled events) for the Dashboard Needs attention row.
+   */
+  'listAtRiskRoadies' : ActorMethod<[], Array<AtRiskRoadie>>,
+  /**
    * / List attendance records for an event (Admin/Store Manager only).
    */
   'listAttendanceForEvent' : ActorMethod<[EventId], Array<AttendanceRecord>>,
@@ -1483,6 +1563,11 @@ export interface _SERVICE {
    * / List change-log entries visible to the caller.
    */
   'listChangeLog' : ActorMethod<[], Array<ChangeLogEntry>>,
+  /**
+   * / List every crew event in the active partition, upcoming first then past,
+   * / with going / can't go / no answer counts for the viewer's crew.
+   */
+  'listCrewEvents' : ActorMethod<[], Array<CrewEventSummary>>,
   /**
    * / List crews with their member counts (pending + active, archived excluded),
    * / for the kiosk approval Crew dropdown.
@@ -1566,6 +1651,11 @@ export interface _SERVICE {
    */
   'listUnassignedPendingRoadies' : ActorMethod<[], Array<UnassignedRoadieRow>>,
   /**
+   * / The next 3 non-cancelled events for the Today "Upcoming events" card, with
+   * / the viewer's crew counts.
+   */
+  'listUpcomingEvents' : ActorMethod<[], Array<UpcomingEventView>>,
+  /**
    * / Seed the demo data set (Admin, demo mode only).
    */
   'loadDemoData' : ActorMethod<[], DemoDataSummary>,
@@ -1574,6 +1664,13 @@ export interface _SERVICE {
    * / (Admin only). Refuses when any roadie exists.
    */
   'loadStoreTemplate' : ActorMethod<[StoreTemplateFile], TemplateLoadResult>,
+  /**
+   * / Mark one roadie's attendance at an event, only once its start has passed.
+   */
+  'markEventAttendance' : ActorMethod<
+    [CrewEventId, RoadieId, EventAttendance],
+    undefined
+  >,
   /**
    * / Mark a question final (Managing Partner only, works anytime).
    */
@@ -1685,6 +1782,13 @@ export interface _SERVICE {
    */
   'resignAvailability' : ActorMethod<[RoadieId, SignatureRef], undefined>,
   /**
+   * / Save one roadie's answer, reason and follow-up note for an event.
+   */
+  'saveEventAnswer' : ActorMethod<
+    [CrewEventId, RoadieId, EventAnswer, [] | [string], [] | [string]],
+    undefined
+  >,
+  /**
    * / Save a question's answer; changing the text clears its approvals.
    */
   'saveOpeningQuestionAnswer' : ActorMethod<[QuestionId, string], undefined>,
@@ -1718,6 +1822,10 @@ export interface _SERVICE {
    * / Managing Partner only), even when nothing is waiting.
    */
   'sendOpeningQuestionTestEmail' : ActorMethod<[], undefined>,
+  /**
+   * / Cancel or un-cancel a crew event (Managing Partner or Admin).
+   */
+  'setCrewEventCancelled' : ActorMethod<[CrewEventId, boolean], undefined>,
   /**
    * / Choose which demo manager a demo Store Manager or Training Manager views
    * / as, so "My crew" and the Roster "My crew" chip match the chosen manager's
@@ -1805,6 +1913,14 @@ export interface _SERVICE {
    * / Rename a crew and/or change its owner (Admin/Store Manager only).
    */
   'updateCrew' : ActorMethod<[CrewId, string, [] | [Principal]], undefined>,
+  /**
+   * / Edit a crew event, including moving its start date and time (Managing
+   * / Partner or Admin). Moving keeps every recorded answer.
+   */
+  'updateCrewEvent' : ActorMethod<
+    [CrewEventId, string, DateTime, string, [] | [string]],
+    undefined
+  >,
   /**
    * / Update the signed-in caller's own staff profile on their access grant.
    */

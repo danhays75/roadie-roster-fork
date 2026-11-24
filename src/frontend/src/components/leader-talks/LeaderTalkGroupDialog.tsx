@@ -126,7 +126,9 @@ export function LeaderTalkGroupDialog({
     const additions: RoadieId[] = [];
     for (const roadie of notYetMet) {
       if (selected.length + additions.length >= maxSize) break;
-      if (!currentSet.has(roadie.id.toString())) additions.push(roadie.id);
+      const key = roadie.id.toString();
+      if (currentSet.has(key) || assignedElsewhere.has(key)) continue;
+      additions.push(roadie.id);
     }
     if (additions.length === 0) {
       setFillMessage(t("leaderTalks.fillNone"));

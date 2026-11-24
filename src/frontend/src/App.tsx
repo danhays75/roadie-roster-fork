@@ -19,6 +19,7 @@ import {
   INTEGRATION_REFUSED_ROUTES,
   canAdmin,
   canApproveSignups,
+  canEvents,
   canExport,
   canGiftBags,
   canGroups,
@@ -34,6 +35,7 @@ import type { Locale } from "@/lib/copy";
 import AdminPage from "@/pages/Admin";
 import ApprovalsPage from "@/pages/Approvals";
 import DashboardPage from "@/pages/Dashboard";
+import EventsPage from "@/pages/Events";
 import ExportPage from "@/pages/Export";
 import GiftBagsPage from "@/pages/GiftBags";
 import GroupsPage from "@/pages/Groups";
@@ -404,6 +406,16 @@ function GuardedLeaderTalks() {
   );
 }
 
+/** The Events surface, blocked for roles that cannot read it. */
+function GuardedEvents() {
+  const role = useRole();
+  return (
+    <RouteGuard allowed={canEvents(role)}>
+      <EventsPage />
+    </RouteGuard>
+  );
+}
+
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -518,6 +530,12 @@ const leaderTalksRoute = createRoute({
   component: GuardedLeaderTalks,
 });
 
+const eventsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/events",
+  component: GuardedEvents,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   todayRoute,
@@ -534,6 +552,7 @@ const routeTree = rootRoute.addChildren([
   leaderCardRoute,
   groupsRoute,
   leaderTalksRoute,
+  eventsRoute,
   orientationRoute,
   openingQuestionsRoute,
   uniformsRoute,

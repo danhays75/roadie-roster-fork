@@ -80,6 +80,10 @@ const dashboardCopy: Record<string, { en: string; es: string }> = {
     en: "Opening Questions ready for final ({count})",
     es: "Preguntas de apertura listas para final ({count})",
   },
+  "dashboard.alerts.atRisk": {
+    en: "Roadies at risk of missing orientation ({count})",
+    es: "Roadies en riesgo de faltar a la orientación ({count})",
+  },
   "dashboard.alerts.dismiss": { en: "Dismiss", es: "Descartar" },
   "dashboard.alerts.dismissError": {
     en: "We couldn't dismiss that alert.",

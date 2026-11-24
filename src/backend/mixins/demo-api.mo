@@ -7,6 +7,7 @@ import Store "../types/store";
 import Roadie "../types/roadie";
 import Signup "../types/signup";
 import Phase23 "../types/phase23";
+import CrewEvents "../types/crewevents";
 import Access "../types/access";
 import DemoLib "../lib/demo";
 
@@ -30,6 +31,8 @@ mixin (
   storeInfo : { var value : Store.StoreInfo },
   changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
   counters : DemoLib.Counters,
+  crewEvents : Map.Map<Common.CrewEventId, CrewEvents.CrewEvent>,
+  eventInvites : Map.Map<Text, CrewEvents.EventInvite>,
 ) {
   /// Schedule the automatic demo-mode off so it is recorded even when no later
   /// update follows the eight-hour mark. The timer callback runs as a system
@@ -102,12 +105,12 @@ mixin (
 
   /// Seed the demo data set (Admin, demo mode only).
   public shared ({ caller }) func loadDemoData() : async Common.DemoDataSummary {
-    DemoLib.loadDemoData(accessGrants, demoState, roadies, signups, crews, attendance, trainerNotes, orientationCheckoffs, checkIns, schedule, checklists, positions, storeInfo, changeLog, counters, caller);
+    DemoLib.loadDemoData(accessGrants, demoState, roadies, signups, crews, attendance, trainerNotes, orientationCheckoffs, checkIns, schedule, checklists, positions, storeInfo, changeLog, counters, crewEvents, eventInvites, caller);
   };
 
   /// Remove every demo record (Admin, demo mode only). Real records are never
   /// touched.
   public shared ({ caller }) func clearDemoData() : async Common.DemoDataSummary {
-    DemoLib.clearDemoData(accessGrants, demoState, roadies, signups, crews, attendance, trainerNotes, orientationCheckoffs, checkIns, shiftBoards, groupChangeNotices, leaderTalks, finalSignOffs, changeLog, counters, caller);
+    DemoLib.clearDemoData(accessGrants, demoState, roadies, signups, crews, attendance, trainerNotes, orientationCheckoffs, checkIns, shiftBoards, groupChangeNotices, leaderTalks, finalSignOffs, changeLog, counters, crewEvents, eventInvites, caller);
   };
 };

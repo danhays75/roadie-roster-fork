@@ -11,6 +11,7 @@ import Roadie "../types/roadie";
 import Phase23 "../types/phase23";
 import Access "../types/access";
 import OpeningQuestions "../types/openingquestions";
+import CrewEvents "../types/crewevents";
 import Auth "auth";
 import Clock "clock";
 import ChangeLog "changelog";
@@ -1675,6 +1676,8 @@ module {
     checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
     schedule : Map.Map<Common.EventId, Store.ScheduleEvent>,
     checkIns : Map.Map<Text, Phase23.CheckInRecord>,
+    crewEvents : Map.Map<Common.CrewEventId, CrewEvents.CrewEvent>,
+    eventInvites : Map.Map<Text, CrewEvents.EventInvite>,
     storeInfo : Store.StoreInfo,
     caller : Principal,
   ) : ?Phase23.MyCrewView {
@@ -1724,12 +1727,42 @@ module {
               });
               stage;
               paperworkStep = paperworkStepFor(checklists.value, positions, r, stored, stage);
+              atRiskEvents = atRiskEventCount(crewEvents, eventInvites, demo, r.id);
             };
           })
           .toArray();
         ?{ crewId = c.id; crewName = c.name; roadies = rows };
       };
     };
+  };
+
+  /// Internal: the number of non-cancelled crew events at which a roadie has 2
+  /// or more can't-go answers or attended-no marks. Non-zero flags the roadie
+  /// "Orientation no-show risk" on My crew.
+  func atRiskEventCount(
+    crewEvents : Map.Map<Common.CrewEventId, CrewEvents.CrewEvent>,
+    eventInvites : Map.Map<Text, CrewEvents.EventInvite>,
+    demo : Bool,
+    roadieId : Common.RoadieId,
+  ) : Nat {
+    var count = 0;
+    for (event in crewEvents.values()) {
+      if (event.isDemo == demo and not event.cancelled) {
+        let key = (if (demo) { "demo:" } else { "real:" }) # event.id.toText() # ":" # roadieId.toText();
+        switch (eventInvites.get(key)) {
+          case (?inv) {
+            if (inv.isDemo == demo) {
+              var marks = 0;
+              if (inv.answer == #cantGo) { marks += 1 };
+              if (inv.attendance == #no) { marks += 1 };
+              if (marks >= 2) { count += 1 };
+            };
+          };
+          case null {};
+        };
+      };
+    };
+    count;
   };
 
   /// Internal: the paperwork due date — the earliest `#deadline` schedule event
@@ -2778,6 +2811,8 @@ module {
     openingQuestions : Map.Map<Nat, OpeningQuestions.OpeningQuestion>,
     openingQuestionEmailSettings : { var value : OpeningQuestions.EmailSettings },
     openingQuestionNudges : Map.Map<Principal, OpeningQuestions.Nudge>,
+    crewEvents : Map.Map<Common.CrewEventId, CrewEvents.CrewEvent>,
+    eventInvites : Map.Map<Text, CrewEvents.EventInvite>,
     caller : Principal,
   ) : Phase23.TodayView {
     let role = Auth.requireReadable(accessGrants, demoState, caller);
@@ -2800,7 +2835,7 @@ module {
     };
 
     // A crew owner gets their "My crew" section.
-    let myCrew = getMyCrew(accessGrants, demoState, crews, roadies, positions, checklists, checkoffs, schedule, checkIns, storeInfo, caller);
+    let myCrew = getMyCrew(accessGrants, demoState, crews, roadies, positions, checklists, checkoffs, schedule, checkIns, crewEvents, eventInvites, storeInfo, caller);
 
     // Admin, Store Manager and Training Manager get the absent alerts.
     let alerts = if (isManager) {

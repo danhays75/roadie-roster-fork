@@ -36,6 +36,16 @@ type UserRole =
    guest;
    user;
  };
+type UpcomingEventView = 
+ record {
+   cantGoCount: nat;
+   goingCount: nat;
+   id: CrewEventId;
+   name: text;
+   noAnswerCount: nat;
+   place: text;
+   start: DateTime;
+ };
 type UniformSizeUnknownRow = 
  record {
    missingHat: bool;
@@ -723,6 +733,7 @@ type MyCrewView =
 type MyCrewRoadieRow = 
  record {
    absentToday: bool;
+   atRiskEvents: nat;
    demoPhotoUrl: opt text;
    name: text;
    paperworkDone: nat;
@@ -971,6 +982,44 @@ type EventKind =
    trainingDay;
  };
 type EventId = nat;
+type EventCrewView = 
+ record {
+   cancelled: bool;
+   crewId: CrewId;
+   crewName: text;
+   eventId: CrewEventId;
+   name: text;
+   note: opt text;
+   place: text;
+   roadies: vec EventCrewRow;
+   start: DateTime;
+ };
+type EventCrewRow = 
+ record {
+   answer: EventAnswer;
+   attendance: EventAttendance;
+   demoPhotoUrl: opt text;
+   followUpDue: bool;
+   followUpNote: opt text;
+   name: text;
+   photo: opt PhotoRef;
+   reason: opt text;
+   roadieId: RoadieId;
+   updatedAt: opt Timestamp;
+   updatedBy: opt principal;
+ };
+type EventAttendance = 
+ variant {
+   no;
+   notMarked;
+   yes;
+ };
+type EventAnswer = 
+ variant {
+   cantGo;
+   going;
+   noAnswer;
+ };
 type Error = 
  variant {
    AmbiguousAttribute: record {
@@ -1072,6 +1121,20 @@ type CrewSummary =
    roadieCount: nat;
  };
 type CrewId = nat;
+type CrewEventSummary = 
+ record {
+   cancelled: bool;
+   cantGoCount: nat;
+   goingCount: nat;
+   id: CrewEventId;
+   isDemo: bool;
+   name: text;
+   noAnswerCount: nat;
+   note: opt text;
+   place: text;
+   start: DateTime;
+ };
+type CrewEventId = nat;
 type Crew = 
  record {
    id: CrewId;
@@ -1187,6 +1250,14 @@ type AttendanceRecord =
    roadieId: RoadieId;
    shift: opt Shift;
    state: AttendanceState;
+ };
+type AtRiskRoadie = 
+ record {
+   atRiskEvents: nat;
+   demoPhotoUrl: opt text;
+   name: text;
+   photo: opt PhotoRef;
+   roadieId: RoadieId;
  };
 type ArchiveReason = 
  variant {
@@ -1345,6 +1416,9 @@ service : {
   /// owner is required and must be an approved Admin, Store Manager or Training
   /// Manager leader; a manager may own only one crew.
   createCrew: (name: text, leaderPrincipal: principal) -> (CrewId);
+  /// Create a crew event (Managing Partner or Admin).
+  createCrewEvent: (name: text, start: DateTime, place: text, note:
+   opt text) -> (CrewEventId);
   /// Create a leader talk. Allowed for Admin, Managing Partner, Store Manager
   /// and Training Manager. A blank name defaults to the store's leaderTalkName
   /// plus " · Group N". The group is refused when larger than leaderTalkSize,
@@ -1404,6 +1478,10 @@ service : {
   /// waiting screens. `demoRole` and `demoTrainerStations` describe the
   /// caller's own demo role.
   getDemoState: () -> (DemoStateView) query;
+  /// Read one event's crew list with each roadie's answer, reason, follow-up
+  /// note, attendance and Follow up due state.
+  getEventCrew: (eventId: CrewEventId, crewId: opt CrewId) ->
+   (opt EventCrewView) query;
   /// Read a roadie's final sign-off with the signer's display name, or null.
   /// Readable by every role that can read that roadie (not Kiosk or Integration;
   /// a Trainer only for their stations).
@@ -1514,10 +1592,16 @@ service : {
   listAccessGrants: () -> (vec AccessGrant) query;
   /// List alerts (Admin/Store Manager only).
   listAlerts: () -> (vec Alert) query;
+  /// List the at-risk roadies (2+ can't-go answers or attended-no marks across
+  /// non-cancelled events) for the Dashboard Needs attention row.
+  listAtRiskRoadies: () -> (vec AtRiskRoadie) query;
   /// List attendance records for an event (Admin/Store Manager only).
   listAttendanceForEvent: (eventId: EventId) -> (vec AttendanceRecord) query;
   /// List change-log entries visible to the caller.
   listChangeLog: () -> (vec ChangeLogEntry) query;
+  /// List every crew event in the active partition, upcoming first then past,
+  /// with going / can't go / no answer counts for the viewer's crew.
+  listCrewEvents: () -> (vec CrewEventSummary) query;
   /// List crews with their member counts (pending + active, archived excluded),
   /// for the kiosk approval Crew dropdown.
   listCrewSummaries: () -> (vec CrewSummary) query;
@@ -1566,11 +1650,17 @@ service : {
   /// List the pending roadies with no usable orientation session (Admin, Store
   /// Manager, Training Manager or Visiting Manager).
   listUnassignedPendingRoadies: () -> (vec UnassignedRoadieRow) query;
+  /// The next 3 non-cancelled events for the Today "Upcoming events" card, with
+  /// the viewer's crew counts.
+  listUpcomingEvents: () -> (vec UpcomingEventView) query;
   /// Seed the demo data set (Admin, demo mode only).
   loadDemoData: () -> (DemoDataSummary);
   /// Load a store template file, replacing positions, schedule and checklists
   /// (Admin only). Refuses when any roadie exists.
   loadStoreTemplate: (file: StoreTemplateFile) -> (TemplateLoadResult);
+  /// Mark one roadie's attendance at an event, only once its start has passed.
+  markEventAttendance: (eventId: CrewEventId, roadieId: RoadieId, attendance:
+   EventAttendance) -> ();
   /// Mark a question final (Managing Partner only, works anytime).
   markOpeningQuestionFinal: (id: QuestionId) -> ();
   /// Mark several questions final at once (Managing Partner only). Returns how
@@ -1638,6 +1728,9 @@ service : {
   requestAccess: () -> (bool);
   /// Re-sign a roadie's availability (Admin/Store Manager only).
   resignAvailability: (id: RoadieId, signature: SignatureRef) -> ();
+  /// Save one roadie's answer, reason and follow-up note for an event.
+  saveEventAnswer: (eventId: CrewEventId, roadieId: RoadieId, answer:
+   EventAnswer, reason: opt text, followUpNote: opt text) -> ();
   /// Save a question's answer; changing the text clears its approvals.
   saveOpeningQuestionAnswer: (id: QuestionId, answer: text) -> ();
   /// Replace one shift board's groups, capacities and Off list (Admin, Store
@@ -1661,6 +1754,8 @@ service : {
   /// Send the caller's own work email immediately, marked as a test (Admin and
   /// Managing Partner only), even when nothing is waiting.
   sendOpeningQuestionTestEmail: () -> ();
+  /// Cancel or un-cancel a crew event (Managing Partner or Admin).
+  setCrewEventCancelled: (eventId: CrewEventId, cancelled: bool) -> ();
   /// Choose which demo manager a demo Store Manager or Training Manager views
   /// as, so "My crew" and the Roster "My crew" chip match the chosen manager's
   /// crew. Stored per caller while demo mode is on; ignored outside demo mode.
@@ -1714,6 +1809,10 @@ service : {
   updateContactSet: (id: RoadieId, contactSet: ContactSet) -> ();
   /// Rename a crew and/or change its owner (Admin/Store Manager only).
   updateCrew: (id: CrewId, name: text, leaderPrincipal: opt principal) -> ();
+  /// Edit a crew event, including moving its start date and time (Managing
+  /// Partner or Admin). Moving keeps every recorded answer.
+  updateCrewEvent: (eventId: CrewEventId, name: text, start: DateTime, place:
+   text, note: opt text) -> ();
   /// Update the signed-in caller's own staff profile on their access grant.
   updateMyStaffProfile: (profile: StaffProfile) -> ();
   /// Update the daily-email setting (Admin only).

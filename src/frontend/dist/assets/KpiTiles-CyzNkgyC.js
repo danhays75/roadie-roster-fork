@@ -1,4 +1,4 @@
-import { a as useDashboardCopy, d as UserCheck, f as CircleCheck, g as cn, h as createLucideIcon, n as CardContent, o as Link, t as Card, v as require_jsx_runtime } from "./index-B7Rom5Rr.js";
+import { a as useDashboardCopy, d as UserCheck, f as CircleCheck, g as cn, h as createLucideIcon, n as CardContent, o as Link, t as Card, v as require_jsx_runtime } from "./index-mPpEP3Kf.js";
 /**
 * @license lucide-react v0.511.0 - ISC
 *

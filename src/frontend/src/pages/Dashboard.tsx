@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import {
   canApproveSignups,
   canArchive,
+  canEvents,
   canFinalizeOpeningQuestions,
   canOpeningQuestions,
   canSeeAbsentAlerts,
@@ -30,6 +31,7 @@ import {
 import {
   useAbsentAlerts,
   useAcknowledgeAlert,
+  useAtRiskRoadies,
   useDashboard,
   useDemoState,
   useOpeningQuestionAlerts,
@@ -299,6 +301,15 @@ function DashboardAlerts({
   const maySeeAbsent = canSeeAbsentAlerts(role);
   const { data: absentAlerts } = useAbsentAlerts(maySeeAbsent);
 
+  // At-risk roadies follow the caller's role and the demo partition, matching
+  // the Events page, so the row shows the same roadies the manager can act on.
+  // The backend listAtRiskRoadies only requires a manager (Admin, Managing
+  // Partner or Store Manager), so the read is gated on that rather than on the
+  // Events page role list: a crew leader whose My crew flag shows the risk must
+  // still see the row, even though the Events page itself is not open to them.
+  const maySeeAtRisk = canArchive(role);
+  const { data: atRiskRoadies } = useAtRiskRoadies(maySeeAtRisk);
+
   // Opening Questions ownership uses the caller's real role, as Today does, and
   // the rows hide entirely while demo mode is on.
   const realRole = useRealAccessGrant()?.role;
@@ -310,6 +321,7 @@ function DashboardAlerts({
 
   const newHires = mayApproveSignups ? (pendingSignups?.length ?? 0) : 0;
   const absent = maySeeAbsent ? (absentAlerts?.length ?? 0) : 0;
+  const atRisk = maySeeAtRisk ? (atRiskRoadies?.length ?? 0) : 0;
   const paperwork = paperworkNames.length;
 
   const needsApproval = mayReadQuestions
@@ -330,6 +342,7 @@ function DashboardAlerts({
   const hasAny =
     newHires > 0 ||
     absent > 0 ||
+    atRisk > 0 ||
     paperwork > 0 ||
     needsApproval > 0 ||
     newActivity > 0 ||
@@ -363,6 +376,15 @@ function DashboardAlerts({
           count={absent}
           label={t("dashboard.alerts.absent", { count: absent })}
           ocid="dashboard.alerts.absent"
+        />
+      )}
+
+      {atRisk > 0 && (
+        <AttentionRow
+          to="/events"
+          count={atRisk}
+          label={t("dashboard.alerts.atRisk", { count: atRisk })}
+          ocid="dashboard.alerts.atRisk"
         />
       )}
 

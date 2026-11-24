@@ -85,6 +85,13 @@ export type ArchiveReason = {
     __kind__: "tookAnotherJob";
     tookAnotherJob: null;
 };
+export interface AtRiskRoadie {
+    demoPhotoUrl?: string;
+    roadieId: RoadieId;
+    name: string;
+    atRiskEvents: bigint;
+    photo?: PhotoRef;
+}
 export interface AttendanceRecord {
     eventId?: EventId;
     roadieId: RoadieId;
@@ -176,6 +183,19 @@ export interface Crew {
     name: string;
     isDemo: boolean;
     leaderPrincipal?: Principal;
+}
+export type CrewEventId = bigint;
+export interface CrewEventSummary {
+    id: CrewEventId;
+    noAnswerCount: bigint;
+    cantGoCount: bigint;
+    cancelled: boolean;
+    goingCount: bigint;
+    name: string;
+    note?: string;
+    isDemo: boolean;
+    start: DateTime;
+    place: string;
 }
 export type CrewId = bigint;
 export interface CrewSummary {
@@ -283,6 +303,30 @@ export type Error_ = {
         expected: Array<string>;
     };
 };
+export interface EventCrewRow {
+    demoPhotoUrl?: string;
+    roadieId: RoadieId;
+    name: string;
+    answer: EventAnswer;
+    updatedAt?: Timestamp;
+    updatedBy?: Principal;
+    attendance: EventAttendance;
+    followUpDue: boolean;
+    photo?: PhotoRef;
+    reason?: string;
+    followUpNote?: string;
+}
+export interface EventCrewView {
+    roadies: Array<EventCrewRow>;
+    eventId: CrewEventId;
+    cancelled: boolean;
+    name: string;
+    note?: string;
+    crewId: CrewId;
+    start: DateTime;
+    crewName: string;
+    place: string;
+}
 export type EventId = bigint;
 export interface ExportData {
     fohNeed: bigint;
@@ -484,6 +528,7 @@ export interface MyCrewRoadieRow {
     roadieId: RoadieId;
     paperworkOverdue: boolean;
     name: string;
+    atRiskEvents: bigint;
     positionName: string;
     positionId: PositionId;
     stage?: RoadieStage;
@@ -1038,6 +1083,15 @@ export interface UniformSizeUnknownRow {
     missingHat: boolean;
     missingShirt: boolean;
 }
+export interface UpcomingEventView {
+    id: CrewEventId;
+    noAnswerCount: bigint;
+    cantGoCount: bigint;
+    goingCount: bigint;
+    name: string;
+    start: DateTime;
+    place: string;
+}
 export type Value = {
     __kind__: "int";
     int: bigint;
@@ -1079,6 +1133,16 @@ export enum DemoRole {
 export enum DemoShift {
     am = "am",
     pm = "pm"
+}
+export enum EventAnswer {
+    noAnswer = "noAnswer",
+    going = "going",
+    cantGo = "cantGo"
+}
+export enum EventAttendance {
+    no = "no",
+    yes = "yes",
+    notMarked = "notMarked"
 }
 export enum EventKind {
     other = "other",
@@ -1309,6 +1373,10 @@ export interface backendInterface {
      */
     createCrew(name: string, leaderPrincipal: Principal): Promise<CrewId>;
     /**
+     * / Create a crew event (Managing Partner or Admin).
+     */
+    createCrewEvent(name: string, start: DateTime, place: string, note: string | null): Promise<CrewEventId>;
+    /**
      * / Create a leader talk. Allowed for Admin, Managing Partner, Store Manager
      * / and Training Manager. A blank name defaults to the store's leaderTalkName
      * / plus " · Group N". The group is refused when larger than leaderTalkSize,
@@ -1405,6 +1473,11 @@ export interface backendInterface {
      * / caller's own demo role.
      */
     getDemoState(): Promise<DemoStateView>;
+    /**
+     * / Read one event's crew list with each roadie's answer, reason, follow-up
+     * / note, attendance and Follow up due state.
+     */
+    getEventCrew(eventId: CrewEventId, crewId: CrewId | null): Promise<EventCrewView | null>;
     /**
      * / Read a roadie's final sign-off with the signer's display name, or null.
      * / Readable by every role that can read that roadie (not Kiosk or Integration;
@@ -1587,6 +1660,11 @@ export interface backendInterface {
      */
     listAlerts(): Promise<Array<Alert>>;
     /**
+     * / List the at-risk roadies (2+ can't-go answers or attended-no marks across
+     * / non-cancelled events) for the Dashboard Needs attention row.
+     */
+    listAtRiskRoadies(): Promise<Array<AtRiskRoadie>>;
+    /**
      * / List attendance records for an event (Admin/Store Manager only).
      */
     listAttendanceForEvent(eventId: EventId): Promise<Array<AttendanceRecord>>;
@@ -1594,6 +1672,11 @@ export interface backendInterface {
      * / List change-log entries visible to the caller.
      */
     listChangeLog(): Promise<Array<ChangeLogEntry>>;
+    /**
+     * / List every crew event in the active partition, upcoming first then past,
+     * / with going / can't go / no answer counts for the viewer's crew.
+     */
+    listCrewEvents(): Promise<Array<CrewEventSummary>>;
     /**
      * / List crews with their member counts (pending + active, archived excluded),
      * / for the kiosk approval Crew dropdown.
@@ -1674,6 +1757,11 @@ export interface backendInterface {
      */
     listUnassignedPendingRoadies(): Promise<Array<UnassignedRoadieRow>>;
     /**
+     * / The next 3 non-cancelled events for the Today "Upcoming events" card, with
+     * / the viewer's crew counts.
+     */
+    listUpcomingEvents(): Promise<Array<UpcomingEventView>>;
+    /**
      * / Seed the demo data set (Admin, demo mode only).
      */
     loadDemoData(): Promise<DemoDataSummary>;
@@ -1682,6 +1770,10 @@ export interface backendInterface {
      * / (Admin only). Refuses when any roadie exists.
      */
     loadStoreTemplate(file: StoreTemplateFile): Promise<TemplateLoadResult>;
+    /**
+     * / Mark one roadie's attendance at an event, only once its start has passed.
+     */
+    markEventAttendance(eventId: CrewEventId, roadieId: RoadieId, attendance: EventAttendance): Promise<void>;
     /**
      * / Mark a question final (Managing Partner only, works anytime).
      */
@@ -1781,6 +1873,10 @@ export interface backendInterface {
      */
     resignAvailability(id: RoadieId, signature: SignatureRef): Promise<void>;
     /**
+     * / Save one roadie's answer, reason and follow-up note for an event.
+     */
+    saveEventAnswer(eventId: CrewEventId, roadieId: RoadieId, answer: EventAnswer, reason: string | null, followUpNote: string | null): Promise<void>;
+    /**
      * / Save a question's answer; changing the text clears its approvals.
      */
     saveOpeningQuestionAnswer(id: QuestionId, answer: string): Promise<void>;
@@ -1811,6 +1907,10 @@ export interface backendInterface {
      * / Managing Partner only), even when nothing is waiting.
      */
     sendOpeningQuestionTestEmail(): Promise<void>;
+    /**
+     * / Cancel or un-cancel a crew event (Managing Partner or Admin).
+     */
+    setCrewEventCancelled(eventId: CrewEventId, cancelled: boolean): Promise<void>;
     /**
      * / Choose which demo manager a demo Store Manager or Training Manager views
      * / as, so "My crew" and the Roster "My crew" chip match the chosen manager's
@@ -1892,6 +1992,11 @@ export interface backendInterface {
      * / Rename a crew and/or change its owner (Admin/Store Manager only).
      */
     updateCrew(id: CrewId, name: string, leaderPrincipal: Principal | null): Promise<void>;
+    /**
+     * / Edit a crew event, including moving its start date and time (Managing
+     * / Partner or Admin). Moving keeps every recorded answer.
+     */
+    updateCrewEvent(eventId: CrewEventId, name: string, start: DateTime, place: string, note: string | null): Promise<void>;
     /**
      * / Update the signed-in caller's own staff profile on their access grant.
      */

@@ -23,6 +23,7 @@ import Signup "types/signup";
 import Access "types/access";
 import Phase23 "types/phase23";
 import OpeningQuestions "types/openingquestions";
+import CrewEvents "types/crewevents";
 
 import StoreApi "mixins/store-api";
 import RoadieApi "mixins/roadie-api";
@@ -35,6 +36,7 @@ import KioskApi "mixins/kiosk-api";
 import SeedApi "mixins/seed-api";
 import DemoApi "mixins/demo-api";
 import OpeningQuestionsApi "mixins/openingquestions-api";
+import CrewEventsApi "mixins/crewevents-api";
 import ApiDocMixin "mixins/api-doc";
 import OpeningQuestionsLib "lib/openingquestions";
 import Clock "lib/clock";
@@ -92,6 +94,11 @@ actor {
   let openingQuestionNudges : Map.Map<Principal, OpeningQuestions.Nudge>;
   let openingQuestionDailyEmail : OpeningQuestions.DailyEmailState;
 
+  // Crew events: pre-opening get-togethers for the whole crew, and one invite
+  // per event and roadie. No events are built in.
+  let crewEvents : Map.Map<Common.CrewEventId, CrewEvents.CrewEvent>;
+  let eventInvites : Map.Map<Text, CrewEvents.EventInvite>;
+
   let counters : {
     var nextRoadieId : Nat;
     var nextPositionId : Nat;
@@ -112,6 +119,7 @@ actor {
     var nextCommentId : Nat;
     var nextQuestionHistoryId : Nat;
     var nextNudgeId : Nat;
+    var nextCrewEventId : Nat;
   };
 
   // --- Domain APIs ---
@@ -158,9 +166,21 @@ actor {
     openingQuestions,
     openingQuestionEmailSettings,
     openingQuestionNudges,
+    crewEvents,
+    eventInvites,
   );
-  include ExportApi(accessGrants, roadies, positions, orientationCheckoffs, changeLog, counters, demoState);
-  include GiftBagsApi(accessGrants, roadies, positions, demoState);
+  include CrewEventsApi(
+    accessGrants,
+    demoState,
+    crewEvents,
+    eventInvites,
+    crews,
+    roadies,
+    storeInfo,
+    changeLog,
+    counters,
+  );
+  include ExportApi(accessGrants, roadies, positions, orientationCheckoffs, changeLog, counters, demoState);  include GiftBagsApi(accessGrants, roadies, positions, demoState);
   include KioskApi(accessGrants, kioskPin, demoState);
 
   // --- Demo mode ---
@@ -184,6 +204,8 @@ actor {
     storeInfo,
     changeLog,
     counters,
+    crewEvents,
+    eventInvites,
   );
 
   // --- Idempotent runtime re-seed ---
@@ -811,6 +833,49 @@ actor {
         })
         .payload("oldAnswer", func h = h.oldAnswer)
         .payload("newAnswer", func h = h.newAnswer)
+        .controllerOnly()
+        .build(),
+      crewEvents.toEntity("crewEvent", "CrewEvent", "id")
+        .sample({
+          id = 0;
+          name = "";
+          start = 0;
+          place = "";
+          note = ?"";
+          cancelled = false;
+          isDemo = false;
+        })
+        .controllerOnly()
+        .build(),
+      eventInvites.toEntityManual("eventInvite", "EventInvite", "eventId")
+        .sample({
+          eventId = 0;
+          roadieId = 0;
+          answer = #noAnswer;
+          reason = ?"";
+          followUpNote = ?"";
+          attendance = #notMarked;
+          updatedBy = Principal.fromText("aaaaa-aa");
+          updatedAt = 0;
+          isDemo = false;
+        })
+        .payload("eventId", func i = i.eventId)
+        .payload("roadieId", func i = i.roadieId)
+        .payload("answer", func i = switch i.answer {
+          case (#going) "going";
+          case (#cantGo) "cantGo";
+          case (#noAnswer) "noAnswer";
+        })
+        .payload("reason", func i = i.reason)
+        .payload("followUpNote", func i = i.followUpNote)
+        .payload("attendance", func i = switch i.attendance {
+          case (#yes) "yes";
+          case (#no) "no";
+          case (#notMarked) "notMarked";
+        })
+        .payload("updatedBy", func i = i.updatedBy)
+        .payload("updatedAt", func i = i.updatedAt)
+        .payload("isDemo", func i = i.isDemo)
         .controllerOnly()
         .build(),
     ];

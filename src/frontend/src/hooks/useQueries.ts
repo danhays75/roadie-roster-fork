@@ -4,20 +4,27 @@ import {
   type AlertSummary,
   type ApprovalDecision,
   type ApprovalRequest,
+  type AtRiskRoadie,
   type BatchFinalResult,
   type CheckInBoardView,
   type CheckInState,
   type Checklists,
+  type CrewEventId,
+  type CrewEventSummary,
   type CrewId,
   type CrewSummary,
   type DailyEmailStatus,
   type DateOnly,
+  type DateTime,
   type DemoActionResult,
   type DemoDataSummary,
   type DemoRole,
   type DemoStateView,
   type DuplicateMatch,
   type EmailSettings,
+  type EventAnswer,
+  type EventAttendance,
+  type EventCrewView,
   type EventId,
   type FinalSignOff,
   type FinalSignOffView,
@@ -70,6 +77,7 @@ import {
   type UniformHouseFilter,
   type UniformOrderView,
   type UniformSettings,
+  type UpcomingEventView,
   createActor,
 } from "@/backend";
 import { useActor } from "@caffeineai/core-infrastructure";
@@ -2707,6 +2715,239 @@ export function useDeleteLeaderTalk() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["leaderTalks"] });
       void queryClient.invalidateQueries({ queryKey: ["changeLog"] });
+    },
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   Crew events
+--------------------------------------------------------------------------- */
+
+/**
+ * The query keys every crew event write invalidates: the events list, the event
+ * crew list, My crew, Today and the Dashboard alerts, plus the change log.
+ */
+const CREW_EVENT_KEYS = [
+  "crewEvents",
+  "eventCrew",
+  "myCrew",
+  "today",
+  "dashboard",
+  "atRiskRoadies",
+  "changeLog",
+] as const;
+
+function invalidateCrewEvents(queryClient: ReturnType<typeof useQueryClient>) {
+  for (const key of CREW_EVENT_KEYS) {
+    void queryClient.invalidateQueries({ queryKey: [key] });
+  }
+}
+
+/**
+ * Every crew event in the current demo partition with its going, can't go and
+ * no-answer counts. Readable by the roles that can see My crew plus Admin and
+ * Managing Partner, so callers pass `enabled` (typically `canEvents(role)`) to
+ * avoid a trapping read for Kiosk and Integration.
+ */
+export function useCrewEvents(enabled = true) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery({
+    queryKey: ["crewEvents"],
+    queryFn: async (): Promise<CrewEventSummary[]> => {
+      if (!actor) return [];
+      return actor.listCrewEvents();
+    },
+    enabled: enabled && !!actor && !isFetching,
+  });
+}
+
+/**
+ * One event's crew list: each roadie's answer, reason, follow-up note,
+ * attendance and whether a follow-up is due. `crewId` null shows the caller's
+ * own crew; Admin, Managing Partner and Store Manager may pass any crew id.
+ * Readable by the events roles, so callers pass `enabled`.
+ */
+export function useEventCrew(
+  eventId: CrewEventId | undefined,
+  crewId: CrewId | null,
+  enabled = true,
+) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery({
+    queryKey: ["eventCrew", eventId?.toString(), crewId?.toString() ?? "mine"],
+    queryFn: async (): Promise<EventCrewView | null> => {
+      if (!actor || eventId === undefined) return null;
+      return actor.getEventCrew(eventId, crewId);
+    },
+    enabled: enabled && !!actor && !isFetching && eventId !== undefined,
+  });
+}
+
+/**
+ * The next upcoming non-cancelled events with the caller's crew counts, for the
+ * Today card. Readable by the events roles, so callers pass `enabled`.
+ */
+export function useUpcomingEvents(enabled = true) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery({
+    queryKey: ["upcomingEvents"],
+    queryFn: async (): Promise<UpcomingEventView[]> => {
+      if (!actor) return [];
+      return actor.listUpcomingEvents();
+    },
+    enabled: enabled && !!actor && !isFetching,
+  });
+}
+
+/**
+ * The roadies at risk of missing orientation: two or more can't-go answers or
+ * attended-no marks across non-cancelled events. Readable by the manager roles,
+ * so callers pass `enabled` to avoid a trapping read for every other role.
+ */
+export function useAtRiskRoadies(enabled = true) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery({
+    queryKey: ["atRiskRoadies"],
+    queryFn: async (): Promise<AtRiskRoadie[]> => {
+      if (!actor) return [];
+      return actor.listAtRiskRoadies();
+    },
+    enabled: enabled && !!actor && !isFetching,
+  });
+}
+
+/**
+ * Create a crew event (Admin and Managing Partner only). Refreshes the events
+ * list, the event crew list, My crew, Today and the Dashboard alerts.
+ */
+export function useCreateCrewEvent() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      name: string;
+      start: DateTime;
+      place: string;
+      note: string | null;
+    }): Promise<CrewEventId> => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.createCrewEvent(
+        args.name,
+        args.start,
+        args.place,
+        args.note,
+      );
+    },
+    onSuccess: () => {
+      invalidateCrewEvents(queryClient);
+    },
+  });
+}
+
+/**
+ * Edit a crew event, including moving its date and time (Admin and Managing
+ * Partner only). Every answer, reason, follow-up and attendance already
+ * recorded is kept. Refreshes the same reads as create.
+ */
+export function useUpdateCrewEvent() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      eventId: CrewEventId;
+      name: string;
+      start: DateTime;
+      place: string;
+      note: string | null;
+    }) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.updateCrewEvent(
+        args.eventId,
+        args.name,
+        args.start,
+        args.place,
+        args.note,
+      );
+    },
+    onSuccess: () => {
+      invalidateCrewEvents(queryClient);
+    },
+  });
+}
+
+/**
+ * Cancel or un-cancel a crew event (Admin and Managing Partner only). A
+ * cancelled event takes no new answers; un-cancelling restores it. Refreshes
+ * the same reads as create.
+ */
+export function useSetCrewEventCancelled() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { eventId: CrewEventId; cancelled: boolean }) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.setCrewEventCancelled(args.eventId, args.cancelled);
+    },
+    onSuccess: () => {
+      invalidateCrewEvents(queryClient);
+    },
+  });
+}
+
+/**
+ * Save one roadie's answer for an event, with the reason (required when they
+ * can't go) and the follow-up note. Crew leaders record answers for their own
+ * crew; Admin, Managing Partner and Store Manager for any roadie. Refreshes the
+ * same reads as create.
+ */
+export function useSaveEventAnswer() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      eventId: CrewEventId;
+      roadieId: RoadieId;
+      answer: EventAnswer;
+      reason: string | null;
+      followUpNote: string | null;
+    }) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.saveEventAnswer(
+        args.eventId,
+        args.roadieId,
+        args.answer,
+        args.reason,
+        args.followUpNote,
+      );
+    },
+    onSuccess: () => {
+      invalidateCrewEvents(queryClient);
+    },
+  });
+}
+
+/**
+ * Mark one roadie's attendance for an event (only after the event's start).
+ * Refreshes the same reads as create.
+ */
+export function useMarkEventAttendance() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      eventId: CrewEventId;
+      roadieId: RoadieId;
+      attendance: EventAttendance;
+    }) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.markEventAttendance(
+        args.eventId,
+        args.roadieId,
+        args.attendance,
+      );
+    },
+    onSuccess: () => {
+      invalidateCrewEvents(queryClient);
     },
   });
 }
