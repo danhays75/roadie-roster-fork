@@ -1022,6 +1022,11 @@ type DashboardView =
    showedAtOrientation: opt nat;
    stillNeeded: nat;
  };
+type DailyEmailStatus = 
+ record {
+   lastRecipientCount: nat;
+   lastSentAt: opt Timestamp;
+ };
 type CrewSummary = 
  record {
    id: CrewId;
@@ -1372,6 +1377,9 @@ service : {
   getMyPendingRequest: () -> (opt PendingRequestSummary) query;
   /// The caller's Opening Questions alerts and counts.
   getOpeningQuestionAlerts: () -> (AlertSummary) query;
+  /// The daily-email status for Admin > Opening Questions: when the last daily
+  /// email went out and to how many people.
+  getOpeningQuestionDailyEmailStatus: () -> (DailyEmailStatus) query;
   /// One question's discussion (suggestions and comments), loaded when its card
   /// is opened.
   getOpeningQuestionDiscussion: (id: QuestionId) ->
@@ -1579,6 +1587,9 @@ service : {
   /// (Managing Partner and Admins only). Refused when that manager was already
   /// nudged on the current store-local day.
   sendOpeningQuestionNudge: (manager: principal) -> ();
+  /// Send the caller's own work email immediately, marked as a test (Admin and
+  /// Managing Partner only), even when nothing is waiting.
+  sendOpeningQuestionTestEmail: () -> ();
   /// Choose which demo manager a demo Store Manager or Training Manager views
   /// as, so "My crew" and the Roster "My crew" chip match the chosen manager's
   /// crew. Stored per caller while demo mode is on; ignored outside demo mode.

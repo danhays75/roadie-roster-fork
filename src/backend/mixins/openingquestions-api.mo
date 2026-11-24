@@ -153,4 +153,16 @@ mixin (
   public query ({ caller }) func getMyOpeningQuestionNudges() : async [OQ.NudgeAlert] {
     OQLib.getMyNudges(accessGrants, demoState, openingQuestions, caller);
   };
+
+  /// The daily-email status for Admin > Opening Questions: when the last daily
+  /// email went out and to how many people.
+  public query ({ caller }) func getOpeningQuestionDailyEmailStatus() : async OQ.DailyEmailStatus {
+    OQLib.getDailyEmailStatus(accessGrants, demoState, openingQuestions, caller);
+  };
+
+  /// Send the caller's own work email immediately, marked as a test (Admin and
+  /// Managing Partner only), even when nothing is waiting.
+  public shared ({ caller }) func sendOpeningQuestionTestEmail() : async () {
+    await OQLib.sendTestEmail(accessGrants, demoState, openingQuestions, storeInfo, changeLog, counters, logCounters, caller);
+  };
 };

@@ -2513,7 +2513,7 @@ module {
     // The caller's real role is used, never a demo role, so demo mode can never
     // raise anyone's access to real Opening Questions data.
     let openingQuestionsReadyForFinal = if (Auth.isRealManagingPartner(accessGrants, caller)) {
-      OpeningQuestionsLib.getAlerts(accessGrants, demoState, { questions = openingQuestions; emailSettings = openingQuestionEmailSettings; history = Map.empty(); finishBy = { var value = { finishBy = null } }; nudges = openingQuestionNudges }, { var value = storeInfo }, caller).readyForFinal;
+      OpeningQuestionsLib.getAlerts(accessGrants, demoState, { questions = openingQuestions; emailSettings = openingQuestionEmailSettings; history = Map.empty(); finishBy = { var value = { finishBy = null } }; nudges = openingQuestionNudges; dailyEmail = { var lastSentAt = null; var lastRecipientCount = 0; lastSentDay = Map.empty() } }, { var value = storeInfo }, caller).readyForFinal;
     } else { 0 };
 
     // The caller's own Opening Questions nudge alerts, only for a caller whose
@@ -2521,7 +2521,7 @@ module {
     let myNudges = switch (Auth.realRole(accessGrants, caller)) {
       case (?r) {
         if (Auth.roleCanReadOpeningQuestions(r)) {
-          OpeningQuestionsLib.getMyNudges(accessGrants, demoState, { questions = openingQuestions; emailSettings = openingQuestionEmailSettings; history = Map.empty(); finishBy = { var value = { finishBy = null } }; nudges = openingQuestionNudges }, caller);
+          OpeningQuestionsLib.getMyNudges(accessGrants, demoState, { questions = openingQuestions; emailSettings = openingQuestionEmailSettings; history = Map.empty(); finishBy = { var value = { finishBy = null } }; nudges = openingQuestionNudges; dailyEmail = { var lastSentAt = null; var lastRecipientCount = 0; lastSentDay = Map.empty() } }, caller);
         } else { [] };
       };
       case null { [] };

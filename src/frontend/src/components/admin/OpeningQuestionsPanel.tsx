@@ -17,15 +17,18 @@ import { useI18n } from "@/hooks/useI18n";
 import {
   useClearOpeningQuestions,
   useImportOpeningQuestions,
+  useOpeningQuestionDailyEmailStatus,
   useOpeningQuestionEmailSettings,
   useOpeningQuestionFinishBy,
   useOpeningQuestions,
+  useSendOpeningQuestionTestEmail,
   useSetOpeningQuestionFinishBy,
   useUpdateOpeningQuestionEmailSettings,
 } from "@/hooks/useQueries";
 import {
   dateOnlyToInputValue,
   formatDateOnly,
+  formatTimestamp,
   inputValueToDateOnly,
 } from "@/lib/format";
 import {
@@ -33,6 +36,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Loader2,
+  Mail,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -67,6 +71,13 @@ interface OqAdminCopy {
   emailHint: string;
   emailError: string;
   emailSaved: string;
+  emailLastSent: string;
+  emailLastSentOne: string;
+  emailNeverSent: string;
+  emailTestButton: string;
+  emailTestSending: string;
+  emailTestSuccess: string;
+  emailTestError: string;
   finishByTitle: string;
   finishByHint: string;
   finishByLabel: string;
@@ -106,6 +117,13 @@ const OQ_ADMIN_COPY: Record<"en" | "es", OqAdminCopy> = {
       "Send a 7 AM summary to the Managing Partner, Kitchen Manager, Service Manager and Admin.",
     emailError: "We couldn't save the daily email setting.",
     emailSaved: "Daily email setting saved.",
+    emailLastSent: "Last sent {date} to {count} people.",
+    emailLastSentOne: "Last sent {date} to 1 person.",
+    emailNeverSent: "No daily email has gone out yet.",
+    emailTestButton: "Send me a test now",
+    emailTestSending: "Sending…",
+    emailTestSuccess: "Test email sent to your work email.",
+    emailTestError: "We couldn't send the test email.",
     finishByTitle: "Finish-by date",
     finishByHint:
       "Shows a deadline on the Opening Qs page with the days left, or how many days overdue.",
@@ -144,6 +162,13 @@ const OQ_ADMIN_COPY: Record<"en" | "es", OqAdminCopy> = {
       "Envía un resumen a las 7 AM al Socio gerente, Gerente de cocina, Gerente de servicio y al Admin.",
     emailError: "No pudimos guardar el ajuste del correo diario.",
     emailSaved: "Ajuste del correo diario guardado.",
+    emailLastSent: "Último envío: {date} a {count} personas.",
+    emailLastSentOne: "Último envío: {date} a 1 persona.",
+    emailNeverSent: "Todavía no se ha enviado ningún correo diario.",
+    emailTestButton: "Enviarme una prueba ahora",
+    emailTestSending: "Enviando…",
+    emailTestSuccess: "Correo de prueba enviado a tu correo de trabajo.",
+    emailTestError: "No pudimos enviar el correo de prueba.",
     finishByTitle: "Fecha límite",
     finishByHint:
       "Muestra una fecha límite en la página de Preguntas de apertura con los días restantes o los días de retraso.",
@@ -224,10 +249,12 @@ export function OpeningQuestionsPanel() {
 
   const questions = useOpeningQuestions(QuestionTab.all, {}, isAdmin);
   const emailSettings = useOpeningQuestionEmailSettings(isAdmin);
+  const emailStatus = useOpeningQuestionDailyEmailStatus(isAdmin);
   const finishBy = useOpeningQuestionFinishBy(isAdmin);
   const importQuestions = useImportOpeningQuestions();
   const clearQuestions = useClearOpeningQuestions();
   const updateEmail = useUpdateOpeningQuestionEmailSettings();
+  const sendTestEmail = useSendOpeningQuestionTestEmail();
   const setFinishBy = useSetOpeningQuestionFinishBy();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -655,6 +682,80 @@ export function OpeningQuestionsPanel() {
                 {copy.emailSaved}
               </p>
             )}
+
+            {/* Last-send status ------------------------------------------ */}
+            <p
+              className="mt-3 flex items-center gap-2 text-sm text-foreground"
+              data-ocid="admin.openingQuestions.email_status_state"
+            >
+              <Mail
+                className="h-4 w-4 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+              {emailStatus.isLoading ? (
+                <span className="text-muted-foreground">{copy.reading}</span>
+              ) : emailStatus.data?.lastSentAt !== undefined ? (
+                <span>
+                  {(emailStatus.data.lastRecipientCount === 1n
+                    ? copy.emailLastSentOne
+                    : copy.emailLastSent
+                  )
+                    .replace(
+                      "{date}",
+                      formatTimestamp(emailStatus.data.lastSentAt),
+                    )
+                    .replace(
+                      "{count}",
+                      emailStatus.data.lastRecipientCount.toString(),
+                    )}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  {copy.emailNeverSent}
+                </span>
+              )}
+            </p>
+
+            {/* Test send ------------------------------------------------- */}
+            <div className="mt-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                data-ocid="admin.openingQuestions.email_test_button"
+                disabled={sendTestEmail.isPending}
+                onClick={() => sendTestEmail.mutate()}
+              >
+                {sendTestEmail.isPending ? (
+                  <Loader2
+                    className="mr-2 h-4 w-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
+                )}
+                {sendTestEmail.isPending
+                  ? copy.emailTestSending
+                  : copy.emailTestButton}
+              </Button>
+              {sendTestEmail.isError && (
+                <p
+                  className="mt-3 text-sm font-medium text-destructive"
+                  data-ocid="admin.openingQuestions.email_test_error_state"
+                  role="alert"
+                >
+                  {copy.emailTestError}
+                </p>
+              )}
+              {sendTestEmail.isSuccess && (
+                <p
+                  className="mt-3 text-sm font-medium text-accent"
+                  data-ocid="admin.openingQuestions.email_test_success_state"
+                >
+                  {copy.emailTestSuccess}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Finish-by date ----------------------------------------------- */}

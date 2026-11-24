@@ -10,6 +10,7 @@ import {
   type Checklists,
   type CrewId,
   type CrewSummary,
+  type DailyEmailStatus,
   type DateOnly,
   type DemoActionResult,
   type DemoDataSummary,
@@ -1964,6 +1965,7 @@ const OPENING_QUESTION_KEYS = [
   "openingQuestionsMyPendingApprovals",
   "openingQuestionAlerts",
   "openingQuestionEmailSettings",
+  "openingQuestionDailyEmailStatus",
   "openingQuestionScoreboard",
   "openingQuestionFinishBy",
   "openingQuestionNudges",
@@ -2115,6 +2117,22 @@ export function useOpeningQuestionEmailSettings(enabled = true) {
     queryFn: async (): Promise<EmailSettings | null> => {
       if (!actor) return null;
       return actor.getOpeningQuestionEmailSettings();
+    },
+    enabled: enabled && !!actor && !isFetching,
+  });
+}
+
+/**
+ * When the last daily email went out and to how many people (Admin and
+ * Managing Partner only). `lastSentAt` is absent when none has gone out yet.
+ */
+export function useOpeningQuestionDailyEmailStatus(enabled = true) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery({
+    queryKey: ["openingQuestionDailyEmailStatus"],
+    queryFn: async (): Promise<DailyEmailStatus | null> => {
+      if (!actor) return null;
+      return actor.getOpeningQuestionDailyEmailStatus();
     },
     enabled: enabled && !!actor && !isFetching,
   });
@@ -2413,6 +2431,28 @@ export function useSendOpeningQuestionNudge() {
     },
     onSuccess: () => {
       invalidateOpeningQuestions(queryClient);
+    },
+  });
+}
+
+/**
+ * Send the caller a test of the daily email right now (Admin and Managing
+ * Partner only, enforced in the backend). Refreshes the last-send status so the
+ * status line reflects the test send.
+ */
+export function useSendOpeningQuestionTestEmail() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.sendOpeningQuestionTestEmail();
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["openingQuestionDailyEmailStatus"],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["changeLog"] });
     },
   });
 }

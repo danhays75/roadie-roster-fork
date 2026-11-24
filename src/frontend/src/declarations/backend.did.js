@@ -499,6 +499,10 @@ export const AlertSummary = IDL.Record({
   'readyForFinal' : IDL.Nat,
   'needsMyApproval' : IDL.Nat,
 });
+export const DailyEmailStatus = IDL.Record({
+  'lastSentAt' : IDL.Opt(Timestamp),
+  'lastRecipientCount' : IDL.Nat,
+});
 export const SuggestionState = IDL.Variant({
   'open' : IDL.Null,
   'accepted' : IDL.Null,
@@ -1178,6 +1182,11 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getOpeningQuestionAlerts' : IDL.Func([], [AlertSummary], ['query']),
+  'getOpeningQuestionDailyEmailStatus' : IDL.Func(
+      [],
+      [DailyEmailStatus],
+      ['query'],
+    ),
   'getOpeningQuestionDiscussion' : IDL.Func(
       [QuestionId],
       [QuestionDiscussion],
@@ -1333,6 +1342,7 @@ export const idlService = IDL.Service({
     ),
   'schema' : IDL.Func([], [IDL.Text], ['query']),
   'sendOpeningQuestionNudge' : IDL.Func([IDL.Principal], [], []),
+  'sendOpeningQuestionTestEmail' : IDL.Func([], [], []),
   'setDemoManagerAs' : IDL.Func([IDL.Principal], [DemoActionResult], []),
   'setDemoMode' : IDL.Func([IDL.Bool, IDL.Text], [DemoActionResult], []),
   'setDemoRole' : IDL.Func(
@@ -1866,6 +1876,10 @@ export const idlFactory = ({ IDL }) => {
     'newSuggestionsOrReplies' : IDL.Nat,
     'readyForFinal' : IDL.Nat,
     'needsMyApproval' : IDL.Nat,
+  });
+  const DailyEmailStatus = IDL.Record({
+    'lastSentAt' : IDL.Opt(Timestamp),
+    'lastRecipientCount' : IDL.Nat,
   });
   const SuggestionState = IDL.Variant({
     'open' : IDL.Null,
@@ -2551,6 +2565,11 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getOpeningQuestionAlerts' : IDL.Func([], [AlertSummary], ['query']),
+    'getOpeningQuestionDailyEmailStatus' : IDL.Func(
+        [],
+        [DailyEmailStatus],
+        ['query'],
+      ),
     'getOpeningQuestionDiscussion' : IDL.Func(
         [QuestionId],
         [QuestionDiscussion],
@@ -2718,6 +2737,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'schema' : IDL.Func([], [IDL.Text], ['query']),
     'sendOpeningQuestionNudge' : IDL.Func([IDL.Principal], [], []),
+    'sendOpeningQuestionTestEmail' : IDL.Func([], [], []),
     'setDemoManagerAs' : IDL.Func([IDL.Principal], [DemoActionResult], []),
     'setDemoMode' : IDL.Func([IDL.Bool, IDL.Text], [DemoActionResult], []),
     'setDemoRole' : IDL.Func(

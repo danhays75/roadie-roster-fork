@@ -12,6 +12,9 @@ module {
   /// Nanoseconds in one minute.
   let minuteNs : Int = 60_000_000_000;
 
+  /// Nanoseconds in one day.
+  let dayNs : Int = 86_400_000_000_000;
+
   /// The effective clock. While demo mode is on with a pretend date set, the
   /// pretend timestamp is returned; otherwise the real clock. The pretend
   /// date's `day` is a local calendar date in the store time zone, and the
@@ -63,5 +66,25 @@ module {
     let start = dayStart + startMin.toInt() * minuteNs;
     let end = dayStart + endMin.toInt() * minuteNs;
     (start, end);
+  };
+
+  /// The UTC nanosecond timestamp of 7:00 AM store-local time on the store-local
+  /// calendar date that contains `ts`. This is the daily Opening Questions email
+  /// send time.
+  public func dailyEmailTime(ts : Common.Timestamp, timeZone : Common.TimeZone) : Common.Timestamp {
+    localDayStart(ts, timeZone) + 7 * 60 * minuteNs;
+  };
+
+  /// The next 7:00 AM store-local timestamp strictly after `ts`, used to arm the
+  /// daily email timer.
+  public func nextDailyEmailTime(ts : Common.Timestamp, timeZone : Common.TimeZone) : Common.Timestamp {
+    let today = dailyEmailTime(ts, timeZone);
+    if (today > ts) {
+      today;
+    } else {
+      // The next store-local day's midnight, then 7:00 AM on that day.
+      let nextDayStart = localDayStart(today + dayNs, timeZone);
+      nextDayStart + 7 * 60 * minuteNs;
+    };
   };
 };

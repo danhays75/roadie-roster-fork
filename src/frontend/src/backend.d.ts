@@ -185,6 +185,10 @@ export interface CrewSummary {
     isDemo: boolean;
     leaderPrincipal?: Principal;
 }
+export interface DailyEmailStatus {
+    lastSentAt?: Timestamp;
+    lastRecipientCount: bigint;
+}
 export interface DashboardView {
     boh: Array<Position>;
     foh: Array<Position>;
@@ -1391,6 +1395,11 @@ export interface backendInterface {
      */
     getOpeningQuestionAlerts(): Promise<AlertSummary>;
     /**
+     * / The daily-email status for Admin > Opening Questions: when the last daily
+     * / email went out and to how many people.
+     */
+    getOpeningQuestionDailyEmailStatus(): Promise<DailyEmailStatus>;
+    /**
      * / One question's discussion (suggestions and comments), loaded when its card
      * / is opened.
      */
@@ -1722,6 +1731,11 @@ export interface backendInterface {
      * / nudged on the current store-local day.
      */
     sendOpeningQuestionNudge(manager: Principal): Promise<void>;
+    /**
+     * / Send the caller's own work email immediately, marked as a test (Admin and
+     * / Managing Partner only), even when nothing is waiting.
+     */
+    sendOpeningQuestionTestEmail(): Promise<void>;
     /**
      * / Choose which demo manager a demo Store Manager or Training Manager views
      * / as, so "My crew" and the Roster "My crew" chip match the chosen manager's

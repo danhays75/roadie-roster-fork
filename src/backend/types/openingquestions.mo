@@ -1,3 +1,4 @@
+import Map "mo:core/Map";
 import Common "common";
 
 /// Opening Questions domain types: the TLC B33 opening questions the store's
@@ -167,6 +168,23 @@ module {
     needsApproval : Nat;
     openDiscussions : Nat;
     decisionsDue : Nat;
+  };
+
+  /// The stored state of the daily Opening Questions email: the last send time
+  /// and recipient count (for the Admin screen), and the store-local day each
+  /// person was last emailed, so a late or repeated run the same store day sends
+  /// nothing more to anyone already sent that day.
+  public type DailyEmailState = {
+    var lastSentAt : ?Common.Timestamp;
+    var lastRecipientCount : Nat;
+    lastSentDay : Map.Map<Principal, Common.DateOnly>;
+  };
+
+  /// The Admin > Opening Questions daily-email status: when the last daily email
+  /// went out (null when never sent) and to how many people.
+  public type DailyEmailStatus = {
+    lastSentAt : ?Common.Timestamp;
+    lastRecipientCount : Nat;
   };
 
   /// A live owner of a question: principal plus display name.

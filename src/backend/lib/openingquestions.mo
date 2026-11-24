@@ -13,6 +13,8 @@ import Auth "auth";
 import Age "age";
 import Clock "clock";
 import ChangeLog "changelog";
+import EmailClient "mo:caffeineai-email/emailClient";
+import EmailDigest "emaildigest";
 
 /// Opening Questions domain logic: reading questions with live owners, the
 /// progress summary, answer edits, approvals, final/reopen, suggestions and
@@ -26,6 +28,7 @@ module {
     history : Map.Map<Nat, OQ.QuestionHistoryEntry>;
     finishBy : { var value : OQ.FinishBySettings };
     nudges : Map.Map<Principal, OQ.Nudge>;
+    dailyEmail : OQ.DailyEmailState;
   };
 
   /// The counters this domain owns.
@@ -403,7 +406,9 @@ module {
         case (#all) { true };
         case (#decisionDue) { decisionDue(q, now) };
         case (#final) { isFinal(q) };
-        case (#readyForFinal) { isReadyForFinal(accessGrants, q) };
+        case (#readyForFinal) {
+          Auth.isRealManagingPartner(accessGrants, caller) and isReadyForFinal(accessGrants, q);
+        };
       };
       if (not tabOk) {
         return false;
@@ -1245,7 +1250,7 @@ module {
     demoState : Common.DemoState,
     state : State,
     changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
-    counters : Counters,
+    _counters : Counters,
     logCounters : LogCounters,
     caller : Principal,
     finishBy : ?Common.DateOnly,
@@ -1272,7 +1277,7 @@ module {
     state : State,
     storeInfo : StoreInfo,
     changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
-    counters : Counters,
+    _counters : Counters,
     logCounters : LogCounters,
     caller : Principal,
     manager : Principal,
@@ -1338,6 +1343,241 @@ module {
         };
       };
       case null { [] };
+    };
+  };
+
+  // --- Daily email ---
+
+  /// The link to the Opening Qs page of this app.
+  let openingQuestionsLink : Text = "/opening-questions";
+
+  /// The sender username the transactional email component sends from.
+  let emailFromUsername : Text = "no-reply";
+
+  /// True when a grant is a real, non-expired question owner (Kitchen Manager,
+  /// Service Manager or Managing Partner) or a real, non-expired Admin. Demo
+  /// leaders and expired grants are excluded.
+  func isDailyEmailRecipient(grant : Access.AccessGrant) : Bool {
+    isActiveRealLeader(grant) and (ownsAnyArea(grant.role) or grant.role == #admin);
+  };
+
+  /// The grant's work email from its staff profile, or null when absent/blank.
+  func workEmailOf(grant : Access.AccessGrant) : ?Text {
+    switch (grant.staffProfile) {
+      case (?p) {
+        switch (p.workEmail) {
+          case (?e) {
+            let trimmed = e.trim(#predicate(func(c : Char) : Bool { c.isWhitespace() }));
+            if (trimmed.size() > 0) { ?trimmed } else { null };
+          };
+          case null { null };
+        };
+      };
+      case null { null };
+    };
+  };
+
+  /// The number of questions needing this person's approval: questions they own
+  /// by area, not approved by them, not Final.
+  func needsApprovalCount(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    state : State,
+    principal : Principal,
+  ) : Nat {
+    state.questions.values().filter(func(q) {
+      isOwner(accessGrants, principal, q.area) and not hasApproved(q, principal) and not isFinal(q);
+    }).size();
+  };
+
+  /// The number of open suggestion discussions this person is in: open
+  /// suggestions on questions they own, or where they commented or replied.
+  func openDiscussionCount(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    state : State,
+    principal : Principal,
+  ) : Nat {
+    state.questions.values().filter(func(q) {
+      let involved = isOwner(accessGrants, principal, q.area)
+        or q.comments.any(func(c) = c.author == principal);
+      involved and q.suggestions.any(func(s) = s.state == #open);
+    }).size();
+  };
+
+  /// The number of questions ready for final (every owner approved, not Final).
+  func readyForFinalCount(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    state : State,
+  ) : Nat {
+    state.questions.values().filter(func(q) = isReadyForFinal(accessGrants, q)).size();
+  };
+
+  /// The number of suggestion decisions due: open suggestions whose 48-hour
+  /// discussion has ended.
+  func decisionsDueCount(state : State, now : Common.Timestamp) : Nat {
+    state.questions.values().filter(func(q) = decisionDue(q, now)).size();
+  };
+
+  /// The Finish-by view for the email, counted in store-local calendar days.
+  func finishByView(state : State, now : Common.Timestamp, timeZone : Common.TimeZone) : OQ.FinishByView {
+    switch (state.finishBy.value.finishBy) {
+      case (?day) {
+        let todayStart = Clock.localDayStart(now, timeZone);
+        let targetStart = Age.localMidnightOfDate(day, timeZone);
+        let diffDays = (targetStart - todayStart) / dayNs;
+        if (diffDays >= 0) {
+          { finishBy = ?day; daysLeft = diffDays.toNat(); daysOverdue = 0 };
+        } else {
+          { finishBy = ?day; daysLeft = 0; daysOverdue = (-diffDays).toNat() };
+        };
+      };
+      case null { { finishBy = null; daysLeft = 0; daysOverdue = 0 } };
+    };
+  };
+
+  /// The Admin > Opening Questions daily-email status: when the last daily email
+  /// went out and to how many people. Readable by the same roles that may read
+  /// the section.
+  public func getDailyEmailStatus(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    state : State,
+    caller : Principal,
+  ) : OQ.DailyEmailStatus {
+    ignore requireSectionReader(accessGrants, demoState, caller);
+    {
+      lastSentAt = state.dailyEmail.lastSentAt;
+      lastRecipientCount = state.dailyEmail.lastRecipientCount;
+    };
+  };
+
+  /// Send the caller's own work email immediately, even when nothing is waiting,
+  /// marked as a test (Admin and Managing Partner only). Refused when the caller
+  /// has no work email on their staff profile.
+  public func sendTestEmail(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    state : State,
+    storeInfo : StoreInfo,
+    changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
+    _counters : Counters,
+    logCounters : LogCounters,
+    caller : Principal,
+  ) : async () {
+    ignore requireSectionReader(accessGrants, demoState, caller);
+    requireRealWrite(demoState);
+    requireRealAdmin(accessGrants, demoState, caller);
+    let grant = accessGrants.get(caller)
+      ?? Runtime.trap("Access denied: caller is not registered");
+    let email = workEmailOf(grant)
+      ?? Runtime.trap("Add a work email to your staff profile before sending a test");
+    let now = nowOf(demoState, storeInfo);
+    let tz = storeInfo.value.timeZone;
+    let needsApproval = needsApprovalCount(accessGrants, state, caller);
+    let openDiscussions = openDiscussionCount(accessGrants, state, caller);
+    let readyForFinal = if (Auth.isRealManagingPartner(accessGrants, caller)) {
+      readyForFinalCount(accessGrants, state);
+    } else { 0 };
+    let decisionsDue = if (Auth.isRealAdmin(accessGrants, caller)) {
+      decisionsDueCount(state, now);
+    } else { 0 };
+    let subject = EmailDigest.subject(storeInfo.value, needsApproval);
+    let body = EmailDigest.body(
+      storeInfo.value,
+      openingQuestionsLink,
+      needsApproval,
+      openDiscussions,
+      readyForFinal,
+      decisionsDue,
+      finishByView(state, now, tz),
+      true,
+    );
+    let result = await EmailClient.sendServiceEmail(emailFromUsername, [email], subject, body);
+    switch (result) {
+      case (#ok) {
+        ignore ChangeLog.record(changeLog, logCounters, caller, "openingQuestion.testEmailSent", null, false, "Test daily email sent to " # displayName(grant));
+      };
+      case (#err(error)) {
+        ignore ChangeLog.record(changeLog, logCounters, caller, "openingQuestion.testEmailFailed", null, false, "Test daily email to " # displayName(grant) # " failed: " # error);
+        Runtime.trap("Failed to send test email: " # error);
+      };
+    };
+  };
+
+  /// Run the daily email for the current store day: send each eligible person
+  /// their digest at most once per store day, only while the setting is on,
+  /// logging each send, skip and failure without the email address. Called by
+  /// the timer and safe to call twice on the same day.
+  public func runDailyEmail(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    state : State,
+    storeInfo : StoreInfo,
+    changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
+    counters : Counters,
+    logCounters : LogCounters,
+  ) : async () {
+    ignore counters;
+    if (not state.emailSettings.value.enabled) {
+      return;
+    };
+    let now = nowOf(demoState, storeInfo);
+    let tz = storeInfo.value.timeZone;
+    let today = Clock.localDayStart(now, tz);
+    let finishBy = finishByView(state, now, tz);
+    let readyForFinal = readyForFinalCount(accessGrants, state);
+    let decisionsDue = decisionsDueCount(state, now);
+    let recipients = accessGrants.values().filter(isDailyEmailRecipient).toArray();
+    var sentCount = 0;
+    for (grant in recipients.values()) {
+      let principal = grant.principal;
+      // At most one email per person per store-local day.
+      switch (state.dailyEmail.lastSentDay.get(principal)) {
+        case (?day) { if (day == today) { continue } };
+        case null {};
+      };
+      let email = switch (workEmailOf(grant)) {
+        case (?e) { e };
+        case null {
+          ignore ChangeLog.record(changeLog, logCounters, Auth.systemActor(), "openingQuestion.dailyEmailSkipped", null, false, "Skipped " # displayName(grant) # ": no work email");
+          continue;
+        };
+      };
+      let needsApproval = needsApprovalCount(accessGrants, state, principal);
+      let openDiscussions = openDiscussionCount(accessGrants, state, principal);
+      let isMp = grant.role == #managingPartner;
+      let isAdmin = grant.role == #admin;
+      let myReadyForFinal = if (isMp) { readyForFinal } else { 0 };
+      let myDecisionsDue = if (isAdmin or isMp) { decisionsDue } else { 0 };
+      let itemCount = needsApproval + openDiscussions + myReadyForFinal + myDecisionsDue;
+      if (itemCount == 0) {
+        continue;
+      };
+      let subject = EmailDigest.subject(storeInfo.value, needsApproval);
+      let body = EmailDigest.body(
+        storeInfo.value,
+        openingQuestionsLink,
+        needsApproval,
+        openDiscussions,
+        myReadyForFinal,
+        myDecisionsDue,
+        finishBy,
+        false,
+      );
+      let result = await EmailClient.sendServiceEmail(emailFromUsername, [email], subject, body);
+      switch (result) {
+        case (#ok) {
+          state.dailyEmail.lastSentDay.add(principal, today);
+          sentCount += 1;
+          ignore ChangeLog.record(changeLog, logCounters, Auth.systemActor(), "openingQuestion.dailyEmailSent", null, false, "Daily email sent to " # displayName(grant) # " with " # itemCount.toText() # " items");
+        };
+        case (#err(error)) {
+          ignore ChangeLog.record(changeLog, logCounters, Auth.systemActor(), "openingQuestion.dailyEmailFailed", null, false, "Daily email to " # displayName(grant) # " failed: " # error);
+        };
+      };
+    };
+    if (sentCount > 0) {
+      state.dailyEmail.lastSentAt := ?now;
+      state.dailyEmail.lastRecipientCount := sentCount;
     };
   };
 };

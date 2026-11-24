@@ -95,6 +95,8 @@
 - Report what changed for each of the nine and which tests passed or failed
 - Do not change which roles see contact info, edit groups, check people in or approve sign-ups
 - Report what changed for each item and which tests passed or failed
+- Keep everything in version 11 and change nothing else
+- Email is short and plain
 
 ## Accepted Requirements
 
@@ -349,6 +351,20 @@
 - Integration role limited to the Shareable export; refused on shift boards, Today and Dashboard
 - Anonymous access request refused
 - ManagerTab.tsx TypeScript error fixed
+- Daily email at 7:00 AM store time, every day, using Caffeine's email component
+- A timer that survives upgrades
+- At most one email per person per store day even if the timer fires late or twice
+- Only while the daily email setting is on
+- Recipients are every real, non-expired Kitchen Manager, Service Manager and Managing Partner, and every Admin
+- Skip demo leaders, expired people and anyone with no work email
+- Send only when something is waiting on the person
+- Email shows questions needing their approval, open suggestion discussions they are in, Ready for final for the Managing Partner, decisions due for Admin and the Managing Partner, the Finish-by date with days left or overdue, and a link to the Opening Qs page
+- Store name and number in the subject
+- Log each send (who, how many items) in the change log without the email address
+- A failed send is logged and sending continues with the others
+- Admin > Opening Questions shows when the last daily email went out and to how many people
+- A 'Send me a test now' button sends the caller's own email immediately, Admin and Managing Partner only, marked as a test
+- Restore the Managing Partner check on the Ready for final tab of listQuestions
 
 ## Verified Commands
 
@@ -358,14 +374,6 @@
 
 ## Learnings
 
-- The /opening-questions route validates a tab search param so a nudge alert can open the Needs my approval tab; the page reads it while keeping its default tab.
-- ManagersScoreboard takes canNudge, changeLog, onNudge, nudgingPrincipal and nudgeErrorPrincipal props; OpeningQuestions.tsx must pass all five or the Nudge button never appears.
-- api-doc.mo's getApiDoc literal must stay one line with every inner double quote escaped; a split literal or raw quote fails M0097/M0057.
-- main.mo counters must declare nextNudgeId to match migration 00000031 or M0216 stable compatibility fails.
-- The shared card pop-up's closeForNavigation replaceState-strips ?card instead of calling history.back(), which keeps the full page open while the phone's back button still returns to the list.
-- FULL_PROFILE_ROLES and canOpenFullProfile in src/frontend/src/hooks/useAccess.ts are the single rule for the Open full profile link; Roster and PositionRosterDialog gate the link with it, while Leaders, Groups and Crews always pass renderFullProfile and rely on their route guards.
-- RoadieCardModal renderFullProfile receives (entry, onNavigate); onNavigate must be called before navigating so the pushed ?card history entry is cleared.
-- The roadie full page's local MANAGER_ROLES in src/frontend/src/pages/RoadieCard.tsx must include managingPartner so the Managing Partner sees the manager view.
 - listLeaders is readable by every non-kiosk, non-integration role, so the leader full page needs no extra role filter beyond the existing canLeaders guard.
 - Opening Questions owners must filter grants by non-expired accessEndsAt, not just isRealLeader, or expired managers still block Ready for final.
 - Opening Questions guards must use realRole-based helpers (requireRealOpeningQuestionsReader, requireRealAdminRights, isRealManagingPartner), never demo-aware Auth.isAdmin or requireReadable.
@@ -383,3 +391,11 @@
 - Today's Opening Questions alert cards must use useRealAccessGrant, not the demo-aware useAccessState role, to match backend ownership checks.
 - Iter.filter().map() returns an Iter in Motoko; call .toArray() before .sort() when the function returns [T] (M0096 otherwise).
 - Opening Questions length limits: answer 4,000; comment, reply and suggestion 2,000; notes 1,000, enforced in the backend and shown on each field.
+- The daily Opening Questions email runs from a timer armed in the main.mo actor body that re-arms itself after each run, so it survives upgrades without stored timer state.
+- runDailyEmail is idempotent per store day via state.dailyEmail.lastSentDay, added only on a successful send, so a late or repeated timer fire sends nothing more.
+- sendTestEmail uses requireRealAdmin (Admin and Managing Partner) and sends to the caller's own workEmailOf(grant), marked as a test.
+- phase23.mo getToday builds OpeningQuestionsLib.State inline twice; every new State field must be added to both literals or M0151 fails.
+- A timer job needing Timer.setTimer<system> must be a <system> function; a plain func() body fails M0197.
+- api-doc.mo's getApiDoc literal must stay one line with every inner double quote escaped; a split literal fails M0001.
+- canAdmin already includes managingPartner via ADMIN_ROLES, so isAdmin gates the Admin > Opening Questions status line and test button for both roles.
+- DailyEmailStatus.lastSentAt is optional; check !== undefined to distinguish never-sent from a real timestamp.

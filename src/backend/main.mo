@@ -1,6 +1,8 @@
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
 import Principal "mo:core/Principal";
+import Time "mo:core/Time";
+import Timer "mo:core/Timer";
 import AccessControl "mo:caffeineai-authorization/access-control";
 import MixinAuthorization "mo:caffeineai-authorization/MixinAuthorization";
 import MixinObjectStorage "mo:caffeineai-object-storage/Mixin";
@@ -34,6 +36,8 @@ import SeedApi "mixins/seed-api";
 import DemoApi "mixins/demo-api";
 import OpeningQuestionsApi "mixins/openingquestions-api";
 import ApiDocMixin "mixins/api-doc";
+import OpeningQuestionsLib "lib/openingquestions";
+import Clock "lib/clock";
 
 actor {
   // --- Platform infrastructure state ---
@@ -86,6 +90,7 @@ actor {
   let openingQuestionHistory : Map.Map<Nat, OpeningQuestions.QuestionHistoryEntry>;
   let openingQuestionFinishBy : { var value : OpeningQuestions.FinishBySettings };
   let openingQuestionNudges : Map.Map<Principal, OpeningQuestions.Nudge>;
+  let openingQuestionDailyEmail : OpeningQuestions.DailyEmailState;
 
   let counters : {
     var nextRoadieId : Nat;
@@ -204,6 +209,7 @@ actor {
       history = openingQuestionHistory;
       finishBy = openingQuestionFinishBy;
       nudges = openingQuestionNudges;
+      dailyEmail = openingQuestionDailyEmail;
     },
     storeInfo,
     changeLog,
@@ -213,6 +219,39 @@ actor {
 
   // --- Behavioral API documentation ---
   include ApiDocMixin();
+
+  // --- Daily Opening Questions email timer ---
+  // Re-armed after every run and on every upgrade (the actor body runs on each
+  // install and upgrade), so the daily 7:00 AM store-time send keeps firing.
+  // The run itself is idempotent per store-local day, so a late or repeated
+  // fire sends nothing more to anyone already emailed that day.
+  func armDailyEmailTimer<system>() : () {
+    let now = Time.now();
+    let delayNs = Clock.nextDailyEmailTime(now, storeInfo.value.timeZone) - now;
+    ignore Timer.setTimer<system>(
+      #nanoseconds(delayNs.toNat()),
+      func() : async () {
+        await OpeningQuestionsLib.runDailyEmail(
+          accessGrants,
+          demoState,
+          {
+            questions = openingQuestions;
+            emailSettings = openingQuestionEmailSettings;
+            history = openingQuestionHistory;
+            finishBy = openingQuestionFinishBy;
+            nudges = openingQuestionNudges;
+            dailyEmail = openingQuestionDailyEmail;
+          },
+          storeInfo,
+          changeLog,
+          counters,
+          counters,
+        );
+        armDailyEmailTimer<system>();
+      },
+    );
+  };
+  armDailyEmailTimer<system>();
 
   // --- OQL exposure ---
 

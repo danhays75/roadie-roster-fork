@@ -1,23 +1,18 @@
 {
-  "overview": "A hiring and orientation management app for a retail store's roadie crew, with rosters, paperwork, training groups, leader cards and an Opening Questions review section.",
+  "overview": "A store hiring and onboarding app for restaurant teams, with roadie cards, paperwork, orientation, training groups and Opening Questions.",
   "features": [
-    "Per-question Opening Questions ownership so the Managing Partner can approve Dan questions",
-    "Accept and Decline stay available on pending suggestions after the 48 hours",
-    "Final questions are locked until the Managing Partner reopens them",
-    "Expired manager access no longer counts as question ownership",
-    "Opening Questions is restricted to the six allowed roles in the backend",
-    "Demo mode no longer grants a role to people without access",
-    "Only a Managing Partner can change the Managing Partner role",
-    "Managing Partner has the same access as Admin for gift bags, sign-ups, uniforms and crews",
-    "The card pop-up keeps the browser's back button working"
+    "Daily Opening Questions email at 7:00 AM store time",
+    "Per-person counts of approvals, discussions, Ready for final and decisions due",
+    "Last send status and a Send me a test now button in Admin",
+    "Ready for final tab limited to the Managing Partner"
   ],
   "category": "team-management",
   "tags": [
-    "roster",
     "hiring",
-    "orientation",
-    "access-control",
-    "bug-fixes"
+    "onboarding",
+    "restaurant",
+    "email",
+    "opening-questions"
   ],
-  "last_updated": "2026-11-24T03:24:56.298Z"
+  "last_updated": "2026-11-24T04:14:25.656Z"
 }
