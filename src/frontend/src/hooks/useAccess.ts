@@ -121,6 +121,32 @@ export const LEADERS_ROLES: Role[] = [
 ];
 
 /**
+ * Roles allowed to see the Leader Talks surface: Admin, Managing Partner, Store
+ * Manager, Training Manager, Kitchen Manager, Service Manager, Leadership and
+ * Visiting Manager. Trainer, Kiosk and Integration are refused, matching the
+ * backend's `listLeaderTalks` restriction.
+ */
+export const LEADER_TALKS_ROLES: Role[] = [
+  ...ADMIN_ROLES,
+  Role.storeManager,
+  Role.trainingManager,
+  Role.kitchenManager,
+  Role.serviceManager,
+  Role.leadership,
+  Role.visitingManager,
+];
+
+/**
+ * Roles allowed to create, change and delete a leader talk: Admin, Managing
+ * Partner, Store Manager and Training Manager, matching the backend.
+ */
+export const LEADER_TALK_EDITOR_ROLES: Role[] = [
+  ...ADMIN_ROLES,
+  Role.storeManager,
+  Role.trainingManager,
+];
+
+/**
  * Roles allowed to see the Orientation check-in surface: the roles that may
  * read an orientation session view on the backend.
  */
@@ -311,6 +337,11 @@ export const NAV_ITEMS: NavItem[] = [
   { labelKey: "nav.myProfile", to: "/my-profile", allowedRoles: [] },
   { labelKey: "nav.leaders", to: "/leaders", allowedRoles: LEADERS_ROLES },
   { labelKey: "nav.groups", to: "/groups", allowedRoles: GROUPS_ROLES },
+  {
+    labelKey: "nav.leaderTalks",
+    to: "/leader-talks",
+    allowedRoles: LEADER_TALKS_ROLES,
+  },
   {
     labelKey: "nav.orientation",
     to: "/orientation",
@@ -541,6 +572,16 @@ export function canGroups(role: Role | undefined): boolean {
 /** Whether the given role may open the Orientation check-in surface. */
 export function canOrientation(role: Role | undefined): boolean {
   return !!role && ORIENTATION_ROLES.includes(role);
+}
+
+/** Whether the given role may open the Leader Talks surface. */
+export function canLeaderTalks(role: Role | undefined): boolean {
+  return !!role && LEADER_TALKS_ROLES.includes(role);
+}
+
+/** Whether the given role may create, change or delete a leader talk. */
+export function canEditLeaderTalks(role: Role | undefined): boolean {
+  return !!role && LEADER_TALK_EDITOR_ROLES.includes(role);
 }
 
 /**

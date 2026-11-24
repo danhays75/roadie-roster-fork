@@ -1,6 +1,7 @@
 import type {
   ArchiveReason,
   ChecklistItem,
+  LeaderTalkView,
   OrientationCheckoff,
   Position,
   Roadie,
@@ -12,11 +13,18 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useI18n } from "@/hooks/useI18n";
 import {
   useChecklists,
+  useLeaderTalks,
   usePositions,
   useRoadiePhoto,
   useSchedule,
+  useStoreInfo,
 } from "@/hooks/useQueries";
-import { refToDataUrl, roadieStageTag, roadieStageTagText } from "@/lib/format";
+import {
+  formatDateOnlyMonthDay,
+  refToDataUrl,
+  roadieStageTag,
+  roadieStageTagText,
+} from "@/lib/format";
 import { paperworkDueEvent } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 import { useActor } from "@caffeineai/core-infrastructure";
@@ -165,10 +173,39 @@ export function usePaperworkIncompleteMap(
   }, [enabled, dueInstant, pastDue, checkoffs, checklists, positionMap, now]);
 }
 
+/**
+ * The leader-talk line for each roadie, keyed by roadie id: the store's leader
+ * talk name followed by the talk's day, e.g. "Leader Talk: Mar 14". A roadie in
+ * no talk has no entry, so callers render nothing for them. The talk read is
+ * restricted to the roles that may read talks, so callers pass `enabled`
+ * (typically `canLeaderTalks(role)`); when disabled the map is empty and no
+ * line is shown. The day is a date-only value, so it is formatted in UTC.
+ */
+export function useLeaderTalkLineMap(enabled: boolean): Map<string, string> {
+  const { t } = useI18n();
+  const { data: talks } = useLeaderTalks(enabled);
+  const { data: storeInfo } = useStoreInfo();
+
+  const talkName = storeInfo?.leaderTalkName?.trim() || t("leaderTalks.title");
+
+  return useMemo(() => {
+    const lines = new Map<string, string>();
+    if (!enabled) return lines;
+    for (const talk of talks ?? []) {
+      const day = formatDateOnlyMonthDay(talk.day);
+      if (!day) continue;
+      const line = t("roadie.card.leaderTalk", { talk: talkName, day });
+      for (const attendee of talk.attendees) {
+        lines.set(attendee.roadieId.toString(), line);
+      }
+    }
+    return lines;
+  }, [enabled, talks, talkName, t]);
+}
+
 /** The public path of the "Ready for Orientation" seal artwork. */
 export const READY_FOR_ORIENTATION_SEAL_SRC =
   "/assets/ready-for-orientation-seal.png";
-
 /**
  * The "Ready for Orientation" seal image, shown in place of the text tag once a
  * roadie's stage is Paperwork Done. The artwork is a circular badge with a
@@ -242,6 +279,7 @@ export function RoadieTile({
   positionName,
   crewName,
   crewLabel,
+  leaderTalkLine,
   paperworkIncomplete: paperworkFlag,
   onOpen,
   ocid = "roadie.tile",
@@ -258,6 +296,11 @@ export function RoadieTile({
    * only when the roadie has a crew.
    */
   crewLabel?: string;
+  /**
+   * The leader-talk line for this roadie ("<leaderTalkName>: <day>"). Shown only
+   * when the caller may read talks and the roadie is in one; omitted otherwise.
+   */
+  leaderTalkLine?: string;
   /** When true, show the red "Paperwork incomplete" flag on the tile. */
   paperworkIncomplete?: boolean;
   onOpen: (roadie: Roadie) => void;
@@ -331,6 +374,14 @@ export function RoadieTile({
           {positionName && (
             <span className="truncate text-xs text-muted-foreground">
               {positionName}
+            </span>
+          )}
+          {leaderTalkLine && (
+            <span
+              data-ocid={ocid ? `${ocid}.leader_talk` : undefined}
+              className="truncate text-xs font-medium text-primary"
+            >
+              {leaderTalkLine}
             </span>
           )}
           <span className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">

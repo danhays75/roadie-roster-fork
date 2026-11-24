@@ -1,22 +1,19 @@
 {
-  "overview": "A store hiring and training roster for TLC that tracks roadies from sign-up through paperwork, orientation and final trainer sign-off.",
+  "overview": "A hiring and training roster app for a store's roadie crew, with roadie cards, paperwork, orientation, training groups, leader talks and opening-week questions.",
   "features": [
-    "Track roadies from sign-up through paperwork, orientation and training",
-    "Trainers and managers sign a roadie off as Certified or Needs more time with a reason",
-    "Mark a signed-off roadie as a possible future trainer",
-    "See who signed off and when on the roadie card",
-    "Sign off roadies straight from Today's My group tiles",
-    "Dashboard Certified count follows the sign-off",
-    "Demo mode with fake data for practice runs",
-    "English and Spanish interface"
+    "Plan and track leader talk groups for opening-week training",
+    "See which roadies have not been met yet",
+    "Fill a group from roadies who are not in a talk yet",
+    "Edit and delete talk groups with a confirm step",
+    "See each roadie's talk day on their card",
+    "Record and clear final sign-offs that update stage tags right away"
   ],
-  "category": "roster-management",
+  "category": "staff-management",
   "tags": [
+    "roster",
     "hiring",
     "training",
-    "roster",
-    "store-operations",
-    "sign-off"
+    "store-operations"
   ],
-  "last_updated": "2026-11-24T13:30:31.522Z"
+  "last_updated": "2026-11-24T14:56:56.204Z"
 }

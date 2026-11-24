@@ -305,13 +305,13 @@ module {
       case null { "" };
     };
     if (trimmed.size() == 0) {
-      Runtime.trap("A rehire needs a reason");
+      Runtime.trap("A rehire reason is required");
     };
     let roadie = requireVisibleRoadie(roadies, demoState, id);
     let now = Clock.effectiveNow(demoState, storeInfo);
     let orientationEventId = switch (StoreLib.nextOrientationEvent(schedule, now)) {
       case (?event) { ?event.id };
-      case null { null };
+      case null { roadie.orientationEventId };
     };
     roadies.add(id, {
       roadie with

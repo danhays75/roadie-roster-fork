@@ -454,7 +454,18 @@ export interface LeaderTalk {
     isDemo: boolean;
     attendees: Array<RoadieId>;
 }
+export interface LeaderTalkAttendeeView {
+    roadieId: RoadieId;
+    displayName: string;
+}
 export type LeaderTalkId = bigint;
+export interface LeaderTalkView {
+    id: LeaderTalkId;
+    day: DateOnly;
+    name: string;
+    isDemo: boolean;
+    attendees: Array<LeaderTalkAttendeeView>;
+}
 export interface ManagerScoreRow {
     pendingCount: bigint;
     principal: Principal;
@@ -1298,7 +1309,11 @@ export interface backendInterface {
      */
     createCrew(name: string, leaderPrincipal: Principal): Promise<CrewId>;
     /**
-     * / Create a leader talk (Admin/Store Manager only).
+     * / Create a leader talk. Allowed for Admin, Managing Partner, Store Manager
+     * / and Training Manager. A blank name defaults to the store's leaderTalkName
+     * / plus " · Group N". The group is refused when larger than leaderTalkSize,
+     * / when it holds an archived roadie, a roadie from the other demo partition,
+     * / or the same roadie twice.
      */
     createLeaderTalk(talk: LeaderTalk): Promise<LeaderTalkId>;
     /**
@@ -1318,6 +1333,12 @@ export interface backendInterface {
      * / assigned to the crew.
      */
     deleteCrew(id: CrewId): Promise<void>;
+    /**
+     * / Delete one leader talk from the current demo partition and record the
+     * / deletion in the change log. Allowed for Admin, Managing Partner, Store
+     * / Manager and Training Manager.
+     */
+    deleteLeaderTalk(id: LeaderTalkId): Promise<void>;
     /**
      * / Delete a position (Admin only).
      */
@@ -1587,6 +1608,14 @@ export interface backendInterface {
      */
     listGroupChangeNotices(): Promise<Array<GroupChangeNotice>>;
     /**
+     * / List every leader talk in the current demo partition, sorted by day then
+     * / id, each with its attendees' id and display name. Readable by Admin,
+     * / Managing Partner, Store Manager, Training Manager, Kitchen Manager,
+     * / Service Manager, Leadership and Visiting Manager; refused for Trainer,
+     * / Kiosk and Integration.
+     */
+    listLeaderTalks(): Promise<Array<LeaderTalkView>>;
+    /**
      * / List the leaders shown on the Leaders page: the manager, trainer and
      * / leadership roles. Readable by every role except Kiosk and Integration.
      * / Never carries phone or email.
@@ -1811,9 +1840,14 @@ export interface backendInterface {
      */
     setKioskPin(pin: string): Promise<void>;
     /**
-     * / Record per-roadie attendance for a leader talk (Admin/Store Manager only).
+     * / Record per-roadie attendance for a leader talk and, when a non-blank name
+     * / is supplied, rename the talk. Allowed for Admin, Managing Partner, Store
+     * / Manager and Training Manager. The group is refused when larger than
+     * / leaderTalkSize, when it holds an archived roadie, a roadie from the other
+     * / demo partition, or the same roadie twice. A blank name keeps the existing
+     * / name.
      */
-    setLeaderTalkAttendance(id: LeaderTalkId, attendees: Array<RoadieId>): Promise<void>;
+    setLeaderTalkAttendance(id: LeaderTalkId, name: string, attendees: Array<RoadieId>): Promise<void>;
     /**
      * / Set or clear the Finish-by date (Managing Partner and Admins only).
      */

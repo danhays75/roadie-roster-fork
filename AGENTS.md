@@ -116,6 +116,9 @@
 - No new stored variables if avoidable; if the FinalSignOff type must change, add the migration
 - Keep any copy key whose text wraps onto a second line
 - AGENTS.md Learnings: only add new lines, restore the 14 removed lines word for word, delete only the outdated usePendingSignups line
+- Builds on version 18 and keeps everything else exactly as it works today
+- No change to the stored LeaderTalk type, so no migration
+- Keep demo-mode partitioning on every new read and write
 
 ## Accepted Requirements
 
@@ -431,6 +434,25 @@
 - The Dashboard Certified count and the Certified stage follow from the sign-off
 - Demo sign-offs stay demo sign-offs
 - The 14 version-16 AGENTS.md Learnings lines restored word for word and the outdated usePendingSignups line deleted
+- Admin, Managing Partner, Store Manager and Training Manager may create, change and delete leader talks
+- listLeaderTalks returns the current partition's talks sorted by day then id with attendee id and display name
+- listLeaderTalks readable by Admin, Managing Partner, Store Manager, Training Manager, Kitchen Manager, Service Manager, Leadership and Visiting Manager
+- deleteLeaderTalk for the four manager roles, logged in the change log
+- Groups larger than leaderTalkSize, archived roadies, other-partition roadies and duplicates are refused
+- A blank talk name defaults to leaderTalkName plus ' · Group N'
+- No change to the stored LeaderTalk type, so no migration
+- A /leader-talks page titled with leaderTalkName, in the nav for the eight reader roles only
+- Talks listed grouped by day with name and roadies' photo and name
+- New group picks the day with training days first, and chooses roadies
+- Fill from not yet met adds active roadies in no talk up to leaderTalkSize
+- Managers edit a group and delete one with a confirm step
+- A Not yet met list of active roadies in no talk whose day is today or earlier, with a count
+- Roadie card shows '<leaderTalkName>: <day>' for roadies in a talk
+- Demo talks stay demo talks and the page shows the active partition
+- Every new copy key in English and Spanish with the same keys
+- Final sign-off record and clear also refresh myGroup, myCrew, shiftBoard, shiftBoards, rosterSummary, today and changeLog
+- rehireRoadie traps 'A rehire reason is required' and keeps the existing orientationEventId when no upcoming session exists, still clearing the sign-off
+- Frontend type-checks, backend builds and existing tests pass
 
 ## Verified Commands
 
@@ -440,15 +462,6 @@
 
 ## Learnings
 
-- Dashboard /opening-questions and /roster routes declare optional validateSearch, so Link needs no search prop.
-- This app gates every route behind Internet Identity, so a mock-backend visual pass only reaches the sign-in screen; Dashboard changes need an authenticated session to verify visually.
-- Integration role is refused on shift boards, Today, Dashboard and every read except buildShareableExport; INTEGRATION_REFUSED_ROUTES plus useMayOpenOpenRoute in App.tsx enforce the routes.
-- Today's Opening Questions alert cards must use useRealAccessGrant, not the demo-aware useAccessState role, to match backend ownership checks.
-- Opening Questions length limits: answer 4,000; comment, reply and suggestion 2,000; notes 1,000, enforced in the backend and shown on each field.
-- The daily Opening Questions email runs from a timer armed in the main.mo actor body that re-arms itself after each run, so it survives upgrades without stored timer state.
-- ManagerScoreRow.nudgedToday is the stored nudge state derived from the nudge record in store time; the scoreboard no longer reads the change log or a hardcoded Chicago day key.
-- Demo leaders are identified by approvedBy == systemActor() (aaaaa-aa), never by work email; migration 32 strips legacy DEMO work emails from system-created grants.
-- getStoreInfo traps for a demo-only caller; getStoreDemoView serves non-sensitive store details while demo is on, and useDemoAwareStoreInfo falls back to it on Dashboard and Groups.
 - usePendingSignups(enabled = true) is gated like useAbsentAlerts; Layout and Dashboard pass canApproveSignups(role) so a role that may not approve sign-ups never calls listPendingSignups.
 - Trainer notes: addTrainerNote allows trainer, trainingManager, kitchenManager, serviceManager, storeManager, admin and managingPartner, with a trainer limited to their own stations; blank notes and fields over 1,000 characters are refused; archived roadies and the other demo partition trap Roadie not found; listTrainerNotes returns TrainerNoteView newest first with authorName while the stored TrainerNote record is unchanged.
 - Trainer notes UI: TrainerNotesTab and TrainerNoteForm in src/frontend/src/components/roadie are shared by the roadie card tab and the Today My group tiles; canReadTrainerNotes and canAddTrainerNote in useAccess.ts gate them.
@@ -465,3 +478,12 @@
 - hasReachedFinalSignOff in lib/schedule.ts compares dateToDateOnly(now) >= dateToDateOnly(event.start) so the sign-off day itself counts as arrived.
 - FinalSignOffForm in components/roadie is shared by the roadie card's Trainer notes tab and the Today My group tiles; SIGN_OFF_REASON_MAX_LENGTH is 1,000.
 - FlipCard takes an optional futureTrainer prop that renders the Future trainer chip; RoadieCardModal and RoadieCard pass it from useFinalSignOff.
+- Leader talks: listLeaderTalks and deleteLeaderTalk live in lib/phase23.mo and mixins/phase23-api.mo; requireLeaderTalkManager and requireLeaderTalkReader live in lib/auth.mo; group validation is one helper validateLeaderTalkGroup shared by createLeaderTalk and setLeaderTalkAttendance.
+- setLeaderTalkAttendance takes (id, name, attendees) and stores the new name, keeping a blank name as the existing one; the frontend forwards the dialog's name field through useSetLeaderTalkAttendance.
+- The leader talks page is src/frontend/src/pages/LeaderTalks.tsx with its group dialog in src/frontend/src/components/leader-talks/LeaderTalkGroupDialog.tsx; role helpers LEADER_TALKS_ROLES, LEADER_TALK_EDITOR_ROLES, canLeaderTalks and canEditLeaderTalks live in hooks/useAccess.ts.
+- Leader talk hooks use query key ['leaderTalks'] and invalidate it plus ['changeLog'] after create, attendance and delete.
+- The roadie card talk line lives in components/roadie/RoadieTile.tsx fed by useLeaderTalkLineMap with copy key roadie.card.leaderTalk in both dictionaries; the FlipCard pop-up design stays unchanged.
+- useRecordFinalSignOff and useClearFinalSignOff also invalidate myGroup, myCrew, shiftBoard, shiftBoards, rosterSummary, today and changeLog so stage tags refresh.
+- rehireRoadie traps 'A rehire reason is required' and keeps the existing orientationEventId when no upcoming orientation session exists, while still clearing the final sign-off.
+- Int.compare and Nat.compare return Order.Order, so a sort comparator must test c != #equal, never c != 0.
+- useDemoAwareStoreInfo lives in hooks/useAccess.ts, not useQueries.ts; RosterState is a string enum, so compare roadie.rosterState === RosterState.active.

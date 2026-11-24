@@ -1941,28 +1941,149 @@ module {
     };
   };
 
-  /// Create a leader talk (Admin/Store Manager only). A talk created while demo
+  /// Create a leader talk. Allowed for Admin, Managing Partner, Store Manager
+  /// and Training Manager. A blank name defaults to the store's
+  /// `leaderTalkName` plus " · Group N", where N is the new talk's number. The
+  /// group is validated by `validateLeaderTalkGroup`. A talk created while demo
   /// mode is on is a demo talk.
   public func createLeaderTalk(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
     leaderTalks : Map.Map<Common.LeaderTalkId, Phase23.LeaderTalk>,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    storeInfo : Store.StoreInfo,
     changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
     counters : Counters,
     caller : Principal,
     talk : Phase23.LeaderTalk,
   ) : Common.LeaderTalkId {
-    Auth.requireManager(accessGrants, demoState, caller);
+    Auth.requireLeaderTalkManager(accessGrants, demoState, caller);
+    let demo = Auth.demoActive(demoState);
+    validateLeaderTalkGroup(roadies, storeInfo, demoState, talk.attendees);
     let id = counters.nextLeaderTalkId;
     counters.nextLeaderTalkId := id + 1;
-    leaderTalks.add(id, { talk with id; isDemo = Auth.demoActive(demoState) });
-    logWrite(changeLog, counters, demoState, caller, "createLeaderTalk", null, false, "Created leader talk");
+    let trimmed = talk.name.trim(#predicate(func(c : Char) : Bool { c.isWhitespace() }));
+    let name = if (trimmed.size() == 0) {
+      storeInfo.leaderTalkName # " · Group " # id.toText();
+    } else {
+      trimmed;
+    };
+    leaderTalks.add(id, {
+      id;
+      name;
+      day = talk.day;
+      attendees = talk.attendees;
+      isDemo = demo;
+    });
+    logWrite(changeLog, counters, demoState, caller, "createLeaderTalk", null, false, "Created leader talk: " # name);
     id;
   };
 
-  /// Record per-roadie attendance for a leader talk (Admin/Store Manager only).
-  /// A write to the other partition is rejected.
+  /// Internal: refuse a leader-talk group that is larger than the store's
+  /// `leaderTalkSize`, holds an archived roadie, holds a roadie from the other
+  /// demo partition, or repeats a roadie.
+  func validateLeaderTalkGroup(
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    storeInfo : Store.StoreInfo,
+    demoState : Common.DemoState,
+    attendees : [Common.RoadieId],
+  ) : () {
+    if (attendees.size() > storeInfo.leaderTalkSize) {
+      Runtime.trap("A group cannot have more than " # storeInfo.leaderTalkSize.toText() # " roadies");
+    };
+    let demo = Auth.demoActive(demoState);
+    var seen : List.List<Common.RoadieId> = List.empty();
+    for (roadieId in attendees.values()) {
+      if (seen.contains(roadieId)) {
+        Runtime.trap("A roadie cannot be in the same group twice");
+      };
+      seen.add(roadieId);
+      let roadie = roadies.get(roadieId) ?? Runtime.trap("Roadie not found");
+      if (roadie.isDemo != demo) {
+        Runtime.trap("Roadie not found");
+      };
+      if (roadie.status == #archived) {
+        Runtime.trap("An archived roadie cannot be in a leader talk");
+      };
+    };
+  };
+
+  /// Record per-roadie attendance for a leader talk and, when a non-blank name
+  /// is supplied, rename the talk. Allowed for Admin, Managing Partner, Store
+  /// Manager and Training Manager. The group is validated by
+  /// `validateLeaderTalkGroup`. A blank name keeps the talk's existing name. A
+  /// write to the other partition is rejected.
   public func setLeaderTalkAttendance(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    leaderTalks : Map.Map<Common.LeaderTalkId, Phase23.LeaderTalk>,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    storeInfo : Store.StoreInfo,
+    changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
+    counters : Counters,
+    caller : Principal,
+    id : Common.LeaderTalkId,
+    name : Text,
+    attendees : [Common.RoadieId],
+  ) : () {
+    Auth.requireLeaderTalkManager(accessGrants, demoState, caller);
+    let demo = Auth.demoActive(demoState);
+    let talk = leaderTalks.get(id) ?? Runtime.trap("Leader talk not found");
+    if (talk.isDemo != demo) {
+      Runtime.trap("Leader talk not found");
+    };
+    validateLeaderTalkGroup(roadies, storeInfo, demoState, attendees);
+    let trimmed = name.trim(#predicate(func(c : Char) : Bool { c.isWhitespace() }));
+    let newName = if (trimmed.size() == 0) { talk.name } else { trimmed };
+    leaderTalks.add(id, { talk with name = newName; attendees });
+    let detail = if (newName == talk.name) {
+      "Updated leader talk group: " # newName;
+    } else {
+      "Renamed leader talk: " # talk.name # " → " # newName;
+    };
+    logWrite(changeLog, counters, demoState, caller, "setLeaderTalkAttendance", null, false, detail);
+  };
+
+  /// List every leader talk in the current demo partition, sorted by day then
+  /// id, each with its attendees' id and display name. Readable by Admin,
+  /// Managing Partner, Store Manager, Training Manager, Kitchen Manager,
+  /// Service Manager, Leadership and Visiting Manager; refused for Trainer,
+  /// Kiosk and Integration.
+  public func listLeaderTalks(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    leaderTalks : Map.Map<Common.LeaderTalkId, Phase23.LeaderTalk>,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    caller : Principal,
+  ) : [Phase23.LeaderTalkView] {
+    Auth.requireLeaderTalkReader(accessGrants, demoState, caller);
+    let demo = Auth.demoActive(demoState);
+    let views = leaderTalks.values()
+      .filter(func(t) = t.isDemo == demo)
+      .map(func(t) = {
+        id = t.id;
+        name = t.name;
+        day = t.day;
+        attendees = t.attendees.map(func(roadieId) = {
+          roadieId;
+          displayName = switch (roadies.get(roadieId)) {
+            case (?r) { displayName(r) };
+            case null { "" };
+          };
+        });
+        isDemo = t.isDemo;
+      })
+      .toArray();
+    views.sort(func(a, b) {
+      let c = Int.compare(a.day, b.day);
+      if (c != #equal) { c } else { Nat.compare(a.id, b.id) };
+    });
+  };
+
+  /// Delete one leader talk from the current demo partition and record the
+  /// deletion in the change log. Allowed for Admin, Managing Partner, Store
+  /// Manager and Training Manager. A talk from the other partition is rejected.
+  public func deleteLeaderTalk(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
     leaderTalks : Map.Map<Common.LeaderTalkId, Phase23.LeaderTalk>,
@@ -1970,15 +2091,15 @@ module {
     counters : Counters,
     caller : Principal,
     id : Common.LeaderTalkId,
-    attendees : [Common.RoadieId],
   ) : () {
-    Auth.requireManager(accessGrants, demoState, caller);
+    Auth.requireLeaderTalkManager(accessGrants, demoState, caller);
+    let demo = Auth.demoActive(demoState);
     let talk = leaderTalks.get(id) ?? Runtime.trap("Leader talk not found");
-    if (talk.isDemo != Auth.demoActive(demoState)) {
+    if (talk.isDemo != demo) {
       Runtime.trap("Leader talk not found");
     };
-    leaderTalks.add(id, { talk with attendees });
-    logWrite(changeLog, counters, demoState, caller, "setLeaderTalkAttendance", null, false, "Recorded leader talk attendance");
+    leaderTalks.remove(id);
+    logWrite(changeLog, counters, demoState, caller, "deleteLeaderTalk", null, false, "Deleted leader talk: " # talk.name);
   };
 
   /// Record a final sign-off for a roadie. Trainer (only roadies in their own

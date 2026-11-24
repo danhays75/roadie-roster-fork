@@ -10,6 +10,7 @@ import {
 } from "@/components/roadie/RoadieCardModal";
 import {
   RoadieTile,
+  useLeaderTalkLineMap,
   usePaperworkIncompleteMap,
 } from "@/components/roadie/RoadieTile";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import {
   canArchive,
+  canLeaderTalks,
   canOpenFullProfile,
   useAccessState,
 } from "@/hooks/useAccess";
@@ -198,6 +200,10 @@ export default function RosterPage() {
     roadies ?? [],
     canArchive(role),
   );
+
+  // The leader-talk line is only read for the roles that may read talks, so a
+  // role the backend would refuse never triggers the read.
+  const leaderTalkLines = useLeaderTalkLineMap(canLeaderTalks(role));
 
   const shown =
     tab === "all"
@@ -410,6 +416,7 @@ export default function RosterPage() {
               positionName={positionNameOf(roadie)}
               crewName={crewNameOf(roadie) ?? t("roadie.field.none")}
               crewLabel={t("roadie.field.crew")}
+              leaderTalkLine={leaderTalkLines.get(roadie.id.toString())}
               paperworkIncomplete={paperworkFlags.get(roadie.id.toString())}
               onOpen={() => setCard({ list: tab, index })}
               ocid="roster.item"

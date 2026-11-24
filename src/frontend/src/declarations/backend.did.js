@@ -954,6 +954,17 @@ export const GroupChangeNotice = IDL.Record({
   'editorName' : IDL.Text,
   'dismissed' : IDL.Bool,
 });
+export const LeaderTalkAttendeeView = IDL.Record({
+  'roadieId' : RoadieId,
+  'displayName' : IDL.Text,
+});
+export const LeaderTalkView = IDL.Record({
+  'id' : LeaderTalkId,
+  'day' : DateOnly,
+  'name' : IDL.Text,
+  'isDemo' : IDL.Bool,
+  'attendees' : IDL.Vec(LeaderTalkAttendeeView),
+});
 export const LeaderSummary = IDL.Record({
   'title' : IDL.Text,
   'principal' : IDL.Principal,
@@ -1172,6 +1183,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'deleteCrew' : IDL.Func([CrewId], [], []),
+  'deleteLeaderTalk' : IDL.Func([LeaderTalkId], [], []),
   'deletePosition' : IDL.Func([PositionId], [], []),
   'deleteScheduleEvent' : IDL.Func([EventId], [], []),
   'dismissGroupChangeNotice' : IDL.Func([IDL.Nat], [], []),
@@ -1288,6 +1300,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(GroupChangeNotice)],
       ['query'],
     ),
+  'listLeaderTalks' : IDL.Func([], [IDL.Vec(LeaderTalkView)], ['query']),
   'listLeaders' : IDL.Func([], [IDL.Vec(LeaderSummary)], ['query']),
   'listOpeningQuestions' : IDL.Func(
       [QuestionTab, QuestionFilter],
@@ -1384,7 +1397,7 @@ export const idlService = IDL.Service({
   'setDemoTrainerAs' : IDL.Func([IDL.Principal], [DemoActionResult], []),
   'setKioskPin' : IDL.Func([IDL.Text], [], []),
   'setLeaderTalkAttendance' : IDL.Func(
-      [LeaderTalkId, IDL.Vec(RoadieId)],
+      [LeaderTalkId, IDL.Text, IDL.Vec(RoadieId)],
       [],
       [],
     ),
@@ -2360,6 +2373,17 @@ export const idlFactory = ({ IDL }) => {
     'editorName' : IDL.Text,
     'dismissed' : IDL.Bool,
   });
+  const LeaderTalkAttendeeView = IDL.Record({
+    'roadieId' : RoadieId,
+    'displayName' : IDL.Text,
+  });
+  const LeaderTalkView = IDL.Record({
+    'id' : LeaderTalkId,
+    'day' : DateOnly,
+    'name' : IDL.Text,
+    'isDemo' : IDL.Bool,
+    'attendees' : IDL.Vec(LeaderTalkAttendeeView),
+  });
   const LeaderSummary = IDL.Record({
     'title' : IDL.Text,
     'principal' : IDL.Principal,
@@ -2578,6 +2602,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'deleteCrew' : IDL.Func([CrewId], [], []),
+    'deleteLeaderTalk' : IDL.Func([LeaderTalkId], [], []),
     'deletePosition' : IDL.Func([PositionId], [], []),
     'deleteScheduleEvent' : IDL.Func([EventId], [], []),
     'dismissGroupChangeNotice' : IDL.Func([IDL.Nat], [], []),
@@ -2706,6 +2731,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(GroupChangeNotice)],
         ['query'],
       ),
+    'listLeaderTalks' : IDL.Func([], [IDL.Vec(LeaderTalkView)], ['query']),
     'listLeaders' : IDL.Func([], [IDL.Vec(LeaderSummary)], ['query']),
     'listOpeningQuestions' : IDL.Func(
         [QuestionTab, QuestionFilter],
@@ -2806,7 +2832,7 @@ export const idlFactory = ({ IDL }) => {
     'setDemoTrainerAs' : IDL.Func([IDL.Principal], [DemoActionResult], []),
     'setKioskPin' : IDL.Func([IDL.Text], [], []),
     'setLeaderTalkAttendance' : IDL.Func(
-        [LeaderTalkId, IDL.Vec(RoadieId)],
+        [LeaderTalkId, IDL.Text, IDL.Vec(RoadieId)],
         [],
         [],
       ),

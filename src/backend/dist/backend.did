@@ -751,7 +751,20 @@ type ManagerScoreRow =
    "principal": principal;
    role: Role;
  };
+type LeaderTalkView = 
+ record {
+   attendees: vec LeaderTalkAttendeeView;
+   day: DateOnly;
+   id: LeaderTalkId;
+   isDemo: bool;
+   name: text;
+ };
 type LeaderTalkId = nat;
+type LeaderTalkAttendeeView = 
+ record {
+   displayName: text;
+   roadieId: RoadieId;
+ };
 type LeaderTalk = 
  record {
    attendees: vec RoadieId;
@@ -1332,7 +1345,11 @@ service : {
   /// owner is required and must be an approved Admin, Store Manager or Training
   /// Manager leader; a manager may own only one crew.
   createCrew: (name: text, leaderPrincipal: principal) -> (CrewId);
-  /// Create a leader talk (Admin/Store Manager only).
+  /// Create a leader talk. Allowed for Admin, Managing Partner, Store Manager
+  /// and Training Manager. A blank name defaults to the store's leaderTalkName
+  /// plus " · Group N". The group is refused when larger than leaderTalkSize,
+  /// when it holds an archived roadie, a roadie from the other demo partition,
+  /// or the same roadie twice.
   createLeaderTalk: (talk: LeaderTalk) -> (LeaderTalkId);
   /// Create a position (Admin only).
   createPosition: (position: Position) -> (PositionId);
@@ -1344,6 +1361,10 @@ service : {
   /// Delete a crew (Admin/Store Manager only). Refuses while any roadie is
   /// assigned to the crew.
   deleteCrew: (id: CrewId) -> ();
+  /// Delete one leader talk from the current demo partition and record the
+  /// deletion in the change log. Allowed for Admin, Managing Partner, Store
+  /// Manager and Training Manager.
+  deleteLeaderTalk: (id: LeaderTalkId) -> ();
   /// Delete a position (Admin only).
   deletePosition: (id: PositionId) -> ();
   /// Delete a schedule event (Admin only).
@@ -1504,6 +1525,12 @@ service : {
   listCrews: () -> (vec Crew) query;
   /// List the caller's undismissed group-change notices, newest first.
   listGroupChangeNotices: () -> (vec GroupChangeNotice) query;
+  /// List every leader talk in the current demo partition, sorted by day then
+  /// id, each with its attendees' id and display name. Readable by Admin,
+  /// Managing Partner, Store Manager, Training Manager, Kitchen Manager,
+  /// Service Manager, Leadership and Visiting Manager; refused for Trainer,
+  /// Kiosk and Integration.
+  listLeaderTalks: () -> (vec LeaderTalkView) query;
   /// List the leaders shown on the Leaders page: the manager, trainer and
   /// leadership roles. Readable by every role except Kiosk and Integration.
   /// Never carries phone or email.
@@ -1653,8 +1680,14 @@ service : {
   setDemoTrainerAs: (trainerPrincipal: principal) -> (DemoActionResult);
   /// Set the kiosk staff PIN (Admin only). Stored hashed; never returned.
   setKioskPin: (pin: text) -> ();
-  /// Record per-roadie attendance for a leader talk (Admin/Store Manager only).
-  setLeaderTalkAttendance: (id: LeaderTalkId, attendees: vec RoadieId) -> ();
+  /// Record per-roadie attendance for a leader talk and, when a non-blank name
+  /// is supplied, rename the talk. Allowed for Admin, Managing Partner, Store
+  /// Manager and Training Manager. The group is refused when larger than
+  /// leaderTalkSize, when it holds an archived roadie, a roadie from the other
+  /// demo partition, or the same roadie twice. A blank name keeps the existing
+  /// name.
+  setLeaderTalkAttendance: (id: LeaderTalkId, name: text, attendees:
+   vec RoadieId) -> ();
   /// Set or clear the Finish-by date (Managing Partner and Admins only).
   setOpeningQuestionFinishBy: (finishBy: opt DateOnly) -> ();
   /// Set the paperwork items for a roadie (Admin or Store Manager only, logged).

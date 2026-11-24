@@ -580,6 +580,54 @@ module {
     };
   };
 
+  /// Require a leader-talk manager caller (Admin, Managing Partner, Store
+  /// Manager or Training Manager); trap otherwise. While demo mode is on, the
+  /// caller's own impersonated demo role is consulted.
+  public func requireLeaderTalkManager(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : () {
+    switch (effectiveRole(accessGrants, demoState, caller)) {
+      case (?role) {
+        if (not roleHasAdminRights(role) and role != #storeManager and role != #trainingManager) {
+          Runtime.trap("Access denied: Admin, Managing Partner, Store Manager or Training Manager role required");
+        };
+      };
+      case null {
+        Runtime.trap("Access denied: Admin, Managing Partner, Store Manager or Training Manager role required");
+      };
+    };
+  };
+
+  /// Require a leader-talk reader caller (Admin, Managing Partner, Store
+  /// Manager, Training Manager, Kitchen Manager, Service Manager, Leadership or
+  /// Visiting Manager); trap otherwise. Trainer, Kiosk and Integration are
+  /// refused. While demo mode is on, the caller's own impersonated demo role is
+  /// consulted.
+  public func requireLeaderTalkReader(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : () {
+    switch (effectiveRole(accessGrants, demoState, caller)) {
+      case (?role) {
+        if (not roleHasAdminRights(role)
+          and role != #storeManager
+          and role != #trainingManager
+          and role != #kitchenManager
+          and role != #serviceManager
+          and role != #leadership
+          and role != #visitingManager) {
+          Runtime.trap("Access denied: leader talks are not readable by this role");
+        };
+      };
+      case null {
+        Runtime.trap("Access denied: leader talks are not readable by this role");
+      };
+    };
+  };
+
   /// Require a read-capable caller (any role except Kiosk and Integration);
   /// trap otherwise. While demo mode is on, the caller's own impersonated demo
   /// role is consulted. Integration is limited to the Shareable export, so it

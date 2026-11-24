@@ -205,14 +205,39 @@ mixin (
     Phase23Lib.listTrainerNotes(accessGrants, demoState, trainerNotes, roadies, caller, roadieId);
   };
 
-  /// Create a leader talk (Admin/Store Manager only).
+  /// Create a leader talk. Allowed for Admin, Managing Partner, Store Manager
+  /// and Training Manager. A blank name defaults to the store's leaderTalkName
+  /// plus " · Group N". The group is refused when larger than leaderTalkSize,
+  /// when it holds an archived roadie, a roadie from the other demo partition,
+  /// or the same roadie twice.
   public shared ({ caller }) func createLeaderTalk(talk : Phase23.LeaderTalk) : async Common.LeaderTalkId {
-    Phase23Lib.createLeaderTalk(accessGrants, demoState, leaderTalks, changeLog, counters, caller, talk);
+    Phase23Lib.createLeaderTalk(accessGrants, demoState, leaderTalks, roadies, storeInfo.value, changeLog, counters, caller, talk);
   };
 
-  /// Record per-roadie attendance for a leader talk (Admin/Store Manager only).
-  public shared ({ caller }) func setLeaderTalkAttendance(id : Common.LeaderTalkId, attendees : [Common.RoadieId]) : async () {
-    Phase23Lib.setLeaderTalkAttendance(accessGrants, demoState, leaderTalks, changeLog, counters, caller, id, attendees);
+  /// Record per-roadie attendance for a leader talk and, when a non-blank name
+  /// is supplied, rename the talk. Allowed for Admin, Managing Partner, Store
+  /// Manager and Training Manager. The group is refused when larger than
+  /// leaderTalkSize, when it holds an archived roadie, a roadie from the other
+  /// demo partition, or the same roadie twice. A blank name keeps the existing
+  /// name.
+  public shared ({ caller }) func setLeaderTalkAttendance(id : Common.LeaderTalkId, name : Text, attendees : [Common.RoadieId]) : async () {
+    Phase23Lib.setLeaderTalkAttendance(accessGrants, demoState, leaderTalks, roadies, storeInfo.value, changeLog, counters, caller, id, name, attendees);
+  };
+
+  /// List every leader talk in the current demo partition, sorted by day then
+  /// id, each with its attendees' id and display name. Readable by Admin,
+  /// Managing Partner, Store Manager, Training Manager, Kitchen Manager,
+  /// Service Manager, Leadership and Visiting Manager; refused for Trainer,
+  /// Kiosk and Integration.
+  public query ({ caller }) func listLeaderTalks() : async [Phase23.LeaderTalkView] {
+    Phase23Lib.listLeaderTalks(accessGrants, demoState, leaderTalks, roadies, caller);
+  };
+
+  /// Delete one leader talk from the current demo partition and record the
+  /// deletion in the change log. Allowed for Admin, Managing Partner, Store
+  /// Manager and Training Manager.
+  public shared ({ caller }) func deleteLeaderTalk(id : Common.LeaderTalkId) : async () {
+    Phase23Lib.deleteLeaderTalk(accessGrants, demoState, leaderTalks, changeLog, counters, caller, id);
   };
 
   /// Record a final sign-off for a roadie. Trainer (only roadies in their own

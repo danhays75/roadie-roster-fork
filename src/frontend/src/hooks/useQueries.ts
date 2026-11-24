@@ -26,6 +26,9 @@ import {
   type ImportFile,
   type ImportValidation,
   type LeaderSummary,
+  type LeaderTalk,
+  type LeaderTalkId,
+  type LeaderTalkView,
   type ManagerScoreRow,
   type MyCrewView,
   type MyGroupView,
@@ -2556,8 +2559,9 @@ export function useFinalSignOff(
 /**
  * Record or replace a roadie's final sign-off (Trainer limited to their own
  * stations, Training Manager, Kitchen Manager, Service Manager, Store Manager,
- * Managing Partner or Admin). Refreshes the sign-off, the roadie and the
- * dashboard so the stage tag and the Certified count follow the sign-off.
+ * Managing Partner or Admin). Refreshes the sign-off, the roadie, the
+ * dashboard, the group and crew views, the shift boards, the roster summary,
+ * Today and the change log so every stage tag follows the sign-off.
  */
 export function useRecordFinalSignOff() {
   const { actor } = useActor(createActor);
@@ -2575,14 +2579,22 @@ export function useRecordFinalSignOff() {
       void queryClient.invalidateQueries({ queryKey: ["roadie", roadieId] });
       void queryClient.invalidateQueries({ queryKey: ["roadies"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["myGroup"] });
+      void queryClient.invalidateQueries({ queryKey: ["myCrew"] });
+      void queryClient.invalidateQueries({ queryKey: ["shiftBoard"] });
+      void queryClient.invalidateQueries({ queryKey: ["shiftBoards"] });
+      void queryClient.invalidateQueries({ queryKey: ["rosterSummary"] });
+      void queryClient.invalidateQueries({ queryKey: ["today"] });
+      void queryClient.invalidateQueries({ queryKey: ["changeLog"] });
     },
   });
 }
 
 /**
  * Clear a roadie's final sign-off (Admin, Managing Partner or Store Manager),
- * restoring the roadie to Active. Refreshes the sign-off, the roadie and the
- * dashboard so the stage tag and the Certified count follow the clear.
+ * restoring the roadie to Active. Refreshes the sign-off, the roadie, the
+ * dashboard, the group and crew views, the shift boards, the roster summary,
+ * Today and the change log so every stage tag follows the clear.
  */
 export function useClearFinalSignOff() {
   const { actor } = useActor(createActor);
@@ -2598,6 +2610,103 @@ export function useClearFinalSignOff() {
       void queryClient.invalidateQueries({ queryKey: ["roadie", id] });
       void queryClient.invalidateQueries({ queryKey: ["roadies"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["myGroup"] });
+      void queryClient.invalidateQueries({ queryKey: ["myCrew"] });
+      void queryClient.invalidateQueries({ queryKey: ["shiftBoard"] });
+      void queryClient.invalidateQueries({ queryKey: ["shiftBoards"] });
+      void queryClient.invalidateQueries({ queryKey: ["rosterSummary"] });
+      void queryClient.invalidateQueries({ queryKey: ["today"] });
+      void queryClient.invalidateQueries({ queryKey: ["changeLog"] });
+    },
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   Leader talks
+--------------------------------------------------------------------------- */
+
+/**
+ * Every leader talk in the current demo partition, sorted by day then id, each
+ * with its attendees' id and display name. Readable by Admin, Managing Partner,
+ * Store Manager, Training Manager, Kitchen Manager, Service Manager, Leadership
+ * and Visiting Manager, so callers pass `enabled` (typically
+ * `canLeaderTalks(role)`) to avoid a trapping read for Trainer, Kiosk and
+ * Integration.
+ */
+export function useLeaderTalks(enabled = true) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery({
+    queryKey: ["leaderTalks"],
+    queryFn: async (): Promise<LeaderTalkView[]> => {
+      if (!actor) return [];
+      return actor.listLeaderTalks();
+    },
+    enabled: enabled && !!actor && !isFetching,
+  });
+}
+
+/**
+ * Create a leader talk (Admin, Managing Partner, Store Manager or Training
+ * Manager). A blank name defaults to the store's leader talk name plus the
+ * group number. Refreshes the list and the change log.
+ */
+export function useCreateLeaderTalk() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (talk: LeaderTalk) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.createLeaderTalk(talk);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["leaderTalks"] });
+      void queryClient.invalidateQueries({ queryKey: ["changeLog"] });
+    },
+  });
+}
+
+/**
+ * Set a talk's group: replace its attendees (Admin, Managing Partner, Store
+ * Manager or Training Manager). Refreshes the list and the change log.
+ */
+export function useSetLeaderTalkAttendance() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      name,
+      attendees,
+    }: {
+      id: LeaderTalkId;
+      name: string;
+      attendees: RoadieId[];
+    }) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.setLeaderTalkAttendance(id, name, attendees);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["leaderTalks"] });
+      void queryClient.invalidateQueries({ queryKey: ["changeLog"] });
+    },
+  });
+}
+
+/**
+ * Delete one leader talk (Admin, Managing Partner, Store Manager or Training
+ * Manager). Refreshes the list and the change log.
+ */
+export function useDeleteLeaderTalk() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: LeaderTalkId) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.deleteLeaderTalk(id);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["leaderTalks"] });
+      void queryClient.invalidateQueries({ queryKey: ["changeLog"] });
     },
   });
 }

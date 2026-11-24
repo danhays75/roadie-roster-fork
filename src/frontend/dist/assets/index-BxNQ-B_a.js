@@ -34239,6 +34239,16 @@ var GroupChangeNotice = Record({
 	"editorName": Text,
 	"dismissed": Bool
 });
+var LeaderTalkView = Record({
+	"id": LeaderTalkId,
+	"day": DateOnly,
+	"name": Text,
+	"isDemo": Bool,
+	"attendees": Vec(Record({
+		"roadieId": RoadieId,
+		"displayName": Text
+	}))
+});
 var LeaderSummary = Record({
 	"title": Text,
 	"principal": Principal,
@@ -34444,6 +34454,7 @@ Service({
 		Bool
 	], [], []),
 	"deleteCrew": Func([CrewId], [], []),
+	"deleteLeaderTalk": Func([LeaderTalkId], [], []),
 	"deletePosition": Func([PositionId], [], []),
 	"deleteScheduleEvent": Func([EventId], [], []),
 	"dismissGroupChangeNotice": Func([Nat], [], []),
@@ -34504,6 +34515,7 @@ Service({
 	"listCrewSummaries": Func([], [Vec(CrewSummary)], ["query"]),
 	"listCrews": Func([], [Vec(Crew)], ["query"]),
 	"listGroupChangeNotices": Func([], [Vec(GroupChangeNotice)], ["query"]),
+	"listLeaderTalks": Func([], [Vec(LeaderTalkView)], ["query"]),
 	"listLeaders": Func([], [Vec(LeaderSummary)], ["query"]),
 	"listOpeningQuestions": Func([QuestionTab$1, QuestionFilter], [Vec(QuestionView)], ["query"]),
 	"listOrientationSessions": Func([], [Vec(OrientationSessionOption)], ["query"]),
@@ -34571,7 +34583,11 @@ Service({
 	"setDemoRole": Func([DemoRole$1, Vec(PositionId)], [DemoActionResult], []),
 	"setDemoTrainerAs": Func([Principal], [DemoActionResult], []),
 	"setKioskPin": Func([Text], [], []),
-	"setLeaderTalkAttendance": Func([LeaderTalkId, Vec(RoadieId)], [], []),
+	"setLeaderTalkAttendance": Func([
+		LeaderTalkId,
+		Text,
+		Vec(RoadieId)
+	], [], []),
 	"setOpeningQuestionFinishBy": Func([Opt(DateOnly)], [], []),
 	"setPaperworkItems": Func([RoadieId, Vec(Text)], [], []),
 	"setPretendDate": Func([Opt(PretendDate)], [DemoActionResult], []),
@@ -35564,6 +35580,17 @@ var idlFactory = ({ IDL }) => {
 		"editorName": IDL.Text,
 		"dismissed": IDL.Bool
 	});
+	const LeaderTalkAttendeeView = IDL.Record({
+		"roadieId": RoadieId,
+		"displayName": IDL.Text
+	});
+	const LeaderTalkView = IDL.Record({
+		"id": LeaderTalkId,
+		"day": DateOnly,
+		"name": IDL.Text,
+		"isDemo": IDL.Bool,
+		"attendees": IDL.Vec(LeaderTalkAttendeeView)
+	});
 	const LeaderSummary = IDL.Record({
 		"title": IDL.Text,
 		"principal": IDL.Principal,
@@ -35771,6 +35798,7 @@ var idlFactory = ({ IDL }) => {
 			IDL.Bool
 		], [], []),
 		"deleteCrew": IDL.Func([CrewId], [], []),
+		"deleteLeaderTalk": IDL.Func([LeaderTalkId], [], []),
 		"deletePosition": IDL.Func([PositionId], [], []),
 		"deleteScheduleEvent": IDL.Func([EventId], [], []),
 		"dismissGroupChangeNotice": IDL.Func([IDL.Nat], [], []),
@@ -35831,6 +35859,7 @@ var idlFactory = ({ IDL }) => {
 		"listCrewSummaries": IDL.Func([], [IDL.Vec(CrewSummary)], ["query"]),
 		"listCrews": IDL.Func([], [IDL.Vec(Crew)], ["query"]),
 		"listGroupChangeNotices": IDL.Func([], [IDL.Vec(GroupChangeNotice)], ["query"]),
+		"listLeaderTalks": IDL.Func([], [IDL.Vec(LeaderTalkView)], ["query"]),
 		"listLeaders": IDL.Func([], [IDL.Vec(LeaderSummary)], ["query"]),
 		"listOpeningQuestions": IDL.Func([QuestionTab, QuestionFilter], [IDL.Vec(QuestionView)], ["query"]),
 		"listOrientationSessions": IDL.Func([], [IDL.Vec(OrientationSessionOption)], ["query"]),
@@ -35898,7 +35927,11 @@ var idlFactory = ({ IDL }) => {
 		"setDemoRole": IDL.Func([DemoRole, IDL.Vec(PositionId)], [DemoActionResult], []),
 		"setDemoTrainerAs": IDL.Func([IDL.Principal], [DemoActionResult], []),
 		"setKioskPin": IDL.Func([IDL.Text], [], []),
-		"setLeaderTalkAttendance": IDL.Func([LeaderTalkId, IDL.Vec(RoadieId)], [], []),
+		"setLeaderTalkAttendance": IDL.Func([
+			LeaderTalkId,
+			IDL.Text,
+			IDL.Vec(RoadieId)
+		], [], []),
 		"setOpeningQuestionFinishBy": IDL.Func([IDL.Opt(DateOnly)], [], []),
 		"setPaperworkItems": IDL.Func([RoadieId, IDL.Vec(IDL.Text)], [], []),
 		"setPretendDate": IDL.Func([IDL.Opt(PretendDate)], [DemoActionResult], []),
@@ -36447,6 +36480,15 @@ var Backend = class {
 			throw new Error("unreachable");
 		}
 		else return await this.actor.deleteCrew(arg0);
+	}
+	async deleteLeaderTalk(arg0) {
+		if (this.processError) try {
+			return await this.actor.deleteLeaderTalk(arg0);
+		} catch (e) {
+			this.processError(e);
+			throw new Error("unreachable");
+		}
+		else return await this.actor.deleteLeaderTalk(arg0);
 	}
 	async deletePosition(arg0) {
 		if (this.processError) try {
@@ -37152,6 +37194,15 @@ var Backend = class {
 			return from_candid_vec_n259(this._uploadFile, this._downloadFile, result);
 		}
 	}
+	async listLeaderTalks() {
+		if (this.processError) try {
+			return await this.actor.listLeaderTalks();
+		} catch (e) {
+			this.processError(e);
+			throw new Error("unreachable");
+		}
+		else return await this.actor.listLeaderTalks();
+	}
 	async listLeaders() {
 		if (this.processError) try {
 			const result = await this.actor.listLeaders();
@@ -37616,14 +37667,14 @@ var Backend = class {
 		}
 		else return await this.actor.setKioskPin(arg0);
 	}
-	async setLeaderTalkAttendance(arg0, arg1) {
+	async setLeaderTalkAttendance(arg0, arg1, arg2) {
 		if (this.processError) try {
-			return await this.actor.setLeaderTalkAttendance(arg0, arg1);
+			return await this.actor.setLeaderTalkAttendance(arg0, arg1, arg2);
 		} catch (e) {
 			this.processError(e);
 			throw new Error("unreachable");
 		}
-		else return await this.actor.setLeaderTalkAttendance(arg0, arg1);
+		else return await this.actor.setLeaderTalkAttendance(arg0, arg1, arg2);
 	}
 	async setOpeningQuestionFinishBy(arg0) {
 		if (this.processError) try {
@@ -43356,6 +43407,58 @@ var CalendarClock = createLucideIcon("calendar-clock", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var CalendarDays = createLucideIcon("calendar-days", [
+	["path", {
+		d: "M8 2v4",
+		key: "1cmpym"
+	}],
+	["path", {
+		d: "M16 2v4",
+		key: "4m81vk"
+	}],
+	["rect", {
+		width: "18",
+		height: "18",
+		x: "3",
+		y: "4",
+		rx: "2",
+		key: "1hopcy"
+	}],
+	["path", {
+		d: "M3 10h18",
+		key: "8toen8"
+	}],
+	["path", {
+		d: "M8 14h.01",
+		key: "6423bh"
+	}],
+	["path", {
+		d: "M12 14h.01",
+		key: "1etili"
+	}],
+	["path", {
+		d: "M16 14h.01",
+		key: "1gbofw"
+	}],
+	["path", {
+		d: "M8 18h.01",
+		key: "lrp35t"
+	}],
+	["path", {
+		d: "M12 18h.01",
+		key: "mhygvu"
+	}],
+	["path", {
+		d: "M16 18h.01",
+		key: "kzsmim"
+	}]
+]);
+/**
+* @license lucide-react v0.511.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var CalendarPlus = createLucideIcon("calendar-plus", [
 	["path", {
 		d: "M16 19h6",
@@ -44090,6 +44193,21 @@ var Save = createLucideIcon("save", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Search = createLucideIcon("search", [["path", {
+	d: "m21 21-4.34-4.34",
+	key: "14j7rj"
+}], ["circle", {
+	cx: "11",
+	cy: "11",
+	r: "8",
+	key: "4ej97u"
+}]]);
+/**
+* @license lucide-react v0.511.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var Send = createLucideIcon("send", [["path", {
 	d: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z",
 	key: "1ffxy3"
@@ -44227,6 +44345,34 @@ var SlidersHorizontal = createLucideIcon("sliders-horizontal", [
 		y1: "18",
 		y2: "22",
 		key: "1lctlv"
+	}]
+]);
+/**
+* @license lucide-react v0.511.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var Sparkles = createLucideIcon("sparkles", [
+	["path", {
+		d: "M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z",
+		key: "4pj2yx"
+	}],
+	["path", {
+		d: "M20 3v4",
+		key: "1olli1"
+	}],
+	["path", {
+		d: "M22 5h-4",
+		key: "1gvqau"
+	}],
+	["path", {
+		d: "M4 17v2",
+		key: "vumght"
+	}],
+	["path", {
+		d: "M5 18H3",
+		key: "zchphs"
 	}]
 ]);
 /**
@@ -51245,8 +51391,9 @@ function useFinalSignOff(roadieId, enabled = true) {
 /**
 * Record or replace a roadie's final sign-off (Trainer limited to their own
 * stations, Training Manager, Kitchen Manager, Service Manager, Store Manager,
-* Managing Partner or Admin). Refreshes the sign-off, the roadie and the
-* dashboard so the stage tag and the Certified count follow the sign-off.
+* Managing Partner or Admin). Refreshes the sign-off, the roadie, the
+* dashboard, the group and crew views, the shift boards, the roster summary,
+* Today and the change log so every stage tag follows the sign-off.
 */
 function useRecordFinalSignOff() {
 	const { actor } = useActor(createActor);
@@ -51262,13 +51409,21 @@ function useRecordFinalSignOff() {
 			queryClient.invalidateQueries({ queryKey: ["roadie", roadieId] });
 			queryClient.invalidateQueries({ queryKey: ["roadies"] });
 			queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+			queryClient.invalidateQueries({ queryKey: ["myGroup"] });
+			queryClient.invalidateQueries({ queryKey: ["myCrew"] });
+			queryClient.invalidateQueries({ queryKey: ["shiftBoard"] });
+			queryClient.invalidateQueries({ queryKey: ["shiftBoards"] });
+			queryClient.invalidateQueries({ queryKey: ["rosterSummary"] });
+			queryClient.invalidateQueries({ queryKey: ["today"] });
+			queryClient.invalidateQueries({ queryKey: ["changeLog"] });
 		}
 	});
 }
 /**
 * Clear a roadie's final sign-off (Admin, Managing Partner or Store Manager),
-* restoring the roadie to Active. Refreshes the sign-off, the roadie and the
-* dashboard so the stage tag and the Certified count follow the clear.
+* restoring the roadie to Active. Refreshes the sign-off, the roadie, the
+* dashboard, the group and crew views, the shift boards, the roster summary,
+* Today and the change log so every stage tag follows the clear.
 */
 function useClearFinalSignOff() {
 	const { actor } = useActor(createActor);
@@ -51284,6 +51439,87 @@ function useClearFinalSignOff() {
 			queryClient.invalidateQueries({ queryKey: ["roadie", id] });
 			queryClient.invalidateQueries({ queryKey: ["roadies"] });
 			queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+			queryClient.invalidateQueries({ queryKey: ["myGroup"] });
+			queryClient.invalidateQueries({ queryKey: ["myCrew"] });
+			queryClient.invalidateQueries({ queryKey: ["shiftBoard"] });
+			queryClient.invalidateQueries({ queryKey: ["shiftBoards"] });
+			queryClient.invalidateQueries({ queryKey: ["rosterSummary"] });
+			queryClient.invalidateQueries({ queryKey: ["today"] });
+			queryClient.invalidateQueries({ queryKey: ["changeLog"] });
+		}
+	});
+}
+/**
+* Every leader talk in the current demo partition, sorted by day then id, each
+* with its attendees' id and display name. Readable by Admin, Managing Partner,
+* Store Manager, Training Manager, Kitchen Manager, Service Manager, Leadership
+* and Visiting Manager, so callers pass `enabled` (typically
+* `canLeaderTalks(role)`) to avoid a trapping read for Trainer, Kiosk and
+* Integration.
+*/
+function useLeaderTalks(enabled = true) {
+	const { actor, isFetching } = useActor(createActor);
+	return useQuery({
+		queryKey: ["leaderTalks"],
+		queryFn: async () => {
+			if (!actor) return [];
+			return actor.listLeaderTalks();
+		},
+		enabled: enabled && !!actor && !isFetching
+	});
+}
+/**
+* Create a leader talk (Admin, Managing Partner, Store Manager or Training
+* Manager). A blank name defaults to the store's leader talk name plus the
+* group number. Refreshes the list and the change log.
+*/
+function useCreateLeaderTalk() {
+	const { actor } = useActor(createActor);
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (talk) => {
+			if (!actor) throw new Error("Backend is not ready");
+			return actor.createLeaderTalk(talk);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["leaderTalks"] });
+			queryClient.invalidateQueries({ queryKey: ["changeLog"] });
+		}
+	});
+}
+/**
+* Set a talk's group: replace its attendees (Admin, Managing Partner, Store
+* Manager or Training Manager). Refreshes the list and the change log.
+*/
+function useSetLeaderTalkAttendance() {
+	const { actor } = useActor(createActor);
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async ({ id, name, attendees }) => {
+			if (!actor) throw new Error("Backend is not ready");
+			return actor.setLeaderTalkAttendance(id, name, attendees);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["leaderTalks"] });
+			queryClient.invalidateQueries({ queryKey: ["changeLog"] });
+		}
+	});
+}
+/**
+* Delete one leader talk (Admin, Managing Partner, Store Manager or Training
+* Manager). Refreshes the list and the change log.
+*/
+function useDeleteLeaderTalk() {
+	const { actor } = useActor(createActor);
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (id) => {
+			if (!actor) throw new Error("Backend is not ready");
+			return actor.deleteLeaderTalk(id);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["leaderTalks"] });
+			queryClient.invalidateQueries({ queryKey: ["changeLog"] });
 		}
 	});
 }
@@ -51525,6 +51761,30 @@ var LEADERS_ROLES = [
 	Role.leadership
 ];
 /**
+* Roles allowed to see the Leader Talks surface: Admin, Managing Partner, Store
+* Manager, Training Manager, Kitchen Manager, Service Manager, Leadership and
+* Visiting Manager. Trainer, Kiosk and Integration are refused, matching the
+* backend's `listLeaderTalks` restriction.
+*/
+var LEADER_TALKS_ROLES = [
+	...ADMIN_ROLES,
+	Role.storeManager,
+	Role.trainingManager,
+	Role.kitchenManager,
+	Role.serviceManager,
+	Role.leadership,
+	Role.visitingManager
+];
+/**
+* Roles allowed to create, change and delete a leader talk: Admin, Managing
+* Partner, Store Manager and Training Manager, matching the backend.
+*/
+var LEADER_TALK_EDITOR_ROLES = [
+	...ADMIN_ROLES,
+	Role.storeManager,
+	Role.trainingManager
+];
+/**
 * Roles allowed to see the Orientation check-in surface: the roles that may
 * read an orientation session view on the backend.
 */
@@ -51714,6 +51974,11 @@ var NAV_ITEMS = [
 		labelKey: "nav.groups",
 		to: "/groups",
 		allowedRoles: GROUPS_ROLES
+	},
+	{
+		labelKey: "nav.leaderTalks",
+		to: "/leader-talks",
+		allowedRoles: LEADER_TALKS_ROLES
 	},
 	{
 		labelKey: "nav.orientation",
@@ -51917,6 +52182,14 @@ function canGroups(role) {
 function canOrientation(role) {
 	return !!role && ORIENTATION_ROLES.includes(role);
 }
+/** Whether the given role may open the Leader Talks surface. */
+function canLeaderTalks(role) {
+	return !!role && LEADER_TALKS_ROLES.includes(role);
+}
+/** Whether the given role may create, change or delete a leader talk. */
+function canEditLeaderTalks(role) {
+	return !!role && LEADER_TALK_EDITOR_ROLES.includes(role);
+}
 /**
 * Whether the given role may open the Opening Questions surface. Admin,
 * Managing Partner, Store Manager and Training Manager always may; a Kitchen
@@ -52111,6 +52384,7 @@ var dictionaries = {
 		"nav.myProfile": "My profile",
 		"nav.leaders": "Leaders",
 		"nav.groups": "Groups",
+		"nav.leaderTalks": "Leader talks",
 		"nav.orientation": "Orientation",
 		"nav.openingQuestions": "Opening Qs",
 		"nav.admin": "Admin",
@@ -52332,6 +52606,7 @@ var dictionaries = {
 		"roadie.card.openingTeam": "Opening team",
 		"roadie.card.goal": "My goal",
 		"roadie.card.openingCrew": "Opening crew",
+		"roadie.card.leaderTalk": "{talk}: {day}",
 		"roadie.section.paperwork": "Paperwork checklist",
 		"roadie.section.changeHistory": "Change history",
 		"roadie.field.preferredName": "Preferred name",
@@ -52998,6 +53273,54 @@ var dictionaries = {
 		"oq.discussion.retry": "Try again",
 		"oq.discussion.show": "Show discussion ({count})",
 		"oq.discussion.hide": "Hide discussion",
+		"leaderTalks.title": "Leader talks",
+		"leaderTalks.subtitle": "Group the roadies for each leader talk",
+		"leaderTalks.loading": "Loading leader talks…",
+		"leaderTalks.error": "We couldn't load the leader talks.",
+		"leaderTalks.empty": "No leader talks have been created yet.",
+		"leaderTalks.emptyHint": "Create a group to start placing roadies into a leader talk.",
+		"leaderTalks.newGroup": "New group",
+		"leaderTalks.day": "Day",
+		"leaderTalks.name": "Group name",
+		"leaderTalks.namePlaceholder": "Leave blank to use the default name",
+		"leaderTalks.attendees": "Roadies",
+		"leaderTalks.attendeeCount": "{count} of {max}",
+		"leaderTalks.create": "Create group",
+		"leaderTalks.creating": "Creating…",
+		"leaderTalks.createError": "The group could not be created.",
+		"leaderTalks.edit": "Edit group",
+		"leaderTalks.save": "Save group",
+		"leaderTalks.saving": "Saving…",
+		"leaderTalks.saveError": "The group could not be saved.",
+		"leaderTalks.cancel": "Cancel",
+		"leaderTalks.delete": "Delete",
+		"leaderTalks.deleteConfirm": "Delete this group?",
+		"leaderTalks.deleteBody": "The roadies stay in the roster; only this group is removed.",
+		"leaderTalks.deleteError": "The group could not be deleted.",
+		"leaderTalks.noAttendees": "No roadies in this group yet.",
+		"leaderTalks.full": "This group is full.",
+		"leaderTalks.selectHint": "Choose the roadies for this group.",
+		"leaderTalks.searchPlaceholder": "Search roadies",
+		"leaderTalks.noMatches": "No roadies match your search.",
+		"leaderTalks.groupLabel": "Group {number}",
+		"leaderTalks.notYetMet": "Not yet met",
+		"leaderTalks.notYetMetHint": "Active roadies who are in no group whose day is today or earlier.",
+		"leaderTalks.notYetMetCount": "{count} not yet met",
+		"leaderTalks.notYetMetEmpty": "Everyone has met a leader.",
+		"leaderTalks.fillFromNotYetMet": "Fill from not yet met",
+		"leaderTalks.filling": "Filling…",
+		"leaderTalks.fillError": "The group could not be filled.",
+		"leaderTalks.fillNone": "No roadies left to add.",
+		"leaderTalks.dayPlaceholder": "Choose a day",
+		"leaderTalks.trainingDay": "Training day",
+		"leaderTalks.otherDay": "Other day",
+		"leaderTalks.attendeeCountShort": "{count} of {max}",
+		"leaderTalks.removeAttendee": "Remove {name}",
+		"leaderTalks.addAttendee": "Add {name}",
+		"leaderTalks.inOtherGroup": "In another group",
+		"leaderTalks.noActiveRoadies": "No active roadies are available.",
+		"leaderTalks.deleteTitle": "Delete group",
+		"leaderTalks.deleting": "Deleting…",
 		"footer.attribution": "Built with love using caffeine.ai"
 	},
 	es: {
@@ -53009,6 +53332,7 @@ var dictionaries = {
 		"nav.myProfile": "Mi perfil",
 		"nav.leaders": "Líderes",
 		"nav.groups": "Grupos",
+		"nav.leaderTalks": "Charlas de líderes",
 		"nav.orientation": "Orientación",
 		"nav.openingQuestions": "Preguntas de apertura",
 		"nav.admin": "Administración",
@@ -53230,6 +53554,7 @@ var dictionaries = {
 		"roadie.card.openingTeam": "Equipo de apertura",
 		"roadie.card.goal": "Mi meta",
 		"roadie.card.openingCrew": "Equipo de apertura",
+		"roadie.card.leaderTalk": "{talk}: {day}",
 		"roadie.section.paperwork": "Lista de papeleo",
 		"roadie.section.changeHistory": "Historial de cambios",
 		"roadie.field.preferredName": "Nombre preferido",
@@ -53896,6 +54221,54 @@ var dictionaries = {
 		"oq.discussion.retry": "Reintentar",
 		"oq.discussion.show": "Ver conversación ({count})",
 		"oq.discussion.hide": "Ocultar conversación",
+		"leaderTalks.title": "Charlas de líderes",
+		"leaderTalks.subtitle": "Agrupa a los roadies para cada charla de líderes",
+		"leaderTalks.loading": "Cargando charlas de líderes…",
+		"leaderTalks.error": "No pudimos cargar las charlas de líderes.",
+		"leaderTalks.empty": "Aún no se ha creado ninguna charla de líderes.",
+		"leaderTalks.emptyHint": "Crea un grupo para empezar a colocar roadies en una charla de líderes.",
+		"leaderTalks.newGroup": "Nuevo grupo",
+		"leaderTalks.day": "Día",
+		"leaderTalks.name": "Nombre del grupo",
+		"leaderTalks.namePlaceholder": "Déjalo en blanco para usar el nombre predeterminado",
+		"leaderTalks.attendees": "Roadies",
+		"leaderTalks.attendeeCount": "{count} de {max}",
+		"leaderTalks.create": "Crear grupo",
+		"leaderTalks.creating": "Creando…",
+		"leaderTalks.createError": "No se pudo crear el grupo.",
+		"leaderTalks.edit": "Editar grupo",
+		"leaderTalks.save": "Guardar grupo",
+		"leaderTalks.saving": "Guardando…",
+		"leaderTalks.saveError": "No se pudo guardar el grupo.",
+		"leaderTalks.cancel": "Cancelar",
+		"leaderTalks.delete": "Eliminar",
+		"leaderTalks.deleteConfirm": "¿Eliminar este grupo?",
+		"leaderTalks.deleteBody": "Los roadies siguen en la plantilla; solo se elimina este grupo.",
+		"leaderTalks.deleteError": "No se pudo eliminar el grupo.",
+		"leaderTalks.noAttendees": "Aún no hay roadies en este grupo.",
+		"leaderTalks.full": "Este grupo está lleno.",
+		"leaderTalks.selectHint": "Elige los roadies para este grupo.",
+		"leaderTalks.searchPlaceholder": "Buscar roadies",
+		"leaderTalks.noMatches": "Ningún roadie coincide con tu búsqueda.",
+		"leaderTalks.groupLabel": "Grupo {number}",
+		"leaderTalks.notYetMet": "Aún sin conocer",
+		"leaderTalks.notYetMetHint": "Roadies activos que no están en ningún grupo cuya fecha sea hoy o antes.",
+		"leaderTalks.notYetMetCount": "{count} aún sin conocer",
+		"leaderTalks.notYetMetEmpty": "Todos ya conocieron a un líder.",
+		"leaderTalks.fillFromNotYetMet": "Llenar con los aún sin conocer",
+		"leaderTalks.filling": "Llenando…",
+		"leaderTalks.fillError": "No se pudo llenar el grupo.",
+		"leaderTalks.fillNone": "No quedan roadies para agregar.",
+		"leaderTalks.dayPlaceholder": "Elige un día",
+		"leaderTalks.trainingDay": "Día de entrenamiento",
+		"leaderTalks.otherDay": "Otro día",
+		"leaderTalks.attendeeCountShort": "{count} de {max}",
+		"leaderTalks.removeAttendee": "Quitar a {name}",
+		"leaderTalks.addAttendee": "Agregar a {name}",
+		"leaderTalks.inOtherGroup": "En otro grupo",
+		"leaderTalks.noActiveRoadies": "No hay roadies activos disponibles.",
+		"leaderTalks.deleteTitle": "Eliminar grupo",
+		"leaderTalks.deleting": "Eliminando…",
 		"footer.attribution": "Hecho con cariño usando caffeine.ai"
 	}
 };
@@ -60295,15 +60668,16 @@ function useCurrentRole() {
 /**
 * The desktop navigation order. The nav model in `useAccess` is grouped by
 * feature, so the header renders the links in this explicit order instead:
-* Today, Dashboard, Roster, Groups, Orientation, Opening Qs, Approve New Hires,
-* Leaders, Uniforms, Gift Bags, Export, Kiosk, My Profile, Admin. Any item not
-* listed keeps its model position after the listed ones.
+* Today, Dashboard, Roster, Groups, Leader Talks, Orientation, Opening Qs,
+* Approve New Hires, Leaders, Uniforms, Gift Bags, Export, Kiosk, My Profile,
+* Admin. Any item not listed keeps its model position after the listed ones.
 */
 var NAV_ORDER = [
 	"/today",
 	"/dashboard",
 	"/roster",
 	"/groups",
+	"/leader-talks",
 	"/orientation",
 	"/opening-questions",
 	"/approvals",
@@ -63939,6 +64313,39 @@ function usePaperworkIncompleteMap(roadies, enabled) {
 		now
 	]);
 }
+/**
+* The leader-talk line for each roadie, keyed by roadie id: the store's leader
+* talk name followed by the talk's day, e.g. "Leader Talk: Mar 14". A roadie in
+* no talk has no entry, so callers render nothing for them. The talk read is
+* restricted to the roles that may read talks, so callers pass `enabled`
+* (typically `canLeaderTalks(role)`); when disabled the map is empty and no
+* line is shown. The day is a date-only value, so it is formatted in UTC.
+*/
+function useLeaderTalkLineMap(enabled) {
+	const { t } = useI18n();
+	const { data: talks } = useLeaderTalks(enabled);
+	const { data: storeInfo } = useStoreInfo();
+	const talkName = storeInfo?.leaderTalkName?.trim() || t("leaderTalks.title");
+	return (0, import_react.useMemo)(() => {
+		const lines = /* @__PURE__ */ new Map();
+		if (!enabled) return lines;
+		for (const talk of talks ?? []) {
+			const day = formatDateOnlyMonthDay(talk.day);
+			if (!day) continue;
+			const line = t("roadie.card.leaderTalk", {
+				talk: talkName,
+				day
+			});
+			for (const attendee of talk.attendees) lines.set(attendee.roadieId.toString(), line);
+		}
+		return lines;
+	}, [
+		enabled,
+		talks,
+		talkName,
+		t
+	]);
+}
 /** The public path of the "Ready for Orientation" seal artwork. */
 var READY_FOR_ORIENTATION_SEAL_SRC = "/assets/ready-for-orientation-seal.png";
 /**
@@ -63989,7 +64396,7 @@ function RoadieStageBadge({ stage, paperworkStep, ocid }) {
 * instead of a stage badge. When `paperworkIncomplete` is set, a red "Paperwork
 * incomplete" flag is shown.
 */
-function RoadieTile({ roadie, positionName, crewName, crewLabel, paperworkIncomplete: paperworkFlag, onOpen, ocid = "roadie.tile", statusOcid, photoOcid, className }) {
+function RoadieTile({ roadie, positionName, crewName, crewLabel, leaderTalkLine, paperworkIncomplete: paperworkFlag, onOpen, ocid = "roadie.tile", statusOcid, photoOcid, className }) {
 	const { data: photo } = useRoadiePhoto(roadie.id);
 	const { t } = useI18n();
 	const photoUrl = (0, import_react.useMemo)(() => refToDataUrl(photo) ?? roadie.demoPhotoUrl ?? null, [photo, roadie.demoPhotoUrl]);
@@ -64039,6 +64446,11 @@ function RoadieTile({ roadie, positionName, crewName, crewLabel, paperworkIncomp
 					positionName && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 						className: "truncate text-xs text-muted-foreground",
 						children: positionName
+					}),
+					leaderTalkLine && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						"data-ocid": ocid ? `${ocid}.leader_talk` : void 0,
+						className: "truncate text-xs font-medium text-primary",
+						children: leaderTalkLine
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 						className: "mt-auto flex flex-wrap items-center gap-1.5 pt-1",
@@ -103219,8 +103631,8 @@ var __vitePreload = function preload(baseModule, deps, importerUrl) {
 };
 //#endregion
 //#region src/pages/Dashboard.tsx
-var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-BVVpUTUR.js").then((m) => ({ default: m.KpiTiles })), []));
-var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-jmTS7Way.js").then((m) => ({ default: m.OpeningTimelineView })), []));
+var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-D7e-nL3W.js").then((m) => ({ default: m.KpiTiles })), []));
+var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-C-jb_mwv.js").then((m) => ({ default: m.OpeningTimelineView })), []));
 var KPI_SKELETON_TILES = [
 	"hired",
 	"needed",
@@ -109010,6 +109422,626 @@ function LeaderCardPage() {
 				leader: cardLeader,
 				trainerPositions
 			})] })
+		]
+	});
+}
+//#endregion
+//#region src/components/leader-talks/LeaderTalkGroupDialog.tsx
+/** The roadie's display name, preferring the preferred name. */
+function roadieDisplayName(roadie) {
+	return roadie.profile.preferredName || roadie.profile.name;
+}
+/**
+* The group editor: create a new leader talk or edit an existing one. The
+* manager picks the day (training days first), names the group, and chooses
+* roadies from the active roster. Roadies already in another group are shown
+* but disabled so a roadie never lands in two groups. A "Fill from not yet met"
+* action tops the group up to the store's leader talk size.
+*/
+function LeaderTalkGroupDialog({ open, onOpenChange, talk, dayOptions, activeRoadies, assignedElsewhere, maxSize, defaultName, isSaving, isFilling, error, onSave, onFill }) {
+	const { t } = useI18n();
+	const editing = talk !== null;
+	const [day, setDay] = (0, import_react.useState)(talk?.day ?? null);
+	const [name, setName] = (0, import_react.useState)(talk?.name ?? "");
+	const [selected, setSelected] = (0, import_react.useState)(talk ? talk.attendees.map((a) => a.roadieId) : []);
+	const [query, setQuery] = (0, import_react.useState)("");
+	const selectedSet = (0, import_react.useMemo)(() => new Set(selected.map((id) => id.toString())), [selected]);
+	const filtered = (0, import_react.useMemo)(() => {
+		const q = query.trim().toLowerCase();
+		return [...q ? activeRoadies.filter((r) => roadieDisplayName(r).toLowerCase().includes(q)) : activeRoadies].sort((a, b) => roadieDisplayName(a).localeCompare(roadieDisplayName(b)));
+	}, [activeRoadies, query]);
+	const atMax = selected.length >= maxSize;
+	const canFill = selected.length < maxSize;
+	function toggle(id) {
+		const key = id.toString();
+		setSelected((current) => {
+			if (current.some((existing) => existing.toString() === key)) return current.filter((existing) => existing.toString() !== key);
+			if (current.length >= maxSize) return current;
+			return [...current, id];
+		});
+	}
+	function handleFill() {
+		onFill(selected);
+	}
+	function handleSave() {
+		if (day === null) return;
+		onSave({
+			day,
+			name: name.trim(),
+			attendees: selected
+		});
+	}
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
+		open,
+		onOpenChange,
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+			"data-ocid": "leaderTalks.group.dialog",
+			className: "max-h-[90vh] overflow-y-auto sm:max-w-2xl",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogHeader, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, {
+					className: "font-display uppercase tracking-wide",
+					children: editing ? t("leaderTalks.edit") : t("leaderTalks.newGroup")
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, { children: t("leaderTalks.selectHint") })] }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "space-y-5",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "grid gap-4 sm:grid-cols-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "space-y-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+									htmlFor: "leader-talk-day",
+									children: t("leaderTalks.day")
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
+									id: "leader-talk-day",
+									"data-ocid": "leaderTalks.group.day_select",
+									value: day === null ? "" : day.toString(),
+									onChange: (event) => {
+										const value = event.target.value;
+										setDay(value === "" ? null : BigInt(value));
+									},
+									className: "border-input focus-visible:border-ring focus-visible:ring-ring/50 flex h-11 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none focus-visible:ring-[3px] md:text-sm",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+										value: "",
+										children: t("leaderTalks.dayPlaceholder")
+									}), dayOptions.map((option) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+										value: option.day.toString(),
+										children: option.label
+									}, option.day.toString()))]
+								})]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "space-y-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+									htmlFor: "leader-talk-name",
+									children: t("leaderTalks.name")
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									id: "leader-talk-name",
+									"data-ocid": "leaderTalks.group.name_input",
+									value: name,
+									maxLength: 80,
+									placeholder: defaultName || t("leaderTalks.namePlaceholder"),
+									onChange: (event) => setName(event.target.value),
+									className: "h-11"
+								})]
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex flex-wrap items-center justify-between gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-ocid": "leaderTalks.group.attendee_count",
+								className: cn("text-sm font-medium", atMax ? "text-primary" : "text-muted-foreground"),
+								children: t("leaderTalks.attendeeCount", {
+									count: selected.length,
+									max: maxSize
+								})
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								type: "button",
+								variant: "outline",
+								"data-ocid": "leaderTalks.group.fill_button",
+								onClick: handleFill,
+								disabled: !canFill || isFilling || isSaving,
+								className: "touch-target",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sparkles, {
+									className: "h-4 w-4",
+									"aria-hidden": "true"
+								}), isFilling ? t("leaderTalks.filling") : t("leaderTalks.fillFromNotYetMet")]
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "relative",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, {
+								className: "pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground",
+								"aria-hidden": "true"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								type: "search",
+								"data-ocid": "leaderTalks.group.search_input",
+								value: query,
+								placeholder: t("leaderTalks.searchPlaceholder"),
+								onChange: (event) => setQuery(event.target.value),
+								className: "h-11 pl-9",
+								"aria-label": t("leaderTalks.searchPlaceholder")
+							})]
+						}),
+						filtered.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							"data-ocid": "leaderTalks.group.no_matches",
+							className: "rounded-md border border-dashed border-border bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground",
+							children: activeRoadies.length === 0 ? t("leaderTalks.noActiveRoadies") : t("leaderTalks.noMatches")
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+							"data-ocid": "leaderTalks.group.roadie_list",
+							className: "grid max-h-72 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2",
+							children: filtered.map((roadie, index) => {
+								const key = roadie.id.toString();
+								const isSelected = selectedSet.has(key);
+								const elsewhere = !isSelected && assignedElsewhere.has(key);
+								const disabled = elsewhere || !isSelected && atMax;
+								const name = roadieDisplayName(roadie);
+								return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									type: "button",
+									"data-ocid": `leaderTalks.group.roadie.${index + 1}`,
+									onClick: () => toggle(roadie.id),
+									disabled,
+									"aria-pressed": isSelected,
+									className: cn("flex min-h-14 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-smooth focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary", isSelected ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-accent", disabled && "cursor-not-allowed opacity-50"),
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RoadiePhoto, {
+											id: roadie.id,
+											name,
+											demoPhotoUrl: roadie.demoPhotoUrl,
+											className: "h-10 w-10 shrink-0",
+											iconClassName: "h-4 w-4"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "min-w-0 flex-1",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "block truncate text-sm font-medium text-foreground",
+												children: name
+											}), elsewhere && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "block truncate text-xs text-muted-foreground",
+												children: t("leaderTalks.inOtherGroup")
+											})]
+										}),
+										isSelected ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, {
+											className: "h-5 w-5 shrink-0 text-primary",
+											"aria-hidden": "true"
+										}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
+											className: "h-4 w-4 shrink-0 text-muted-foreground/40",
+											"aria-hidden": "true"
+										})
+									]
+								}) }, key);
+							})
+						}),
+						error && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							"data-ocid": "leaderTalks.group.error_state",
+							className: "rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive",
+							children: error
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogFooter, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					type: "button",
+					variant: "outline",
+					"data-ocid": "leaderTalks.group.cancel_button",
+					onClick: () => onOpenChange(false),
+					disabled: isSaving,
+					className: "touch-target",
+					children: t("leaderTalks.cancel")
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					type: "button",
+					"data-ocid": "leaderTalks.group.save_button",
+					onClick: handleSave,
+					disabled: isSaving || day === null,
+					className: "touch-target",
+					children: isSaving ? editing ? t("leaderTalks.saving") : t("leaderTalks.creating") : editing ? t("leaderTalks.save") : t("leaderTalks.create")
+				})] })
+			]
+		})
+	});
+}
+/** A short label for a day option, e.g. "Training day · Mar 14". */
+function dayOptionLabel(day, isTraining, t) {
+	const date = formatDateOnly(day);
+	return isTraining ? `${t("leaderTalks.trainingDay")} · ${date}` : `${t("leaderTalks.otherDay")} · ${date}`;
+}
+//#endregion
+//#region src/pages/LeaderTalks.tsx
+/** The store-local "today" as a DateOnly, honoring the demo pretend date. */
+function useTodayDay() {
+	const { data: demo } = useDemoState();
+	const { data: store } = useDemoAwareStoreInfo();
+	return (0, import_react.useMemo)(() => {
+		const pretendDate = demo?.enabled ? demo.pretendDate : void 0;
+		return dateToDateOnly((pretendDate ? pretendDateToInstant(pretendDate, {
+			timeZone: store?.timeZone,
+			amShiftStart: store?.amShiftStart,
+			pmShiftStart: store?.pmShiftStart
+		}) : null) ?? /* @__PURE__ */ new Date());
+	}, [
+		demo?.enabled,
+		demo?.pretendDate,
+		store?.amShiftStart,
+		store?.pmShiftStart,
+		store?.timeZone
+	]);
+}
+/** A roadie is active when they are not archived and their roster state is active. */
+function isActiveRoadie(roadie) {
+	return roadie.status !== RoadieStatus.archived && roadie.rosterState === RosterState.active;
+}
+function LeaderTalksPage() {
+	const { t } = useI18n();
+	const access = useAccessState();
+	const role = access.kind === "granted" ? access.grant.role : void 0;
+	const canRead = canLeaderTalks(role);
+	const canEdit = canEditLeaderTalks(role);
+	const { data: store } = useDemoAwareStoreInfo();
+	const { data: talks, isLoading, isError, refetch } = useLeaderTalks(canRead);
+	const { data: roadies } = useRoadies();
+	const { data: schedule } = useSchedule();
+	const todayDay = useTodayDay();
+	const createTalk = useCreateLeaderTalk();
+	const setAttendance = useSetLeaderTalkAttendance();
+	const deleteTalk = useDeleteLeaderTalk();
+	const [editorOpen, setEditorOpen] = (0, import_react.useState)(false);
+	const [editingTalk, setEditingTalk] = (0, import_react.useState)(null);
+	const [deleteTarget, setDeleteTarget] = (0, import_react.useState)(null);
+	const [editorError, setEditorError] = (0, import_react.useState)(null);
+	const leaderTalkName = store?.leaderTalkName?.trim() || t("leaderTalks.title");
+	const maxSize = Number(store?.leaderTalkSize ?? 0n) || 6;
+	const activeRoadies = (0, import_react.useMemo)(() => (roadies ?? []).filter(isActiveRoadie), [roadies]);
+	const roadieById = (0, import_react.useMemo)(() => {
+		const map = /* @__PURE__ */ new Map();
+		for (const roadie of roadies ?? []) map.set(roadie.id.toString(), roadie);
+		return map;
+	}, [roadies]);
+	const assignedIds = (0, import_react.useMemo)(() => {
+		const set = /* @__PURE__ */ new Set();
+		for (const talk of talks ?? []) for (const attendee of talk.attendees) set.add(attendee.roadieId.toString());
+		return set;
+	}, [talks]);
+	const notYetMet = (0, import_react.useMemo)(() => {
+		const metIds = /* @__PURE__ */ new Set();
+		for (const talk of talks ?? []) if (talk.day <= todayDay) for (const attendee of talk.attendees) metIds.add(attendee.roadieId.toString());
+		return activeRoadies.filter((roadie) => !metIds.has(roadie.id.toString())).sort((a, b) => roadieDisplayName(a).localeCompare(roadieDisplayName(b)));
+	}, [
+		talks,
+		activeRoadies,
+		todayDay
+	]);
+	const dayOptions = (0, import_react.useMemo)(() => {
+		const seen = /* @__PURE__ */ new Map();
+		for (const event of schedule ?? []) {
+			const day = dateToDateOnly(new Date(Number(event.start / 1000000n)));
+			const key = day.toString();
+			const isTraining = event.kind === "trainingDay";
+			const existing = seen.get(key);
+			if (!existing) seen.set(key, {
+				day,
+				isTraining
+			});
+			else if (isTraining) existing.isTraining = true;
+		}
+		return [...seen.values()].sort((a, b) => {
+			if (a.isTraining !== b.isTraining) return a.isTraining ? -1 : 1;
+			return a.day < b.day ? -1 : a.day > b.day ? 1 : 0;
+		}).map((option) => ({
+			day: option.day,
+			isTraining: option.isTraining,
+			label: dayOptionLabel(option.day, option.isTraining, t)
+		}));
+	}, [schedule, t]);
+	const grouped = (0, import_react.useMemo)(() => {
+		const byDay = /* @__PURE__ */ new Map();
+		for (const talk of talks ?? []) {
+			const key = talk.day.toString();
+			const entry = byDay.get(key);
+			if (entry) entry.talks.push(talk);
+			else byDay.set(key, {
+				day: talk.day,
+				talks: [talk]
+			});
+		}
+		return [...byDay.values()].sort((a, b) => a.day < b.day ? -1 : a.day > b.day ? 1 : 0).map((entry) => ({
+			...entry,
+			talks: [...entry.talks].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+		}));
+	}, [talks]);
+	function openCreate() {
+		setEditingTalk(null);
+		setEditorError(null);
+		setEditorOpen(true);
+	}
+	function openEdit(talk) {
+		setEditingTalk(talk);
+		setEditorError(null);
+		setEditorOpen(true);
+	}
+	function handleSave(args) {
+		setEditorError(null);
+		if (editingTalk) setAttendance.mutate({
+			id: editingTalk.id,
+			name: args.name,
+			attendees: args.attendees
+		}, {
+			onSuccess: () => setEditorOpen(false),
+			onError: () => setEditorError(t("leaderTalks.saveError"))
+		});
+		else createTalk.mutate({
+			id: 0n,
+			day: args.day,
+			name: args.name,
+			isDemo: false,
+			attendees: args.attendees
+		}, {
+			onSuccess: () => setEditorOpen(false),
+			onError: () => setEditorError(t("leaderTalks.createError"))
+		});
+	}
+	function handleFill(current) {
+		if (!editingTalk) return;
+		const currentSet = new Set(current.map((id) => id.toString()));
+		const additions = [];
+		for (const roadie of notYetMet) {
+			if (current.length + additions.length >= maxSize) break;
+			if (!currentSet.has(roadie.id.toString())) additions.push(roadie.id);
+		}
+		if (additions.length === 0) {
+			setEditorError(t("leaderTalks.fillNone"));
+			return;
+		}
+		setEditorError(null);
+		setAttendance.mutate({
+			id: editingTalk.id,
+			name: editingTalk.name,
+			attendees: [...current, ...additions]
+		}, { onError: () => setEditorError(t("leaderTalks.fillError")) });
+	}
+	function handleDelete() {
+		if (!deleteTarget) return;
+		deleteTalk.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
+	}
+	if (!canRead) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-ocid": "leaderTalks.page",
+		className: "space-y-6",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PageHeader, { title: leaderTalkName }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EmptyState, {
+			title: t("leaderTalks.empty"),
+			message: t("leaderTalks.emptyHint"),
+			ocid: "leaderTalks.empty_state"
+		})]
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-ocid": "leaderTalks.page",
+		className: "space-y-6",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PageHeader, {
+				title: leaderTalkName,
+				subtitle: t("leaderTalks.subtitle"),
+				action: canEdit ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					type: "button",
+					"data-ocid": "leaderTalks.new_group_button",
+					onClick: openCreate,
+					className: "touch-target",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
+						className: "h-4 w-4",
+						"aria-hidden": "true"
+					}), t("leaderTalks.newGroup")]
+				}) : void 0
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				"data-ocid": "leaderTalks.not_yet_met.section",
+				className: "rounded-lg border border-border bg-card p-4 shadow-subtle sm:p-5",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-wrap items-center justify-between gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", {
+							className: "flex items-center gap-2 font-display text-lg font-semibold uppercase tracking-wide text-foreground",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(UserPlus, {
+								className: "h-5 w-5 text-primary",
+								"aria-hidden": "true"
+							}), t("leaderTalks.notYetMet")]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							"data-ocid": "leaderTalks.not_yet_met.count",
+							className: "rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary",
+							children: t("leaderTalks.notYetMetCount", { count: notYetMet.length })
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-sm text-muted-foreground",
+						children: t("leaderTalks.notYetMetHint")
+					}),
+					notYetMet.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						"data-ocid": "leaderTalks.not_yet_met.empty_state",
+						className: "mt-3 rounded-md border border-dashed border-border bg-muted/40 px-4 py-4 text-center text-sm text-muted-foreground",
+						children: t("leaderTalks.notYetMetEmpty")
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+						"data-ocid": "leaderTalks.not_yet_met.list",
+						className: "mt-3 flex flex-wrap gap-2",
+						children: notYetMet.map((roadie, index) => {
+							const name = roadieDisplayName(roadie);
+							return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+								"data-ocid": `leaderTalks.not_yet_met.item.${index + 1}`,
+								className: "flex items-center gap-2 rounded-full border border-border bg-background py-1 pr-3 pl-1",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RoadiePhoto, {
+									id: roadie.id,
+									name,
+									demoPhotoUrl: roadie.demoPhotoUrl,
+									className: "h-8 w-8",
+									iconClassName: "h-3.5 w-3.5"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "max-w-40 truncate text-sm font-medium text-foreground",
+									children: name
+								})]
+							}, roadie.id.toString());
+						})
+					})
+				]
+			}),
+			isLoading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoadingState, {
+				label: t("leaderTalks.loading"),
+				ocid: "leaderTalks.loading_state"
+			}) : isError ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ErrorState, {
+				message: t("leaderTalks.error"),
+				onRetry: () => void refetch(),
+				ocid: "leaderTalks.error_state"
+			}) : grouped.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EmptyState, {
+				title: t("leaderTalks.empty"),
+				message: t("leaderTalks.emptyHint"),
+				ocid: "leaderTalks.empty_state",
+				action: canEdit ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					type: "button",
+					"data-ocid": "leaderTalks.empty_state.new_group_button",
+					onClick: openCreate,
+					className: "touch-target",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
+						className: "h-4 w-4",
+						"aria-hidden": "true"
+					}), t("leaderTalks.newGroup")]
+				}) : void 0
+			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "space-y-6",
+				children: grouped.map((group, dayIndex) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+					"data-ocid": `leaderTalks.day.${dayIndex + 1}`,
+					className: "space-y-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", {
+						className: "flex items-center gap-2 font-display text-base font-semibold uppercase tracking-wide text-muted-foreground",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CalendarDays, {
+							className: "h-4 w-4",
+							"aria-hidden": "true"
+						}), formatDateOnly(group.day)]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "grid gap-3 md:grid-cols-2 xl:grid-cols-3",
+						children: group.talks.map((talk, talkIndex) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
+							"data-ocid": `leaderTalks.group.${dayIndex + 1}.${talkIndex + 1}`,
+							className: "flex flex-col rounded-lg border border-border bg-card p-4 shadow-subtle",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex items-start justify-between gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "min-w-0",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+										className: "truncate font-display text-lg font-semibold text-foreground",
+										children: talk.name
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-0.5 flex items-center gap-1 text-xs text-muted-foreground",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Users, {
+											className: "h-3.5 w-3.5",
+											"aria-hidden": "true"
+										}), t("leaderTalks.attendeeCountShort", {
+											count: talk.attendees.length,
+											max: maxSize
+										})]
+									})]
+								}), canEdit && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex shrink-0 items-center gap-1",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										type: "button",
+										variant: "ghost",
+										size: "icon",
+										"data-ocid": `leaderTalks.group.edit_button.${dayIndex + 1}.${talkIndex + 1}`,
+										onClick: () => openEdit(talk),
+										"aria-label": t("leaderTalks.edit"),
+										className: "touch-target",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Pencil, {
+											className: "h-4 w-4",
+											"aria-hidden": "true"
+										})
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										type: "button",
+										variant: "ghost",
+										size: "icon",
+										"data-ocid": `leaderTalks.group.delete_button.${dayIndex + 1}.${talkIndex + 1}`,
+										onClick: () => setDeleteTarget(talk),
+										"aria-label": t("leaderTalks.delete"),
+										className: "touch-target text-destructive hover:text-destructive",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, {
+											className: "h-4 w-4",
+											"aria-hidden": "true"
+										})
+									})]
+								})]
+							}), talk.attendees.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-3 rounded-md border border-dashed border-border bg-muted/40 px-3 py-3 text-center text-sm text-muted-foreground",
+								children: t("leaderTalks.noAttendees")
+							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+								className: "mt-3 flex flex-wrap gap-2",
+								children: talk.attendees.map((attendee, attendeeIndex) => {
+									const roadie = roadieById.get(attendee.roadieId.toString());
+									return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+										"data-ocid": `leaderTalks.group.${dayIndex + 1}.${talkIndex + 1}.attendee.${attendeeIndex + 1}`,
+										className: "flex items-center gap-2 rounded-full border border-border bg-background py-1 pr-3 pl-1",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RoadiePhoto, {
+											id: attendee.roadieId,
+											name: attendee.displayName,
+											demoPhotoUrl: roadie?.demoPhotoUrl,
+											className: "h-8 w-8",
+											iconClassName: "h-3.5 w-3.5"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "max-w-36 truncate text-sm font-medium text-foreground",
+											children: attendee.displayName
+										})]
+									}, attendee.roadieId.toString());
+								})
+							})]
+						}, talk.id.toString()))
+					})]
+				}, group.day.toString()))
+			}),
+			canEdit && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LeaderTalkGroupDialog, {
+				open: editorOpen,
+				onOpenChange: setEditorOpen,
+				talk: editingTalk,
+				dayOptions,
+				activeRoadies,
+				assignedElsewhere: assignedIds,
+				maxSize,
+				defaultName: leaderTalkName,
+				isSaving: createTalk.isPending || setAttendance.isPending,
+				isFilling: setAttendance.isPending,
+				error: editorError,
+				onSave: handleSave,
+				onFill: handleFill
+			}, editingTalk ? editingTalk.id.toString() : "new"),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
+				open: deleteTarget !== null,
+				onOpenChange: (open) => {
+					if (!open) setDeleteTarget(null);
+				},
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+					"data-ocid": "leaderTalks.delete.dialog",
+					className: "sm:max-w-md",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogHeader, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, {
+							className: "font-display uppercase tracking-wide",
+							children: t("leaderTalks.deleteTitle")
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogDescription, { children: [
+							t("leaderTalks.deleteConfirm"),
+							" ",
+							t("leaderTalks.deleteBody")
+						] })] }),
+						deleteTalk.isError && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							"data-ocid": "leaderTalks.delete.error_state",
+							className: "rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive",
+							children: t("leaderTalks.deleteError")
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogFooter, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							type: "button",
+							variant: "outline",
+							"data-ocid": "leaderTalks.delete.cancel_button",
+							onClick: () => setDeleteTarget(null),
+							disabled: deleteTalk.isPending,
+							className: "touch-target",
+							children: t("leaderTalks.cancel")
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							type: "button",
+							variant: "destructive",
+							"data-ocid": "leaderTalks.delete.confirm_button",
+							onClick: handleDelete,
+							disabled: deleteTalk.isPending,
+							className: "touch-target",
+							children: deleteTalk.isPending ? t("leaderTalks.deleting") : t("leaderTalks.delete")
+						})] })
+					]
+				})
+			})
 		]
 	});
 }
@@ -116580,6 +117612,7 @@ function RosterPage() {
 		return counts;
 	}, [live]);
 	const paperworkFlags = usePaperworkIncompleteMap(roadies ?? [], canArchive(role));
+	const leaderTalkLines = useLeaderTalkLineMap(canLeaderTalks(role));
 	const shown = tab === "all" ? live : live.filter((roadie) => roadie.stage === stageForTab(tab));
 	const shownEntries = (0, import_react.useMemo)(() => shown.map((roadie) => ({
 		key: roadie.id.toString(),
@@ -116734,6 +117767,7 @@ function RosterPage() {
 					positionName: positionNameOf(roadie),
 					crewName: crewNameOf(roadie) ?? t("roadie.field.none"),
 					crewLabel: t("roadie.field.crew"),
+					leaderTalkLine: leaderTalkLines.get(roadie.id.toString()),
 					paperworkIncomplete: paperworkFlags.get(roadie.id.toString()),
 					onOpen: () => setCard({
 						list: tab,
@@ -119377,6 +120411,14 @@ function GuardedUniforms() {
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(UniformsPage, {})
 	});
 }
+/** The Leader Talks surface, blocked for roles that cannot read it. */
+function GuardedLeaderTalks() {
+	const role = useRole();
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RouteGuard, {
+		allowed: canLeaderTalks(role),
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LeaderTalksPage, {})
+	});
+}
 var indexRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/",
@@ -119464,6 +120506,11 @@ var uniformsRoute = createRoute({
 	path: "/uniforms",
 	component: GuardedUniforms
 });
+var leaderTalksRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/leader-talks",
+	component: GuardedLeaderTalks
+});
 var router = createRouter({ routeTree: rootRoute.addChildren([
 	indexRoute,
 	todayRoute,
@@ -119479,6 +120526,7 @@ var router = createRouter({ routeTree: rootRoute.addChildren([
 	leadersRoute,
 	leaderCardRoute,
 	groupsRoute,
+	leaderTalksRoute,
 	orientationRoute,
 	openingQuestionsRoute,
 	uniformsRoute

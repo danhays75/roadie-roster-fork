@@ -32,15 +32,16 @@ function useCurrentRole(): Role | undefined {
 /**
  * The desktop navigation order. The nav model in `useAccess` is grouped by
  * feature, so the header renders the links in this explicit order instead:
- * Today, Dashboard, Roster, Groups, Orientation, Opening Qs, Approve New Hires,
- * Leaders, Uniforms, Gift Bags, Export, Kiosk, My Profile, Admin. Any item not
- * listed keeps its model position after the listed ones.
+ * Today, Dashboard, Roster, Groups, Leader Talks, Orientation, Opening Qs,
+ * Approve New Hires, Leaders, Uniforms, Gift Bags, Export, Kiosk, My Profile,
+ * Admin. Any item not listed keeps its model position after the listed ones.
  */
 const NAV_ORDER = [
   "/today",
   "/dashboard",
   "/roster",
   "/groups",
+  "/leader-talks",
   "/orientation",
   "/opening-questions",
   "/approvals",

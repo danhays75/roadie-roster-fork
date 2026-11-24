@@ -22,6 +22,7 @@ import {
   canExport,
   canGiftBags,
   canGroups,
+  canLeaderTalks,
   canLeaders,
   canOpeningQuestions,
   canOrientation,
@@ -38,6 +39,7 @@ import GiftBagsPage from "@/pages/GiftBags";
 import GroupsPage from "@/pages/Groups";
 import KioskPage from "@/pages/Kiosk";
 import LeaderCardPage from "@/pages/LeaderCard";
+import LeaderTalksPage from "@/pages/LeaderTalks";
 import LeadersPage from "@/pages/Leaders";
 import MyProfilePage from "@/pages/MyProfile";
 import OpeningQuestionsPage from "@/pages/OpeningQuestions";
@@ -392,6 +394,16 @@ function GuardedUniforms() {
   );
 }
 
+/** The Leader Talks surface, blocked for roles that cannot read it. */
+function GuardedLeaderTalks() {
+  const role = useRole();
+  return (
+    <RouteGuard allowed={canLeaderTalks(role)}>
+      <LeaderTalksPage />
+    </RouteGuard>
+  );
+}
+
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -500,6 +512,12 @@ const uniformsRoute = createRoute({
   component: GuardedUniforms,
 });
 
+const leaderTalksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/leader-talks",
+  component: GuardedLeaderTalks,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   todayRoute,
@@ -515,6 +533,7 @@ const routeTree = rootRoute.addChildren([
   leadersRoute,
   leaderCardRoute,
   groupsRoute,
+  leaderTalksRoute,
   orientationRoute,
   openingQuestionsRoute,
   uniformsRoute,

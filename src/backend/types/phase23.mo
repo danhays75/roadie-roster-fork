@@ -200,6 +200,23 @@ module {
     isDemo : Bool;
   };
 
+  /// One attendee of a leader talk as returned to the client: the roadie's id
+  /// and display name (preferred name when set, otherwise the full name).
+  public type LeaderTalkAttendeeView = {
+    roadieId : Common.RoadieId;
+    displayName : Text;
+  };
+
+  /// A leader talk as returned to the client: the stored talk plus each
+  /// attendee's id and display name. The stored `LeaderTalk` type is unchanged.
+  public type LeaderTalkView = {
+    id : Common.LeaderTalkId;
+    name : Text;
+    day : Common.DateOnly;
+    attendees : [LeaderTalkAttendeeView];
+    isDemo : Bool;
+  };
+
   /// The final sign-off decision for a roadie.
   public type SignOffOutcome = {
     #certified;
