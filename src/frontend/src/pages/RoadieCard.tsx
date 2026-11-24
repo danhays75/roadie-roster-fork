@@ -3,13 +3,17 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { FlipCard } from "@/components/roadie/FlipCard";
 import { ManagerTab } from "@/components/roadie/ManagerTab";
 import { RoadieActions } from "@/components/roadie/RoadieActions";
-import { RoadieStageBadge } from "@/components/roadie/RoadieTile";
+import {
+  RoadieStageBadge,
+  useLeaderTalkLineMap,
+} from "@/components/roadie/RoadieTile";
 import { TrainerNotesTab } from "@/components/roadie/TrainerNotesTab";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   canArchive,
   canEditRoadie,
+  canLeaderTalks,
   canReadTrainerNotes,
   canSeeContactInfo,
   useAccessState,
@@ -74,6 +78,7 @@ function RoadieCardContent() {
   const mayArchive = canArchive(role);
   const canReadNotes = canReadTrainerNotes(role);
   const { data: signOff } = useFinalSignOff(id, canReadNotes);
+  const leaderTalkLines = useLeaderTalkLineMap(canLeaderTalks(role));
 
   const positionList = positions ?? [];
   const positionById = (positionId: bigint | undefined) =>
@@ -191,6 +196,7 @@ function RoadieCardContent() {
                     : crews?.find((crew) => crew.id === roadie.crewId)
                 }
                 futureTrainer={signOff?.futureTrainer ?? false}
+                leaderTalkLine={leaderTalkLines.get(roadie.id.toString())}
               />
             </TabsContent>
 

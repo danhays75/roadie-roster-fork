@@ -63572,7 +63572,7 @@ function plateFontSize(name) {
 * deliberately absent. The Minor badge comes from the roadie's non-sensitive
 * `isMinor` field.
 */
-function FlipCard({ roadie, leader, position, secondPosition, crossTrainedPosition, crew, trainerPositions, futureTrainer }) {
+function FlipCard({ roadie, leader, position, secondPosition, crossTrainedPosition, crew, trainerPositions, futureTrainer, leaderTalkLine }) {
 	const { t } = useI18n();
 	const [flipped, setFlipped] = (0, import_react.useState)(false);
 	const { data: storeInfo } = useStoreInfo();
@@ -63673,486 +63673,212 @@ function FlipCard({ roadie, leader, position, secondPosition, crossTrainedPositi
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "space-y-3",
 		"data-ocid": "roadie.flip_card",
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-			type: "button",
-			className: cn("rc", tier.variant, flipped && "flipped"),
-			tabIndex: 0,
-			"aria-label": flipped ? t("roadie.action.flipBack") : t("roadie.action.showBack"),
-			onClick: toggle,
-			onKeyDown: (event) => {
-				if (event.key === "Enter" || event.key === " ") {
-					event.preventDefault();
-					toggle();
-				}
-			},
-			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "rc-inner",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "rc-face",
-					"aria-hidden": flipped,
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "frame",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "f-top",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "wordmark",
-									children: t("roadie.card.tlc")
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "cap",
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StoreSeal, {
-										storeNumber: storeNumber ?? "",
-										label: t("roadie.card.badge")
-									})
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "f-stage",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: cn("tier", tier.variant),
-										children: t(tier.labelKey)
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "stars",
-										"aria-hidden": "true",
-										children: STARS.map((star, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											style: {
-												left: star.left,
-												right: star.right,
-												top: star.top,
-												bottom: star.bottom,
-												fontSize: star.size
-											},
-											children: "★"
-										}, index))
-									}),
-									isMinor && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "tag minor",
-										"data-ocid": "roadie.minor_badge",
-										children: "MINOR"
-									}),
-									!isLeader && futureTrainer && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "tag future",
-										"data-ocid": "roadie.future_trainer_chip",
-										children: t("signOff.chip.futureTrainer")
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "shield",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "cream" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "ph",
-											"data-ocid": "roadie.card.photo",
-											style: photoUrl ? {
-												backgroundImage: `url(${photoUrl})`,
-												backgroundPosition: "center top"
-											} : void 0,
-											children: photoUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-												src: photoUrl,
-												alt: name,
-												className: "h-full w-full object-cover object-top"
-											}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-												className: "flex h-full w-full items-center justify-center text-[16cqw] text-[#f4efe3]",
-												style: { fontFamily: "\"Archivo Black\", sans-serif" },
-												children: initials
-											})
-										})]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "plate",
-										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
-											style: plateFontSize(name) ? { fontSize: plateFontSize(name) } : void 0,
-											children: name
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+				type: "button",
+				className: cn("rc", tier.variant, flipped && "flipped"),
+				tabIndex: 0,
+				"aria-label": flipped ? t("roadie.action.flipBack") : t("roadie.action.showBack"),
+				onClick: toggle,
+				onKeyDown: (event) => {
+					if (event.key === "Enter" || event.key === " ") {
+						event.preventDefault();
+						toggle();
+					}
+				},
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "rc-inner",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "rc-face",
+						"aria-hidden": flipped,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "frame",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "f-top",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "wordmark",
+										children: t("roadie.card.tlc")
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "cap",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StoreSeal, {
+											storeNumber: storeNumber ?? "",
+											label: t("roadie.card.badge")
 										})
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "pills",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-												className: "pill",
-												children: mainPill
-											}),
-											stationsPill && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-												className: "pill sm",
-												children: stationsPill
-											}),
-											!isLeader && secondPill && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-												className: "pill sm",
-												children: secondPill.name
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "f-stage",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: cn("tier", tier.variant),
+											children: t(tier.labelKey)
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "stars",
+											"aria-hidden": "true",
+											children: STARS.map((star, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												style: {
+													left: star.left,
+													right: star.right,
+													top: star.top,
+													bottom: star.bottom,
+													fontSize: star.size
+												},
+												children: "★"
+											}, index))
+										}),
+										isMinor && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "tag minor",
+											"data-ocid": "roadie.minor_badge",
+											children: "MINOR"
+										}),
+										!isLeader && futureTrainer && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "tag future",
+											"data-ocid": "roadie.future_trainer_chip",
+											children: t("signOff.chip.futureTrainer")
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "shield",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "cream" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "ph",
+												"data-ocid": "roadie.card.photo",
+												style: photoUrl ? {
+													backgroundImage: `url(${photoUrl})`,
+													backgroundPosition: "center top"
+												} : void 0,
+												children: photoUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+													src: photoUrl,
+													alt: name,
+													className: "h-full w-full object-cover object-top"
+												}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "flex h-full w-full items-center justify-center text-[16cqw] text-[#f4efe3]",
+													style: { fontFamily: "\"Archivo Black\", sans-serif" },
+													children: initials
+												})
+											})]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "plate",
+											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
+												style: plateFontSize(name) ? { fontSize: plateFontSize(name) } : void 0,
+												children: name
 											})
-										]
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "f-foot",
-								children: isLeader ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: leaderFooter }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-										t("roadie.card.roadieSince"),
-										" ",
-										hireDate
-									] }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "star",
-										children: "★"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: storeCity ?? t("roadie.field.none") })
-								] })
-							})
-						]
-					})
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "rc-face rc-back",
-					"aria-hidden": !flipped,
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "frame",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "b-top",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", {
-									className: "b-name",
-									children: [firstName, lastName ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}), lastName] }) : null]
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "b-head",
-									"data-ocid": "roadie.card.headshot",
-									style: photoUrl ? {
-										backgroundImage: `url(${photoUrl})`,
-										backgroundPosition: "center top"
-									} : void 0
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "b-body",
-								children: [
-									profileRows.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: cn("tbl", profileRows.length > 7 && "dense"),
-										children: profileRows.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProfileRow, {
-											label: row.label,
-											value: row.value ?? ""
-										}, row.label))
-									}),
-									isLeader && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "tbl",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProfileRow, {
-											label: t("roadie.card.homeStore"),
-											value: `#${homeStoreNumber} ${homeStoreCity}`.trim()
-										}), isTrainer && (arrival || departure) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProfileRow, {
-											label: t("roadie.card.here"),
-											value: `${arrival ?? "—"} – ${departure ?? "—"}`
-										})]
-									}),
-									about?.goalHere && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "quote",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: t("roadie.card.goal") }),
-											"“",
-											about.goalHere,
-											"”"
-										]
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "b-foot",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: isLeader ? leaderFooter : roadieBackFooter })
-							})
-						]
-					})
-				})]
-			})
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-			type: "button",
-			variant: "outline",
-			className: "touch-target mx-auto flex w-full max-w-[420px]",
-			"data-ocid": "roadie.flip_button",
-			"aria-pressed": flipped,
-			onClick: toggle,
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RotateCcw, {
-				className: "mr-2 h-4 w-4",
-				"aria-hidden": "true"
-			}), flipped ? t("roadie.action.flipBack") : t("roadie.action.flip")]
-		})]
-	});
-}
-//#endregion
-//#region src/components/roadie/RoadieCardModal.tsx
-/** The query-param key that records an open card in the URL. */
-var CARD_PARAM = "card";
-/**
-* Push a history entry carrying `?card=<key>` when the pop-up opens, and pop it
-* when the pop-up closes, so the phone's back button closes the modal and
-* returns the user exactly where they were. The listener is registered once and
-* reports a back-navigation through `onBack`.
-*/
-function useCardHistory(open, key, onBack) {
-	const pushed = (0, import_react.useRef)(false);
-	const onBackRef = (0, import_react.useRef)(onBack);
-	onBackRef.current = onBack;
-	(0, import_react.useEffect)(() => {
-		if (typeof window === "undefined") return;
-		const handlePop = () => {
-			if (pushed.current) {
-				pushed.current = false;
-				onBackRef.current();
-			}
-		};
-		window.addEventListener("popstate", handlePop);
-		return () => window.removeEventListener("popstate", handlePop);
-	}, []);
-	(0, import_react.useEffect)(() => {
-		if (typeof window === "undefined") return;
-		if (open && key && !pushed.current) {
-			const url = new URL(window.location.href);
-			url.searchParams.set(CARD_PARAM, key);
-			window.history.pushState({
-				...window.history.state,
-				[CARD_PARAM]: key
-			}, "", url);
-			pushed.current = true;
-		}
-	}, [open, key]);
-	return {
-		close: (0, import_react.useCallback)(() => {
-			if (typeof window === "undefined") {
-				onBackRef.current();
-				return;
-			}
-			if (pushed.current) {
-				pushed.current = false;
-				window.history.back();
-			} else {
-				const url = new URL(window.location.href);
-				if (url.searchParams.has(CARD_PARAM)) {
-					url.searchParams.delete(CARD_PARAM);
-					const { [CARD_PARAM]: _card, ...state } = window.history.state ?? {};
-					window.history.replaceState(state, "", url);
-				}
-			}
-			onBackRef.current();
-		}, []),
-		closeForNavigation: (0, import_react.useCallback)(() => {
-			if (typeof window !== "undefined" && pushed.current) {
-				pushed.current = false;
-				const url = new URL(window.location.href);
-				if (url.searchParams.has(CARD_PARAM)) {
-					url.searchParams.delete(CARD_PARAM);
-					const { [CARD_PARAM]: _card, ...state } = window.history.state ?? {};
-					window.history.replaceState(state, "", url);
-				}
-			}
-			onBackRef.current();
-		}, [])
-	};
-}
-/** Preload a roadie's photo so a neighbour renders instantly on swipe. */
-function usePreloadRoadiePhoto(roadie) {
-	useRoadiePhoto(roadie?.id);
-}
-/**
-* The manager-only "Open full profile" link for a card entry. A roadie links to
-* their card page (with Edit, Manager tab and Archive); a leader links to their
-* leader card page.
-*/
-function FullProfileLink({ entry, onNavigate }) {
-	const { t } = useDashboardCopy();
-	const label = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, {
-		className: "mr-2 h-4 w-4",
-		"aria-hidden": "true"
-	}), t("roadie.card.modal.fullProfile")] });
-	if (entry.roadie) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-		asChild: true,
-		variant: "ghost",
-		className: "touch-target w-full",
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-			to: "/roster/$roadieId",
-			params: { roadieId: entry.key },
-			onClick: onNavigate,
-			children: label
-		})
-	});
-	if (entry.leader) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-		asChild: true,
-		variant: "ghost",
-		className: "touch-target w-full",
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-			to: "/leaders/$leaderId",
-			params: { leaderId: entry.key },
-			onClick: onNavigate,
-			children: label
-		})
-	});
-	return null;
-}
-/**
-* The shared card pop-up. It opens over the current screen with a dimmed
-* background and shows the existing FlipCard centered at a max width of 420px.
-* Tapping the card or the Flip button flips it. It closes with the X button, a
-* tap outside, Esc, or the phone's back button. Swipe left/right, the left and
-* right arrow keys and the prev/next buttons move through the same list without
-* closing, a "3 of 12" counter shows the current position, and the neighbouring
-* roadies' photos are preloaded. Managers see an "Open full profile" link under
-* the card; everyone else sees just the card. The card never shows contact
-* information.
-*/
-function RoadieCardModal({ entries, index, open, onOpenChange, onIndexChange, renderFullProfile }) {
-	const { t } = useDashboardCopy();
-	const { data: positions } = usePositions();
-	const { data: crews } = useCrews();
-	const current = entries[index];
-	const total = entries.length;
-	const hasPrev = index > 0;
-	const hasNext = index < total - 1;
-	const { close, closeForNavigation } = useCardHistory(open, current?.key ?? null, () => onOpenChange(false));
-	usePreloadRoadiePhoto(entries[index - 1]?.roadie);
-	usePreloadRoadiePhoto(entries[index + 1]?.roadie);
-	const goPrev = (0, import_react.useCallback)(() => {
-		if (index > 0) onIndexChange(index - 1);
-	}, [index, onIndexChange]);
-	const goNext = (0, import_react.useCallback)(() => {
-		if (index < total - 1) onIndexChange(index + 1);
-	}, [
-		index,
-		total,
-		onIndexChange
-	]);
-	(0, import_react.useEffect)(() => {
-		if (!open) return;
-		const handleKey = (event) => {
-			if (event.key === "ArrowLeft") {
-				event.preventDefault();
-				goPrev();
-			} else if (event.key === "ArrowRight") {
-				event.preventDefault();
-				goNext();
-			}
-		};
-		window.addEventListener("keydown", handleKey);
-		return () => window.removeEventListener("keydown", handleKey);
-	}, [
-		open,
-		goPrev,
-		goNext
-	]);
-	const touchStart = (0, import_react.useRef)(null);
-	const onTouchStart = (event) => {
-		const touch = event.touches[0];
-		touchStart.current = {
-			x: touch.clientX,
-			y: touch.clientY
-		};
-	};
-	const onTouchEnd = (event) => {
-		const start = touchStart.current;
-		touchStart.current = null;
-		if (!start) return;
-		const touch = event.changedTouches[0];
-		const dx = touch.clientX - start.x;
-		const dy = touch.clientY - start.y;
-		if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
-		if (dx < 0) goNext();
-		else goPrev();
-	};
-	const positionById = (0, import_react.useMemo)(() => {
-		const map = /* @__PURE__ */ new Map();
-		for (const position of positions ?? []) map.set(position.id.toString(), position);
-		return map;
-	}, [positions]);
-	const crewById = (0, import_react.useMemo)(() => {
-		const map = /* @__PURE__ */ new Map();
-		for (const crew of crews ?? []) map.set(crew.id.toString(), crew);
-		return map;
-	}, [crews]);
-	const roadie = current?.roadie;
-	const leader = current?.leader;
-	const { data: signOff } = useFinalSignOff(roadie?.id, open && !!roadie);
-	const futureTrainer = signOff?.futureTrainer ?? false;
-	const title = roadie ? roadie.profile.preferredName || roadie.profile.name : leader ? staffDisplayName(leader.staffProfile, t("profile.unnamed")) : "";
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
-		open,
-		onOpenChange: (next) => {
-			if (!next) close();
-		},
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
-			"data-ocid": "roadie.card_modal",
-			showCloseButton: false,
-			className: "max-h-[92dvh] w-[calc(100vw-2rem)] max-w-[420px] overflow-y-auto p-4",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, {
-					className: "sr-only",
-					children: title
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, {
-					className: "sr-only",
-					children: t("roadie.card.modal.description")
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "flex items-center justify-between gap-2",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						className: "font-display text-xs font-semibold uppercase tracking-widest text-muted-foreground",
-						"data-ocid": "roadie.card_modal.counter",
-						children: t("roadie.card.modal.counter", {
-							index: index + 1,
-							total
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "pills",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "pill",
+													children: mainPill
+												}),
+												stationsPill && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "pill sm",
+													children: stationsPill
+												}),
+												!isLeader && secondPill && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "pill sm",
+													children: secondPill.name
+												})
+											]
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "f-foot",
+									children: isLeader ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: leaderFooter }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+											t("roadie.card.roadieSince"),
+											" ",
+											hireDate
+										] }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "star",
+											children: "★"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: storeCity ?? t("roadie.field.none") })
+									] })
+								})
+							]
 						})
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-						type: "button",
-						variant: "ghost",
-						size: "icon",
-						className: "touch-target",
-						"aria-label": t("common.close"),
-						"data-ocid": "roadie.card_modal.close_button",
-						onClick: close,
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
-							className: "h-5 w-5",
-							"aria-hidden": "true"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "rc-face rc-back",
+						"aria-hidden": !flipped,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "frame",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "b-top",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", {
+										className: "b-name",
+										children: [firstName, lastName ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}), lastName] }) : null]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "b-head",
+										"data-ocid": "roadie.card.headshot",
+										style: photoUrl ? {
+											backgroundImage: `url(${photoUrl})`,
+											backgroundPosition: "center top"
+										} : void 0
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "b-body",
+									children: [
+										profileRows.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: cn("tbl", profileRows.length > 7 && "dense"),
+											children: profileRows.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProfileRow, {
+												label: row.label,
+												value: row.value ?? ""
+											}, row.label))
+										}),
+										isLeader && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "tbl",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProfileRow, {
+												label: t("roadie.card.homeStore"),
+												value: `#${homeStoreNumber} ${homeStoreCity}`.trim()
+											}), isTrainer && (arrival || departure) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProfileRow, {
+												label: t("roadie.card.here"),
+												value: `${arrival ?? "—"} – ${departure ?? "—"}`
+											})]
+										}),
+										about?.goalHere && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "quote",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: t("roadie.card.goal") }),
+												"“",
+												about.goalHere,
+												"”"
+											]
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "b-foot",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: isLeader ? leaderFooter : roadieBackFooter })
+								})
+							]
 						})
 					})]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-2",
-					onTouchStart,
-					onTouchEnd,
-					children: [roadie && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FlipCard, {
-						roadie,
-						position: positionById.get(roadie.mainPositionId.toString()),
-						secondPosition: roadie.secondPositionId === void 0 ? void 0 : positionById.get(roadie.secondPositionId.toString()),
-						crossTrainedPosition: roadie.crossTrainedPositionId === void 0 ? void 0 : positionById.get(roadie.crossTrainedPositionId.toString()),
-						crew: roadie.crewId === void 0 ? void 0 : crewById.get(roadie.crewId.toString()),
-						futureTrainer
-					}), leader && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FlipCard, { leader })]
-				}),
-				total > 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-3 flex items-center justify-between gap-2",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-						type: "button",
-						variant: "outline",
-						className: "touch-target",
-						"data-ocid": "roadie.card_modal.prev_button",
-						disabled: !hasPrev,
-						onClick: goPrev,
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronLeft, {
-							className: "mr-1 h-4 w-4",
-							"aria-hidden": "true"
-						}), t("roadie.card.modal.prev")]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-						type: "button",
-						variant: "outline",
-						className: "touch-target",
-						"data-ocid": "roadie.card_modal.next_button",
-						disabled: !hasNext,
-						onClick: goNext,
-						children: [t("roadie.card.modal.next"), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronRight, {
-							className: "ml-1 h-4 w-4",
-							"aria-hidden": "true"
-						})]
-					})]
-				}),
-				current && renderFullProfile && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "mt-2",
-					"data-ocid": "roadie.card_modal.full_profile_link",
-					children: renderFullProfile(current, closeForNavigation)
 				})
-			]
-		})
+			}),
+			leaderTalkLine && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				"data-ocid": "roadie.card.leader_talk",
+				className: "mx-auto max-w-[420px] truncate text-center text-sm font-medium text-primary",
+				children: leaderTalkLine
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+				type: "button",
+				variant: "outline",
+				className: "touch-target mx-auto flex w-full max-w-[420px]",
+				"data-ocid": "roadie.flip_button",
+				"aria-pressed": flipped,
+				onClick: toggle,
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RotateCcw, {
+					className: "mr-2 h-4 w-4",
+					"aria-hidden": "true"
+				}), flipped ? t("roadie.action.flipBack") : t("roadie.action.flip")]
+			})
+		]
 	});
 }
 //#endregion
@@ -64483,6 +64209,291 @@ function RoadieTile({ roadie, positionName, crewName, crewLabel, leaderTalkLine,
 					})
 				]
 			})]
+		})
+	});
+}
+//#endregion
+//#region src/components/roadie/RoadieCardModal.tsx
+/** The query-param key that records an open card in the URL. */
+var CARD_PARAM = "card";
+/**
+* Push a history entry carrying `?card=<key>` when the pop-up opens, and pop it
+* when the pop-up closes, so the phone's back button closes the modal and
+* returns the user exactly where they were. The listener is registered once and
+* reports a back-navigation through `onBack`.
+*/
+function useCardHistory(open, key, onBack) {
+	const pushed = (0, import_react.useRef)(false);
+	const onBackRef = (0, import_react.useRef)(onBack);
+	onBackRef.current = onBack;
+	(0, import_react.useEffect)(() => {
+		if (typeof window === "undefined") return;
+		const handlePop = () => {
+			if (pushed.current) {
+				pushed.current = false;
+				onBackRef.current();
+			}
+		};
+		window.addEventListener("popstate", handlePop);
+		return () => window.removeEventListener("popstate", handlePop);
+	}, []);
+	(0, import_react.useEffect)(() => {
+		if (typeof window === "undefined") return;
+		if (open && key && !pushed.current) {
+			const url = new URL(window.location.href);
+			url.searchParams.set(CARD_PARAM, key);
+			window.history.pushState({
+				...window.history.state,
+				[CARD_PARAM]: key
+			}, "", url);
+			pushed.current = true;
+		}
+	}, [open, key]);
+	return {
+		close: (0, import_react.useCallback)(() => {
+			if (typeof window === "undefined") {
+				onBackRef.current();
+				return;
+			}
+			if (pushed.current) {
+				pushed.current = false;
+				window.history.back();
+			} else {
+				const url = new URL(window.location.href);
+				if (url.searchParams.has(CARD_PARAM)) {
+					url.searchParams.delete(CARD_PARAM);
+					const { [CARD_PARAM]: _card, ...state } = window.history.state ?? {};
+					window.history.replaceState(state, "", url);
+				}
+			}
+			onBackRef.current();
+		}, []),
+		closeForNavigation: (0, import_react.useCallback)(() => {
+			if (typeof window !== "undefined" && pushed.current) {
+				pushed.current = false;
+				const url = new URL(window.location.href);
+				if (url.searchParams.has(CARD_PARAM)) {
+					url.searchParams.delete(CARD_PARAM);
+					const { [CARD_PARAM]: _card, ...state } = window.history.state ?? {};
+					window.history.replaceState(state, "", url);
+				}
+			}
+			onBackRef.current();
+		}, [])
+	};
+}
+/** Preload a roadie's photo so a neighbour renders instantly on swipe. */
+function usePreloadRoadiePhoto(roadie) {
+	useRoadiePhoto(roadie?.id);
+}
+/**
+* The manager-only "Open full profile" link for a card entry. A roadie links to
+* their card page (with Edit, Manager tab and Archive); a leader links to their
+* leader card page.
+*/
+function FullProfileLink({ entry, onNavigate }) {
+	const { t } = useDashboardCopy();
+	const label = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, {
+		className: "mr-2 h-4 w-4",
+		"aria-hidden": "true"
+	}), t("roadie.card.modal.fullProfile")] });
+	if (entry.roadie) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+		asChild: true,
+		variant: "ghost",
+		className: "touch-target w-full",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+			to: "/roster/$roadieId",
+			params: { roadieId: entry.key },
+			onClick: onNavigate,
+			children: label
+		})
+	});
+	if (entry.leader) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+		asChild: true,
+		variant: "ghost",
+		className: "touch-target w-full",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+			to: "/leaders/$leaderId",
+			params: { leaderId: entry.key },
+			onClick: onNavigate,
+			children: label
+		})
+	});
+	return null;
+}
+/**
+* The shared card pop-up. It opens over the current screen with a dimmed
+* background and shows the existing FlipCard centered at a max width of 420px.
+* Tapping the card or the Flip button flips it. It closes with the X button, a
+* tap outside, Esc, or the phone's back button. Swipe left/right, the left and
+* right arrow keys and the prev/next buttons move through the same list without
+* closing, a "3 of 12" counter shows the current position, and the neighbouring
+* roadies' photos are preloaded. Managers see an "Open full profile" link under
+* the card; everyone else sees just the card. The card never shows contact
+* information.
+*/
+function RoadieCardModal({ entries, index, open, onOpenChange, onIndexChange, renderFullProfile }) {
+	const { t } = useDashboardCopy();
+	const { data: positions } = usePositions();
+	const { data: crews } = useCrews();
+	const access = useAccessState();
+	const leaderTalkLines = useLeaderTalkLineMap(canLeaderTalks(access.kind === "granted" ? access.grant.role : void 0));
+	const current = entries[index];
+	const total = entries.length;
+	const hasPrev = index > 0;
+	const hasNext = index < total - 1;
+	const { close, closeForNavigation } = useCardHistory(open, current?.key ?? null, () => onOpenChange(false));
+	usePreloadRoadiePhoto(entries[index - 1]?.roadie);
+	usePreloadRoadiePhoto(entries[index + 1]?.roadie);
+	const goPrev = (0, import_react.useCallback)(() => {
+		if (index > 0) onIndexChange(index - 1);
+	}, [index, onIndexChange]);
+	const goNext = (0, import_react.useCallback)(() => {
+		if (index < total - 1) onIndexChange(index + 1);
+	}, [
+		index,
+		total,
+		onIndexChange
+	]);
+	(0, import_react.useEffect)(() => {
+		if (!open) return;
+		const handleKey = (event) => {
+			if (event.key === "ArrowLeft") {
+				event.preventDefault();
+				goPrev();
+			} else if (event.key === "ArrowRight") {
+				event.preventDefault();
+				goNext();
+			}
+		};
+		window.addEventListener("keydown", handleKey);
+		return () => window.removeEventListener("keydown", handleKey);
+	}, [
+		open,
+		goPrev,
+		goNext
+	]);
+	const touchStart = (0, import_react.useRef)(null);
+	const onTouchStart = (event) => {
+		const touch = event.touches[0];
+		touchStart.current = {
+			x: touch.clientX,
+			y: touch.clientY
+		};
+	};
+	const onTouchEnd = (event) => {
+		const start = touchStart.current;
+		touchStart.current = null;
+		if (!start) return;
+		const touch = event.changedTouches[0];
+		const dx = touch.clientX - start.x;
+		const dy = touch.clientY - start.y;
+		if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+		if (dx < 0) goNext();
+		else goPrev();
+	};
+	const positionById = (0, import_react.useMemo)(() => {
+		const map = /* @__PURE__ */ new Map();
+		for (const position of positions ?? []) map.set(position.id.toString(), position);
+		return map;
+	}, [positions]);
+	const crewById = (0, import_react.useMemo)(() => {
+		const map = /* @__PURE__ */ new Map();
+		for (const crew of crews ?? []) map.set(crew.id.toString(), crew);
+		return map;
+	}, [crews]);
+	const roadie = current?.roadie;
+	const leader = current?.leader;
+	const { data: signOff } = useFinalSignOff(roadie?.id, open && !!roadie);
+	const futureTrainer = signOff?.futureTrainer ?? false;
+	const title = roadie ? roadie.profile.preferredName || roadie.profile.name : leader ? staffDisplayName(leader.staffProfile, t("profile.unnamed")) : "";
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
+		open,
+		onOpenChange: (next) => {
+			if (!next) close();
+		},
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+			"data-ocid": "roadie.card_modal",
+			showCloseButton: false,
+			className: "max-h-[92dvh] w-[calc(100vw-2rem)] max-w-[420px] overflow-y-auto p-4",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, {
+					className: "sr-only",
+					children: title
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, {
+					className: "sr-only",
+					children: t("roadie.card.modal.description")
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex items-center justify-between gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "font-display text-xs font-semibold uppercase tracking-widest text-muted-foreground",
+						"data-ocid": "roadie.card_modal.counter",
+						children: t("roadie.card.modal.counter", {
+							index: index + 1,
+							total
+						})
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						type: "button",
+						variant: "ghost",
+						size: "icon",
+						className: "touch-target",
+						"aria-label": t("common.close"),
+						"data-ocid": "roadie.card_modal.close_button",
+						onClick: close,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
+							className: "h-5 w-5",
+							"aria-hidden": "true"
+						})
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-2",
+					onTouchStart,
+					onTouchEnd,
+					children: [roadie && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FlipCard, {
+						roadie,
+						position: positionById.get(roadie.mainPositionId.toString()),
+						secondPosition: roadie.secondPositionId === void 0 ? void 0 : positionById.get(roadie.secondPositionId.toString()),
+						crossTrainedPosition: roadie.crossTrainedPositionId === void 0 ? void 0 : positionById.get(roadie.crossTrainedPositionId.toString()),
+						crew: roadie.crewId === void 0 ? void 0 : crewById.get(roadie.crewId.toString()),
+						futureTrainer,
+						leaderTalkLine: leaderTalkLines.get(roadie.id.toString())
+					}), leader && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FlipCard, { leader })]
+				}),
+				total > 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-3 flex items-center justify-between gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						type: "button",
+						variant: "outline",
+						className: "touch-target",
+						"data-ocid": "roadie.card_modal.prev_button",
+						disabled: !hasPrev,
+						onClick: goPrev,
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronLeft, {
+							className: "mr-1 h-4 w-4",
+							"aria-hidden": "true"
+						}), t("roadie.card.modal.prev")]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						type: "button",
+						variant: "outline",
+						className: "touch-target",
+						"data-ocid": "roadie.card_modal.next_button",
+						disabled: !hasNext,
+						onClick: goNext,
+						children: [t("roadie.card.modal.next"), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronRight, {
+							className: "ml-1 h-4 w-4",
+							"aria-hidden": "true"
+						})]
+					})]
+				}),
+				current && renderFullProfile && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "mt-2",
+					"data-ocid": "roadie.card_modal.full_profile_link",
+					children: renderFullProfile(current, closeForNavigation)
+				})
+			]
 		})
 	});
 }
@@ -103631,8 +103642,8 @@ var __vitePreload = function preload(baseModule, deps, importerUrl) {
 };
 //#endregion
 //#region src/pages/Dashboard.tsx
-var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-D7e-nL3W.js").then((m) => ({ default: m.KpiTiles })), []));
-var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-C-jb_mwv.js").then((m) => ({ default: m.OpeningTimelineView })), []));
+var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-xv42R56Y.js").then((m) => ({ default: m.KpiTiles })), []));
+var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-BCJmylBV.js").then((m) => ({ default: m.OpeningTimelineView })), []));
 var KPI_SKELETON_TILES = [
 	"hired",
 	"needed",
@@ -109436,15 +109447,19 @@ function roadieDisplayName(roadie) {
 * manager picks the day (training days first), names the group, and chooses
 * roadies from the active roster. Roadies already in another group are shown
 * but disabled so a roadie never lands in two groups. A "Fill from not yet met"
-* action tops the group up to the store's leader talk size.
+* action tops the group up to the store's leader talk size by adding active
+* roadies who are in no group at all, sorted by name. It only changes this
+* dialog's selection and never saves the group by itself, so it behaves the
+* same in New group and Edit group.
 */
-function LeaderTalkGroupDialog({ open, onOpenChange, talk, dayOptions, activeRoadies, assignedElsewhere, maxSize, defaultName, isSaving, isFilling, error, onSave, onFill }) {
+function LeaderTalkGroupDialog({ open, onOpenChange, talk, dayOptions, activeRoadies, assignedElsewhere, notYetMet, maxSize, defaultName, isSaving, error, onSave }) {
 	const { t } = useI18n();
 	const editing = talk !== null;
 	const [day, setDay] = (0, import_react.useState)(talk?.day ?? null);
 	const [name, setName] = (0, import_react.useState)(talk?.name ?? "");
 	const [selected, setSelected] = (0, import_react.useState)(talk ? talk.attendees.map((a) => a.roadieId) : []);
 	const [query, setQuery] = (0, import_react.useState)("");
+	const [fillMessage, setFillMessage] = (0, import_react.useState)(null);
 	const selectedSet = (0, import_react.useMemo)(() => new Set(selected.map((id) => id.toString())), [selected]);
 	const filtered = (0, import_react.useMemo)(() => {
 		const q = query.trim().toLowerCase();
@@ -109454,6 +109469,7 @@ function LeaderTalkGroupDialog({ open, onOpenChange, talk, dayOptions, activeRoa
 	const canFill = selected.length < maxSize;
 	function toggle(id) {
 		const key = id.toString();
+		setFillMessage(null);
 		setSelected((current) => {
 			if (current.some((existing) => existing.toString() === key)) return current.filter((existing) => existing.toString() !== key);
 			if (current.length >= maxSize) return current;
@@ -109461,7 +109477,18 @@ function LeaderTalkGroupDialog({ open, onOpenChange, talk, dayOptions, activeRoa
 		});
 	}
 	function handleFill() {
-		onFill(selected);
+		const currentSet = new Set(selected.map((id) => id.toString()));
+		const additions = [];
+		for (const roadie of notYetMet) {
+			if (selected.length + additions.length >= maxSize) break;
+			if (!currentSet.has(roadie.id.toString())) additions.push(roadie.id);
+		}
+		if (additions.length === 0) {
+			setFillMessage(t("leaderTalks.fillNone"));
+			return;
+		}
+		setFillMessage(null);
+		setSelected((current) => [...current, ...additions]);
 	}
 	function handleSave() {
 		if (day === null) return;
@@ -109539,12 +109566,12 @@ function LeaderTalkGroupDialog({ open, onOpenChange, talk, dayOptions, activeRoa
 								variant: "outline",
 								"data-ocid": "leaderTalks.group.fill_button",
 								onClick: handleFill,
-								disabled: !canFill || isFilling || isSaving,
+								disabled: !canFill || isSaving,
 								className: "touch-target",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sparkles, {
 									className: "h-4 w-4",
 									"aria-hidden": "true"
-								}), isFilling ? t("leaderTalks.filling") : t("leaderTalks.fillFromNotYetMet")]
+								}), t("leaderTalks.fillFromNotYetMet")]
 							})]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -109610,6 +109637,11 @@ function LeaderTalkGroupDialog({ open, onOpenChange, talk, dayOptions, activeRoa
 									]
 								}) }, key);
 							})
+						}),
+						fillMessage && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							"data-ocid": "leaderTalks.group.fill_message",
+							className: "rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground",
+							children: fillMessage
 						}),
 						error && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							"data-ocid": "leaderTalks.group.error_state",
@@ -109776,25 +109808,6 @@ function LeaderTalksPage() {
 			onSuccess: () => setEditorOpen(false),
 			onError: () => setEditorError(t("leaderTalks.createError"))
 		});
-	}
-	function handleFill(current) {
-		if (!editingTalk) return;
-		const currentSet = new Set(current.map((id) => id.toString()));
-		const additions = [];
-		for (const roadie of notYetMet) {
-			if (current.length + additions.length >= maxSize) break;
-			if (!currentSet.has(roadie.id.toString())) additions.push(roadie.id);
-		}
-		if (additions.length === 0) {
-			setEditorError(t("leaderTalks.fillNone"));
-			return;
-		}
-		setEditorError(null);
-		setAttendance.mutate({
-			id: editingTalk.id,
-			name: editingTalk.name,
-			attendees: [...current, ...additions]
-		}, { onError: () => setEditorError(t("leaderTalks.fillError")) });
 	}
 	function handleDelete() {
 		if (!deleteTarget) return;
@@ -109992,13 +110005,12 @@ function LeaderTalksPage() {
 				dayOptions,
 				activeRoadies,
 				assignedElsewhere: assignedIds,
+				notYetMet,
 				maxSize,
 				defaultName: leaderTalkName,
 				isSaving: createTalk.isPending || setAttendance.isPending,
-				isFilling: setAttendance.isPending,
 				error: editorError,
-				onSave: handleSave,
-				onFill: handleFill
+				onSave: handleSave
 			}, editingTalk ? editingTalk.id.toString() : "new"),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
 				open: deleteTarget !== null,
@@ -117384,6 +117396,7 @@ function RoadieCardContent() {
 	const mayArchive = canArchive(role);
 	const canReadNotes = canReadTrainerNotes(role);
 	const { data: signOff } = useFinalSignOff(id, canReadNotes);
+	const leaderTalkLines = useLeaderTalkLineMap(canLeaderTalks(role));
 	const positionList = positions ?? [];
 	const positionById = (positionId) => positionId === void 0 ? void 0 : positionList.find((position) => position.id === positionId);
 	if (id === void 0) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -117479,7 +117492,8 @@ function RoadieCardContent() {
 								secondPosition: positionById(roadie.secondPositionId),
 								crossTrainedPosition: positionById(roadie.crossTrainedPositionId),
 								crew: roadie.crewId === void 0 ? void 0 : crews?.find((crew) => crew.id === roadie.crewId),
-								futureTrainer: signOff?.futureTrainer ?? false
+								futureTrainer: signOff?.futureTrainer ?? false,
+								leaderTalkLine: leaderTalkLines.get(roadie.id.toString())
 							})
 						}),
 						isManager && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsContent, {

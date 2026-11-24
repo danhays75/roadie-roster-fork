@@ -202,6 +202,7 @@ export function FlipCard({
   crew,
   trainerPositions,
   futureTrainer,
+  leaderTalkLine,
 }: {
   roadie?: Roadie;
   leader?: LeaderSummary;
@@ -212,6 +213,12 @@ export function FlipCard({
   trainerPositions?: Position[];
   /** Whether the roadie was signed off as a future trainer; shows a chip. */
   futureTrainer?: boolean;
+  /**
+   * The "<leaderTalkName>: <day>" line for a roadie in a leader talk, shown as
+   * a caption under the card. Callers pass it only for the roles that may read
+   * talks, so other roles see no line.
+   */
+  leaderTalkLine?: string;
 }) {
   const { t } = useI18n();
   const [flipped, setFlipped] = useState(false);
@@ -550,6 +557,15 @@ export function FlipCard({
           </div>
         </div>
       </button>
+
+      {leaderTalkLine && (
+        <p
+          data-ocid="roadie.card.leader_talk"
+          className="mx-auto max-w-[420px] truncate text-center text-sm font-medium text-primary"
+        >
+          {leaderTalkLine}
+        </p>
+      )}
 
       <Button
         type="button"

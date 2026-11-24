@@ -34,7 +34,10 @@ export function roadieDisplayName(roadie: Roadie): string {
  * manager picks the day (training days first), names the group, and chooses
  * roadies from the active roster. Roadies already in another group are shown
  * but disabled so a roadie never lands in two groups. A "Fill from not yet met"
- * action tops the group up to the store's leader talk size.
+ * action tops the group up to the store's leader talk size by adding active
+ * roadies who are in no group at all, sorted by name. It only changes this
+ * dialog's selection and never saves the group by itself, so it behaves the
+ * same in New group and Edit group.
  */
 export function LeaderTalkGroupDialog({
   open,
@@ -43,13 +46,12 @@ export function LeaderTalkGroupDialog({
   dayOptions,
   activeRoadies,
   assignedElsewhere,
+  notYetMet,
   maxSize,
   defaultName,
   isSaving,
-  isFilling,
   error,
   onSave,
-  onFill,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,18 +61,18 @@ export function LeaderTalkGroupDialog({
   activeRoadies: Roadie[];
   /** Roadie ids already in a different group, keyed by id string. */
   assignedElsewhere: Set<string>;
+  /** Active roadies in no group at all, already sorted by display name. */
+  notYetMet: Roadie[];
   maxSize: number;
   /** The default name shown when the name field is left blank. */
   defaultName: string;
   isSaving: boolean;
-  isFilling: boolean;
   error: string | null;
   onSave: (args: {
     day: DateOnly;
     name: string;
     attendees: RoadieId[];
   }) => void;
-  onFill: (current: RoadieId[]) => void;
 }) {
   const { t } = useI18n();
   const editing = talk !== null;
@@ -81,6 +83,7 @@ export function LeaderTalkGroupDialog({
     talk ? talk.attendees.map((a) => a.roadieId) : [],
   );
   const [query, setQuery] = useState("");
+  const [fillMessage, setFillMessage] = useState<string | null>(null);
 
   const selectedSet = useMemo(
     () => new Set(selected.map((id) => id.toString())),
@@ -104,6 +107,7 @@ export function LeaderTalkGroupDialog({
 
   function toggle(id: RoadieId) {
     const key = id.toString();
+    setFillMessage(null);
     setSelected((current) => {
       if (current.some((existing) => existing.toString() === key)) {
         return current.filter((existing) => existing.toString() !== key);
@@ -113,8 +117,23 @@ export function LeaderTalkGroupDialog({
     });
   }
 
+  // Fill only changes this dialog's selection: it adds active roadies who are
+  // in no group at all (not in another group and not already selected), sorted
+  // by name, until the group reaches the store's leader talk size. It never
+  // saves, so New group and Edit group behave identically.
   function handleFill() {
-    onFill(selected);
+    const currentSet = new Set(selected.map((id) => id.toString()));
+    const additions: RoadieId[] = [];
+    for (const roadie of notYetMet) {
+      if (selected.length + additions.length >= maxSize) break;
+      if (!currentSet.has(roadie.id.toString())) additions.push(roadie.id);
+    }
+    if (additions.length === 0) {
+      setFillMessage(t("leaderTalks.fillNone"));
+      return;
+    }
+    setFillMessage(null);
+    setSelected((current) => [...current, ...additions]);
   }
 
   function handleSave() {
@@ -192,13 +211,11 @@ export function LeaderTalkGroupDialog({
               variant="outline"
               data-ocid="leaderTalks.group.fill_button"
               onClick={handleFill}
-              disabled={!canFill || isFilling || isSaving}
+              disabled={!canFill || isSaving}
               className="touch-target"
             >
               <Sparkles className="h-4 w-4" aria-hidden="true" />
-              {isFilling
-                ? t("leaderTalks.filling")
-                : t("leaderTalks.fillFromNotYetMet")}
+              {t("leaderTalks.fillFromNotYetMet")}
             </Button>
           </div>
 
@@ -287,6 +304,15 @@ export function LeaderTalkGroupDialog({
                 );
               })}
             </ul>
+          )}
+
+          {fillMessage && (
+            <p
+              data-ocid="leaderTalks.group.fill_message"
+              className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+            >
+              {fillMessage}
+            </p>
           )}
 
           {error && (

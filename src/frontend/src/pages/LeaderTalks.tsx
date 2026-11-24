@@ -234,31 +234,6 @@ export default function LeaderTalksPage() {
     }
   }
 
-  function handleFill(current: RoadieId[]) {
-    if (!editingTalk) return;
-    const currentSet = new Set(current.map((id) => id.toString()));
-    const additions: RoadieId[] = [];
-    for (const roadie of notYetMet) {
-      if (current.length + additions.length >= maxSize) break;
-      if (!currentSet.has(roadie.id.toString())) additions.push(roadie.id);
-    }
-    if (additions.length === 0) {
-      setEditorError(t("leaderTalks.fillNone"));
-      return;
-    }
-    setEditorError(null);
-    setAttendance.mutate(
-      {
-        id: editingTalk.id,
-        name: editingTalk.name,
-        attendees: [...current, ...additions],
-      },
-      {
-        onError: () => setEditorError(t("leaderTalks.fillError")),
-      },
-    );
-  }
-
   function handleDelete() {
     if (!deleteTarget) return;
     deleteTalk.mutate(deleteTarget.id, {
@@ -495,13 +470,12 @@ export default function LeaderTalksPage() {
           dayOptions={dayOptions}
           activeRoadies={activeRoadies}
           assignedElsewhere={assignedIds}
+          notYetMet={notYetMet}
           maxSize={maxSize}
           defaultName={leaderTalkName}
           isSaving={createTalk.isPending || setAttendance.isPending}
-          isFilling={setAttendance.isPending}
           error={editorError}
           onSave={handleSave}
-          onFill={handleFill}
         />
       )}
 

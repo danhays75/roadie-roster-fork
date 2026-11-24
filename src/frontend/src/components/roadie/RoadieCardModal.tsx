@@ -1,6 +1,7 @@
 import type { Crew, LeaderSummary, Position, Roadie } from "@/backend";
 import { useDashboardCopy } from "@/components/dashboard/copy";
 import { FlipCard } from "@/components/roadie/FlipCard";
+import { useLeaderTalkLineMap } from "@/components/roadie/RoadieTile";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,6 +9,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { canLeaderTalks, useAccessState } from "@/hooks/useAccess";
 import {
   useCrews,
   useFinalSignOff,
@@ -195,6 +197,9 @@ export function RoadieCardModal({
   const { t } = useDashboardCopy();
   const { data: positions } = usePositions();
   const { data: crews } = useCrews();
+  const access = useAccessState();
+  const role = access.kind === "granted" ? access.grant.role : undefined;
+  const leaderTalkLines = useLeaderTalkLineMap(canLeaderTalks(role));
 
   const current = entries[index];
   const total = entries.length;
@@ -340,6 +345,7 @@ export function RoadieCardModal({
                   : crewById.get(roadie.crewId.toString())
               }
               futureTrainer={futureTrainer}
+              leaderTalkLine={leaderTalkLines.get(roadie.id.toString())}
             />
           )}
           {leader && <FlipCard leader={leader} />}

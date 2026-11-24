@@ -119,6 +119,7 @@
 - Builds on version 18 and keeps everything else exactly as it works today
 - No change to the stored LeaderTalk type, so no migration
 - Keep demo-mode partitioning on every new read and write
+- Builds on version 19 and keeps everything else exactly as it works today
 
 ## Accepted Requirements
 
@@ -453,6 +454,12 @@
 - Final sign-off record and clear also refresh myGroup, myCrew, shiftBoard, shiftBoards, rosterSummary, today and changeLog
 - rehireRoadie traps 'A rehire reason is required' and keeps the existing orientationEventId when no upcoming session exists, still clearing the sign-off
 - Frontend type-checks, backend builds and existing tests pass
+- Fill from not yet met only changes the dialog's selection and does not save by itself, the same in New group and Edit group
+- Fill adds active roadies in no group at all, sorted by name, up to leaderTalkSize, and shows the existing fill-none message when nobody is left
+- The roadie card on the roadie page and in the card pop-up shows the '<leaderTalkName>: <day>' line for the same reader roles, keeping the Roster tile line
+- Delete the stray placeholder LeaderTalkGroupDialog.tsx file
+- Add any new copy key in both English and Spanish with the same keys in both
+- Frontend type-checks, backend builds and existing tests pass, with results reported
 
 ## Verified Commands
 
@@ -462,9 +469,6 @@
 
 ## Learnings
 
-- usePendingSignups(enabled = true) is gated like useAbsentAlerts; Layout and Dashboard pass canApproveSignups(role) so a role that may not approve sign-ups never calls listPendingSignups.
-- Trainer notes: addTrainerNote allows trainer, trainingManager, kitchenManager, serviceManager, storeManager, admin and managingPartner, with a trainer limited to their own stations; blank notes and fields over 1,000 characters are refused; archived roadies and the other demo partition trap Roadie not found; listTrainerNotes returns TrainerNoteView newest first with authorName while the stored TrainerNote record is unchanged.
-- Trainer notes UI: TrainerNotesTab and TrainerNoteForm in src/frontend/src/components/roadie are shared by the roadie card tab and the Today My group tiles; canReadTrainerNotes and canAddTrainerNote in useAccess.ts gate them.
 - A module-level let in a Motoko lib file must be a literal; 24 * 60 * 60 * 1_000_000_000 fails M0014, so write 86_400_000_000_000.
 - Biome lint/a11y/useSemanticElements rejects a div with role group; use fieldset and legend for a labelled button group.
 - Copy parity check: match keys only at line start so string values containing words like largo are not counted as keys.
@@ -487,3 +491,6 @@
 - rehireRoadie traps 'A rehire reason is required' and keeps the existing orientationEventId when no upcoming orientation session exists, while still clearing the final sign-off.
 - Int.compare and Nat.compare return Order.Order, so a sort comparator must test c != #equal, never c != 0.
 - useDemoAwareStoreInfo lives in hooks/useAccess.ts, not useQueries.ts; RosterState is a string enum, so compare roadie.rosterState === RosterState.active.
+- Leader talk Fill is pure dialog state: handleFill only calls setSelected, so New group and Edit group share one code path and Save is the sole mutation trigger; the page passes notYetMet and no longer calls setLeaderTalkAttendance on fill.
+- FlipCard takes an optional leaderTalkLine prop rendered as a caption below the card, so the talk line shows on the roadie page and the card pop-up without touching roadieCard.css.
+- The card talk line is gated by canLeaderTalks(role) in RoadieCard, RoadieCardModal and Roster, so all three surfaces show it to exactly the same reader roles.
