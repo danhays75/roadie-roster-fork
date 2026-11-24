@@ -1348,8 +1348,9 @@ module {
 
   // --- Daily email ---
 
-  /// The link to the Opening Qs page of this app.
-  let openingQuestionsLink : Text = "/opening-questions";
+  /// The full link to the Opening Qs page of this app, so it is clickable in an
+  /// email client.
+  let openingQuestionsLink : Text = "https://tlcroadieroster.com/opening-questions";
 
   /// The sender username the transactional email component sends from.
   let emailFromUsername : Text = "no-reply";
@@ -1470,7 +1471,9 @@ module {
       ?? Runtime.trap("Access denied: caller is not registered");
     let email = workEmailOf(grant)
       ?? Runtime.trap("Add a work email to your staff profile before sending a test");
-    let now = nowOf(demoState, storeInfo);
+    // The store day and Finish-by use the real current time, never the demo
+    // pretend date, so demo mode cannot shift or repeat a real email.
+    let now = Time.now();
     let tz = storeInfo.value.timeZone;
     let needsApproval = needsApprovalCount(accessGrants, state, caller);
     let openDiscussions = openDiscussionCount(accessGrants, state, caller);
@@ -1520,7 +1523,9 @@ module {
     if (not state.emailSettings.value.enabled) {
       return;
     };
-    let now = nowOf(demoState, storeInfo);
+    // The store day and Finish-by use the real current time, never the demo
+    // pretend date, so demo mode cannot shift or repeat a real email.
+    let now = Time.now();
     let tz = storeInfo.value.timeZone;
     let today = Clock.localDayStart(now, tz);
     let finishBy = finishByView(state, now, tz);

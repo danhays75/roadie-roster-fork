@@ -576,7 +576,7 @@ module {
     caller : Principal,
     roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
   ) : Bool {
-    if (entry.touchesContactSet and not Auth.isManager(accessGrants, demoState, caller)) {
+    if (entry.touchesContactSet and not Auth.canSeeContactSet(accessGrants, demoState, caller)) {
       return false;
     };
     if (role != #trainer) {

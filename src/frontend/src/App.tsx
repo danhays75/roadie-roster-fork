@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import {
   INTEGRATION_REFUSED_ROUTES,
   canAdmin,
-  canApprove,
+  canApproveSignups,
   canExport,
   canGiftBags,
   canGroups,
@@ -306,7 +306,7 @@ function GuardedAdmin() {
 function GuardedApprovals() {
   const role = useRole();
   return (
-    <RouteGuard allowed={canApprove(role)}>
+    <RouteGuard allowed={canApproveSignups(role)}>
       <ApprovalsPage />
     </RouteGuard>
   );

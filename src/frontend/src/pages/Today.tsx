@@ -23,8 +23,8 @@ import { RoadiePhoto } from "@/components/roadie/RoadiePhoto";
 import { RoadieStageBadge } from "@/components/roadie/RoadieTile";
 import { Button } from "@/components/ui/button";
 import {
-  canCheckIn,
   canFinalizeOpeningQuestions,
+  canManageCheckIns,
   canOpeningQuestions,
   canSeeManagerToday,
   isTodayReadOnly,
@@ -936,12 +936,91 @@ function ShiftAttendanceRow({
 }
 
 /**
+ * The check-in board for a manager who may record check-ins but does not train
+ * a group: a shift picker over today's shifts and the shared CheckInBoard for
+ * the chosen shift, so a Kitchen Manager or Service Manager can record who
+ * showed up. Renders nothing when today has no shift to check in.
+ */
+function ManagerCheckInSection({
+  summaries,
+}: {
+  summaries: ShiftCheckInSummary[];
+}) {
+  const { t } = useDashboardCopy();
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  const selected = useMemo(() => {
+    if (summaries.length === 0) return undefined;
+    const found = summaries.find(
+      (summary) =>
+        `${summary.eventId.toString()}-${summary.shift}` === selectedKey,
+    );
+    return found ?? summaries[0];
+  }, [summaries, selectedKey]);
+
+  if (!selected) return null;
+
+  return (
+    <section className="space-y-4" data-ocid="today.managerCheckIn.section">
+      <div className="min-w-0">
+        <h2 className="font-display text-xl font-bold uppercase tracking-wide text-foreground">
+          {t("today.checkIn.managerTitle", { shift: selected.shiftLabel })}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("today.checkIn.managerHint")}
+        </p>
+      </div>
+
+      {summaries.length > 1 && (
+        <div
+          className="flex flex-wrap gap-2"
+          data-ocid="today.managerCheckIn.shiftPicker"
+        >
+          {summaries.map((summary) => {
+            const key = `${summary.eventId.toString()}-${summary.shift}`;
+            const active =
+              key === `${selected.eventId.toString()}-${selected.shift}`;
+            return (
+              <Button
+                key={key}
+                type="button"
+                variant={active ? "default" : "outline"}
+                className="touch-target"
+                aria-pressed={active}
+                data-ocid={`today.managerCheckIn.shift.${summary.shift}`}
+                onClick={() => setSelectedKey(key)}
+              >
+                {summary.shiftLabel}
+              </Button>
+            );
+          })}
+        </div>
+      )}
+
+      <CheckInBoard
+        eventId={selected.eventId}
+        shift={selected.shift}
+        shiftLabel={selected.shiftLabel}
+      />
+    </section>
+  );
+}
+
+/**
  * The manager-facing Today content: the caller's own crew (when they own one)
  * first, then the absent alerts list, then today's shifts with an "x / y
  * checked in" count per shift, each tappable to open that shift's check-in
- * board on the Groups page.
+ * board on the Groups page. A manager who may record check-ins but does not
+ * train a group (Kitchen Manager, Service Manager) also gets a check-in board
+ * for today's shifts, so they can record who showed up.
  */
-function ManagerToday({ role }: { role: Role | undefined }) {
+function ManagerToday({
+  role,
+  mayCheckIn,
+}: {
+  role: Role | undefined;
+  mayCheckIn: boolean;
+}) {
   const { t } = useDashboardCopy();
   const { data: today, isLoading, isError, refetch } = useToday();
   const summaries = today?.shiftSummaries ?? [];
@@ -955,6 +1034,10 @@ function ManagerToday({ role }: { role: Role | undefined }) {
       <MyCrewSection />
 
       <AbsentAlertsList role={role} />
+
+      {mayCheckIn && !isLoading && !isError && (
+        <ManagerCheckInSection summaries={summaries} />
+      )}
 
       <section className="space-y-4" data-ocid="today.shifts.section">
         <h2 className="font-display text-xl font-bold uppercase tracking-wide text-foreground">
@@ -1081,7 +1164,7 @@ export default function TodayPage() {
   const access = useAccessState();
   const role = access.kind === "granted" ? access.grant.role : undefined;
   const isTrainer = role === Role.trainer;
-  const mayCheckIn = canCheckIn(role);
+  const mayCheckIn = canManageCheckIns(role);
   const maySeeManager = canSeeManagerToday(role);
   const readOnly = isTodayReadOnly(role);
 
@@ -1094,7 +1177,7 @@ export default function TodayPage() {
       {isTrainer ? (
         <TrainerToday mayCheckIn={mayCheckIn} />
       ) : maySeeManager ? (
-        <ManagerToday role={role} />
+        <ManagerToday role={role} mayCheckIn={mayCheckIn} />
       ) : readOnly ? (
         <ReadOnlyToday />
       ) : (

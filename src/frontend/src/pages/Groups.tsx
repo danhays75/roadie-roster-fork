@@ -44,7 +44,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  canEditGroups,
+  canEditShiftBoards,
   useAccessState,
   useDemoAwareStoreInfo,
 } from "@/hooks/useAccess";
@@ -76,7 +76,7 @@ export default function GroupsPage() {
   const access = useAccessState();
   const role = access.kind === "granted" ? access.grant.role : undefined;
   const canView = !!role;
-  const editable = canEditGroups(role);
+  const editable = canEditShiftBoards(role);
   const isMobile = useIsMobile(BOARD_BREAKPOINT);
   const demo = useDemo();
 

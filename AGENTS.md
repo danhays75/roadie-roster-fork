@@ -93,10 +93,12 @@
 - Do not change the design, copy or anything not listed
 - Add a data migration if a fix needs one so live data upgrades safely
 - Report what changed for each of the nine and which tests passed or failed
-- Do not change which roles see contact info, edit groups, check people in or approve sign-ups
 - Report what changed for each item and which tests passed or failed
 - Keep everything in version 11 and change nothing else
 - Email is short and plain
+- Keep everything in version 12 and change nothing else
+- Only these four areas; do not change any other permission
+- Kitchen Manager and Service Manager have Store Manager access only for contact info, groups, check-ins and sign-ups
 
 ## Accepted Requirements
 
@@ -365,6 +367,12 @@
 - Admin > Opening Questions shows when the last daily email went out and to how many people
 - A 'Send me a test now' button sends the caller's own email immediately, Admin and Managing Partner only, marked as a test
 - Restore the Managing Partner check on the Ready for final tab of listQuestions
+- The daily email link is the full https://tlcroadieroster.com/opening-questions address
+- The daily email timer re-arms for the next day before the send runs, so a trapping send cannot stop the daily email
+- The daily email and the test email use the real current time for the store day and Finish-by, not the demo pretend date
+- Kitchen Manager and Service Manager get Store Manager access in exactly four areas: see contact info, edit groups, check people in, approve sign-ups, in backend and frontend
+- No other permission changes; the shared manager and group-editor helpers are not widened
+- Report what changed for each item and which tests passed or failed
 
 ## Verified Commands
 
@@ -374,12 +382,6 @@
 
 ## Learnings
 
-- listLeaders is readable by every non-kiosk, non-integration role, so the leader full page needs no extra role filter beyond the existing canLeaders guard.
-- Opening Questions owners must filter grants by non-expired accessEndsAt, not just isRealLeader, or expired managers still block Ready for final.
-- Opening Questions guards must use realRole-based helpers (requireRealOpeningQuestionsReader, requireRealAdminRights, isRealManagingPartner), never demo-aware Auth.isAdmin or requireReadable.
-- ownsOpeningQuestionArea in src/frontend/src/hooks/useAccess.ts is the per-question ownership rule: kitchenManager owns kitchen and both, serviceManager owns service and both, managingPartner owns dan.
-- oq.card.reopenToChange is the dedicated Final-lock message key; oq.card.finalLocked stays for the approval checkbox lock.
-- The backend refuses accepting a suggestion on a Final question but still allows declining one, so the frontend gates Accept alone on isFinal.
 - OpeningQuestions.tsx mounts useOpeningQuestionAlerts and useMyOpeningQuestionNudges and refetches both after a nudge; the nudge mutation invalidates both keys via OPENING_QUESTION_KEYS.
 - The card pop-up keeps router history state by spreading window.history.state on push and stripping only ?card on replaceState, so back from a full profile returns to the list.
 - Biome noUnusedVariables defaults ignoreRestSiblings true, so the rest-sibling destructure used to strip ?card passes lint.
@@ -399,3 +401,9 @@
 - api-doc.mo's getApiDoc literal must stay one line with every inner double quote escaped; a split literal fails M0001.
 - canAdmin already includes managingPartner via ADMIN_ROLES, so isAdmin gates the Admin > Opening Questions status line and test button for both roles.
 - DailyEmailStatus.lastSentAt is optional; check !== undefined to distinguish never-sent from a real timestamp.
+- The daily email timer in main.mo re-arms the next day's timer before awaiting runDailyEmail, so a trapping send cannot stop the daily email.
+- runDailyEmail and sendTestEmail use Time.now() for the store day and Finish-by, not nowOf/Clock.effectiveNow, so demo pretend dates cannot shift or repeat real emails.
+- The daily email link is the full https://tlcroadieroster.com/opening-questions address, produced once in lib/openingquestions.mo.
+- Kitchen/Service Manager four-area access uses dedicated helpers: backend Auth.roleHasFourAreaAccess/requireContactViewer/requireGroupEditorFourArea/requireCheckInManager/requireSignupApprover, frontend canSeeContactInfo/canEditShiftBoards/canManageCheckIns/canApproveSignups; isManager, requireManager, requireGroupEditor and the shared frontend role lists stay unwidened.
+- ManagerCheckInSection in Today.tsx mounts the shared CheckInBoard for Kitchen/Service Managers; it renders nothing when today has no shift summaries.
+- getCheckInBoard returns null when the caller has no group on the board, so a manager board only shows roadies in a group they train; the section still renders the shift picker.

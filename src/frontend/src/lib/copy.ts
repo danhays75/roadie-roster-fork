@@ -573,6 +573,10 @@ export const en: CopyDictionary = {
   "today.checkIn.state.none": "Not checked in",
   "today.checkIn.error": "We couldn't save that check-in.",
   "today.checkIn.readOnly": "You can view check-ins but not record them.",
+  "today.checkIn.managerTitle": "Check in · {shift}",
+  "today.checkIn.managerHint":
+    "Pick a shift to record who showed up. Present, Late or Absent per roadie.",
+  "today.checkIn.managerEmpty": "No shifts are scheduled for today.",
 
   "today.alerts.title": "Absent alerts",
   "today.alerts.empty": "No absent alerts right now.",
@@ -1661,6 +1665,10 @@ export const es: CopyDictionary = {
   "today.checkIn.state.none": "Sin registrar",
   "today.checkIn.error": "No pudimos guardar ese registro.",
   "today.checkIn.readOnly": "Puedes ver los registros pero no registrarlos.",
+  "today.checkIn.managerTitle": "Registro · {shift}",
+  "today.checkIn.managerHint":
+    "Elige un turno para registrar quién llegó. Presente, Tarde o Ausente por roadie.",
+  "today.checkIn.managerEmpty": "No hay turnos programados para hoy.",
 
   "today.alerts.title": "Alertas de ausencia",
   "today.alerts.empty": "No hay alertas de ausencia ahora mismo.",

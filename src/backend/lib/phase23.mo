@@ -1251,7 +1251,7 @@ module {
     caller : Principal,
     board : Phase23.ShiftBoard,
   ) : () {
-    Auth.requireGroupEditor(accessGrants, demoState, caller);
+    Auth.requireGroupEditorFourArea(accessGrants, demoState, caller);
     let demo = Auth.demoActive(demoState);
     // Archived roadies in the active partition are silently dropped from the
     // incoming board; a roadie that does not exist or belongs to the other
@@ -1300,7 +1300,7 @@ module {
     fromEventId : Common.EventId,
     fromShift : Common.Shift,
   ) : () {
-    Auth.requireGroupEditor(accessGrants, demoState, caller);
+    Auth.requireGroupEditorFourArea(accessGrants, demoState, caller);
     let demo = Auth.demoActive(demoState);
     let source = shiftBoards.get(boardKey(fromEventId, fromShift, demo)) ?? Runtime.trap("Source shift board not found");
     if (source.isDemo != demo) {
@@ -1350,7 +1350,7 @@ module {
     eventId : Common.EventId,
     shift : Common.Shift,
   ) : () {
-    Auth.requireGroupEditor(accessGrants, demoState, caller);
+    Auth.requireGroupEditorFourArea(accessGrants, demoState, caller);
     let demo = Auth.demoActive(demoState);
     let key = boardKey(eventId, shift, demo);
     // When no board is stored yet, start one whose trainer columns are every
@@ -1501,7 +1501,7 @@ module {
     eventId : Common.EventId,
     shift : Common.Shift,
   ) : () {
-    Auth.requireGroupEditor(accessGrants, demoState, caller);
+    Auth.requireGroupEditorFourArea(accessGrants, demoState, caller);
     let demo = Auth.demoActive(demoState);
     let key = boardKey(eventId, shift, demo);
     let previous = shiftBoards.get(key);
@@ -2022,7 +2022,7 @@ module {
   ) : Bool {
     switch (Auth.effectiveRole(accessGrants, demoState, caller)) {
       case (?role) {
-        if (Auth.roleHasAdminRights(role) or role == #storeManager or role == #trainingManager) {
+        if (Auth.roleHasFourAreaAccess(role) or role == #trainingManager) {
           true;
         } else if (role == #trainer) {
           let demo = Auth.demoActive(demoState);
@@ -2047,14 +2047,15 @@ module {
   };
 
   /// Internal: whether a caller may change check-in records outside the trainer
-  /// lock window (Admin, Store Manager or Training Manager).
+  /// lock window (Admin, Managing Partner, Store Manager, Training Manager,
+  /// Kitchen Manager or Service Manager).
   func isCheckInManager(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
     caller : Principal,
   ) : Bool {
     switch (Auth.effectiveRole(accessGrants, demoState, caller)) {
-      case (?role) { Auth.roleHasAdminRights(role) or role == #storeManager or role == #trainingManager };
+      case (?role) { Auth.roleHasFourAreaAccess(role) or role == #trainingManager };
       case null { false };
     };
   };

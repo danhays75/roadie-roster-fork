@@ -223,14 +223,18 @@ actor {
   // --- Daily Opening Questions email timer ---
   // Re-armed after every run and on every upgrade (the actor body runs on each
   // install and upgrade), so the daily 7:00 AM store-time send keeps firing.
-  // The run itself is idempotent per store-local day, so a late or repeated
-  // fire sends nothing more to anyone already emailed that day.
+  // The next day's timer is armed BEFORE the send runs, so a send that traps or
+  // fails can never stop the daily email. The run itself is idempotent per
+  // store-local day, so a late or repeated fire sends nothing more to anyone
+  // already emailed that day.
   func armDailyEmailTimer<system>() : () {
     let now = Time.now();
     let delayNs = Clock.nextDailyEmailTime(now, storeInfo.value.timeZone) - now;
     ignore Timer.setTimer<system>(
       #nanoseconds(delayNs.toNat()),
       func() : async () {
+        // Arm the next day's timer first, so a trapping send cannot stop it.
+        armDailyEmailTimer<system>();
         await OpeningQuestionsLib.runDailyEmail(
           accessGrants,
           demoState,
@@ -247,7 +251,6 @@ actor {
           counters,
           counters,
         );
-        armDailyEmailTimer<system>();
       },
     );
   };

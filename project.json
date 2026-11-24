@@ -1,18 +1,19 @@
 {
-  "overview": "A store hiring and onboarding app for restaurant teams, with roadie cards, paperwork, orientation, training groups and Opening Questions.",
+  "overview": "A hiring and orientation roster app for a store's roadie crew, with sign-ups, paperwork, training groups, check-ins and manager tools.",
   "features": [
-    "Daily Opening Questions email at 7:00 AM store time",
-    "Per-person counts of approvals, discussions, Ready for final and decisions due",
-    "Last send status and a Send me a test now button in Admin",
-    "Ready for final tab limited to the Managing Partner"
+    "Track roadies from sign-up through orientation and certification",
+    "Review and approve kiosk sign-ups",
+    "Build training groups and check people in",
+    "Daily email to managers with what needs their attention",
+    "Kitchen and Service Managers get manager access to contact info, groups, check-ins and sign-ups"
   ],
   "category": "team-management",
   "tags": [
+    "roster",
     "hiring",
-    "onboarding",
-    "restaurant",
-    "email",
-    "opening-questions"
+    "orientation",
+    "store-operations",
+    "internal-tool"
   ],
-  "last_updated": "2026-11-24T04:14:25.656Z"
+  "last_updated": "2026-11-24T04:34:05.562Z"
 }

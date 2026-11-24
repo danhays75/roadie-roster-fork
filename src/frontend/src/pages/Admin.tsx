@@ -1,3 +1,4 @@
+import { Role } from "@/backend";
 import { PageHeader } from "@/components/PageHeader";
 import { AccessPanel } from "@/components/admin/AccessPanel";
 import { ChecklistsPanel } from "@/components/admin/ChecklistsPanel";
@@ -7,7 +8,7 @@ import { PositionsPanel } from "@/components/admin/PositionsPanel";
 import { SchedulePanel } from "@/components/admin/SchedulePanel";
 import { StoreInfoPanel } from "@/components/admin/StoreInfoPanel";
 import { TemplatePanel } from "@/components/admin/TemplatePanel";
-import { APPROVAL_ROLES, useAccessState } from "@/hooks/useAccess";
+import { useAccessState } from "@/hooks/useAccess";
 import { useDemo } from "@/hooks/useDemo";
 import { useI18n } from "@/hooks/useI18n";
 import { usePositions } from "@/hooks/useQueries";
@@ -33,8 +34,13 @@ export default function AdminPage() {
   const positions = usePositions();
   const access = useAccessState();
   const viewerRole = access.kind === "granted" ? access.grant.role : undefined;
-  // The Crews tab is visible to Admin and Store Manager only.
-  const canSeeCrews = !!viewerRole && APPROVAL_ROLES.includes(viewerRole);
+  // The Crews tab is visible to Admin, Managing Partner and Store Manager only.
+  // This is a dedicated crew list, not the sign-up approver list, so the
+  // Kitchen and Service Managers do not gain it.
+  const canSeeCrews =
+    viewerRole === Role.admin ||
+    viewerRole === Role.managingPartner ||
+    viewerRole === Role.storeManager;
 
   // Seed the store once when it has no positions yet so the admin page shows
   // the seeded positions, schedule, store info, checklists and retention.

@@ -320,15 +320,108 @@ module {
     };
   };
 
-  /// True when the caller may read the contact set (Admin or Store Manager).
-  /// While demo mode is on, the caller's own impersonated demo role is
-  /// consulted, so a demo Trainer really cannot see contact info.
+  /// True when a role may see contact info, edit groups, check people in and
+  /// approve sign-ups: Admin, Managing Partner, Store Manager, Kitchen Manager
+  /// or Service Manager. This is the four-area access set only; it never widens
+  /// any other manager or group-editor action.
+  public func roleHasFourAreaAccess(role : Common.Role) : Bool {
+    roleHasAdminRights(role)
+      or role == #storeManager
+      or role == #kitchenManager
+      or role == #serviceManager;
+  };
+
+  /// True when the caller may see contact info (Admin, Managing Partner, Store
+  /// Manager, Kitchen Manager or Service Manager). While demo mode is on, the
+  /// caller's own impersonated demo role is consulted, so a demo Trainer really
+  /// cannot see contact info.
   public func canSeeContactSet(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
     caller : Principal,
   ) : Bool {
-    isManager(accessGrants, demoState, caller);
+    switch (effectiveRole(accessGrants, demoState, caller)) {
+      case (?role) { roleHasFourAreaAccess(role) };
+      case null { false };
+    };
+  };
+
+  /// Require a caller who may see contact info (Admin, Managing Partner, Store
+  /// Manager, Kitchen Manager or Service Manager); trap otherwise. While demo
+  /// mode is on, the caller's own impersonated demo role is consulted.
+  public func requireContactViewer(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : () {
+    if (not canSeeContactSet(accessGrants, demoState, caller)) {
+      Runtime.trap("Access denied: Admin, Store Manager, Kitchen Manager or Service Manager role required");
+    };
+  };
+
+  /// Require a caller who may edit shift boards and groups (Admin, Managing
+  /// Partner, Store Manager, Training Manager, Kitchen Manager or Service
+  /// Manager); trap otherwise. While demo mode is on, the caller's own
+  /// impersonated demo role is consulted. Real boards are additionally blocked
+  /// by the demo real-settings guard at the call site; demo boards stay
+  /// editable in demo.
+  public func requireGroupEditorFourArea(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : () {
+    switch (effectiveRole(accessGrants, demoState, caller)) {
+      case (?role) {
+        if (not roleHasFourAreaAccess(role) and role != #trainingManager) {
+          Runtime.trap("Access denied: Admin, Store Manager, Training Manager, Kitchen Manager or Service Manager role required");
+        };
+      };
+      case null {
+        Runtime.trap("Access denied: Admin, Store Manager, Training Manager, Kitchen Manager or Service Manager role required");
+      };
+    };
+  };
+
+  /// Require a caller who may check people in and change check-ins (Admin,
+  /// Managing Partner, Store Manager, Training Manager, Kitchen Manager or
+  /// Service Manager); trap otherwise. While demo mode is on, the caller's own
+  /// impersonated demo role is consulted.
+  public func requireCheckInManager(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : () {
+    switch (effectiveRole(accessGrants, demoState, caller)) {
+      case (?role) {
+        if (not roleHasFourAreaAccess(role) and role != #trainingManager) {
+          Runtime.trap("Access denied: Admin, Store Manager, Training Manager, Kitchen Manager or Service Manager role required");
+        };
+      };
+      case null {
+        Runtime.trap("Access denied: Admin, Store Manager, Training Manager, Kitchen Manager or Service Manager role required");
+      };
+    };
+  };
+
+  /// Require a caller who may open the approvals queue and approve or reject
+  /// kiosk sign-ups (Admin, Managing Partner, Store Manager, Kitchen Manager or
+  /// Service Manager); trap otherwise. While demo mode is on, the caller's own
+  /// impersonated demo role is consulted.
+  public func requireSignupApprover(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : () {
+    switch (effectiveRole(accessGrants, demoState, caller)) {
+      case (?role) {
+        if (not roleHasFourAreaAccess(role)) {
+          Runtime.trap("Access denied: Admin, Store Manager, Kitchen Manager or Service Manager role required");
+        };
+      };
+      case null {
+        Runtime.trap("Access denied: Admin, Store Manager, Kitchen Manager or Service Manager role required");
+      };
+    };
   };
 
   /// True when the caller is a Kiosk login (reads are rejected). While demo

@@ -1,12 +1,11 @@
-import type { AbsentAlertView } from "@/backend";
-import { Role } from "@/backend";
+import type { AbsentAlertView, Role } from "@/backend";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { ArchiveAlertDialog } from "@/components/alerts/ArchiveAlertDialog";
 import { ExcuseAlertDialog } from "@/components/alerts/ExcuseAlertDialog";
 import { MoveAlertDialog } from "@/components/alerts/MoveAlertDialog";
 import { RoadiePhoto } from "@/components/roadie/RoadiePhoto";
 import { Button } from "@/components/ui/button";
-import { canSeeAbsentAlerts } from "@/hooks/useAccess";
+import { canSeeAbsentAlerts, canSeeContactInfo } from "@/hooks/useAccess";
 import { useI18n } from "@/hooks/useI18n";
 import { useAbsentAlerts } from "@/hooks/useQueries";
 import { formatTimestamp } from "@/lib/format";
@@ -20,12 +19,9 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-/** Roles that may call or text an absent roadie's contact phone. */
-const CONTACT_ROLES: Role[] = [Role.admin, Role.storeManager];
-
 /** Whether the given role may see the Call and Text contact actions. */
 function canContact(role: Role | undefined): boolean {
-  return !!role && CONTACT_ROLES.includes(role);
+  return canSeeContactInfo(role);
 }
 
 /** One absent roadie: photo, name, shift, contact links and alert actions. */

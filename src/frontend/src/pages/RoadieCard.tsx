@@ -1,4 +1,3 @@
-import { Role } from "@/backend";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { FlipCard } from "@/components/roadie/FlipCard";
@@ -7,19 +6,17 @@ import { RoadieActions } from "@/components/roadie/RoadieActions";
 import { RoadieStageBadge } from "@/components/roadie/RoadieTile";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { canArchive, canEditRoadie, useAccessState } from "@/hooks/useAccess";
+import {
+  canArchive,
+  canEditRoadie,
+  canSeeContactInfo,
+  useAccessState,
+} from "@/hooks/useAccess";
 import { useI18n } from "@/hooks/useI18n";
 import { useCrews, usePositions, useRoadie } from "@/hooks/useQueries";
 import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Component, type ReactNode } from "react";
-
-/** Roles allowed to see the manager-only tab. */
-const MANAGER_ROLES: Role[] = [
-  Role.admin,
-  Role.managingPartner,
-  Role.storeManager,
-];
 
 /**
  * Parse a route param into a roadie id. Only a non-empty run of digits is a
@@ -65,7 +62,7 @@ function RoadieCardContent() {
   const access = useAccessState();
   const role = access.kind === "granted" ? access.grant.role : undefined;
 
-  const isManager = role !== undefined && MANAGER_ROLES.includes(role);
+  const isManager = canSeeContactInfo(role);
   const mayEdit = canEditRoadie(role);
   const mayArchive = canArchive(role);
 

@@ -177,6 +177,61 @@ export const ABSENT_ALERT_ROLES: Role[] = [
 ];
 
 /**
+ * Roles allowed to see a roadie's contact info (work phone, email, contact
+ * set): Admin, Managing Partner, Store Manager, plus the Kitchen Manager and
+ * Service Manager, who carry this area. Dedicated to contact visibility so the
+ * other role lists keep today's roles.
+ */
+export const CONTACT_INFO_ROLES: Role[] = [
+  ...ADMIN_ROLES,
+  Role.storeManager,
+  Role.kitchenManager,
+  Role.serviceManager,
+];
+
+/**
+ * Roles allowed to edit a shift board or group: Admin, Managing Partner, Store
+ * Manager, Training Manager, plus the Kitchen Manager and Service Manager, who
+ * carry this area. Dedicated to board editing so GROUP_EDITOR_ROLES keeps
+ * today's roles for every other action it gates.
+ */
+export const SHIFT_BOARD_EDITOR_ROLES: Role[] = [
+  ...ADMIN_ROLES,
+  Role.storeManager,
+  Role.trainingManager,
+  Role.kitchenManager,
+  Role.serviceManager,
+];
+
+/**
+ * Roles allowed to record and change check-ins: Admin, Managing Partner, Store
+ * Manager, Training Manager, NSO Trainer, plus the Kitchen Manager and Service
+ * Manager, who carry this area. Dedicated to check-ins so CHECK_IN_ROLES keeps
+ * today's roles for every other action it gates.
+ */
+export const CHECK_IN_MANAGER_ROLES: Role[] = [
+  ...ADMIN_ROLES,
+  Role.storeManager,
+  Role.trainingManager,
+  Role.trainer,
+  Role.kitchenManager,
+  Role.serviceManager,
+];
+
+/**
+ * Roles allowed to open the approvals queue and approve or reject kiosk
+ * sign-ups: Admin, Managing Partner, Store Manager, plus the Kitchen Manager
+ * and Service Manager, who carry this area. Dedicated to sign-up approval so
+ * APPROVAL_ROLES keeps today's roles for every other action it gates.
+ */
+export const SIGNUP_APPROVER_ROLES: Role[] = [
+  ...ADMIN_ROLES,
+  Role.storeManager,
+  Role.kitchenManager,
+  Role.serviceManager,
+];
+
+/**
  * Roles that see the Today screen read-only: they may read the day's summary
  * but cannot record a check-in. Every role that can reach Today but is not a
  * check-in role is read-only.
@@ -515,6 +570,42 @@ export function canCheckIn(role: Role | undefined): boolean {
 /** Whether the given role may see the absent alerts list. */
 export function canSeeAbsentAlerts(role: Role | undefined): boolean {
   return !!role && ABSENT_ALERT_ROLES.includes(role);
+}
+
+/**
+ * Whether the given role may see a roadie's contact info (work phone, email,
+ * contact set). Admin, Managing Partner and Store Manager keep it, and the
+ * Kitchen Manager and Service Manager carry this area.
+ */
+export function canSeeContactInfo(role: Role | undefined): boolean {
+  return !!role && CONTACT_INFO_ROLES.includes(role);
+}
+
+/**
+ * Whether the given role may edit a shift board or group. Admin, Managing
+ * Partner, Store Manager and Training Manager keep it, and the Kitchen Manager
+ * and Service Manager carry this area.
+ */
+export function canEditShiftBoards(role: Role | undefined): boolean {
+  return !!role && SHIFT_BOARD_EDITOR_ROLES.includes(role);
+}
+
+/**
+ * Whether the given role may record and change check-ins. Admin, Managing
+ * Partner, Store Manager, Training Manager and NSO Trainer keep it, and the
+ * Kitchen Manager and Service Manager carry this area.
+ */
+export function canManageCheckIns(role: Role | undefined): boolean {
+  return !!role && CHECK_IN_MANAGER_ROLES.includes(role);
+}
+
+/**
+ * Whether the given role may open the approvals queue and approve or reject
+ * kiosk sign-ups. Admin, Managing Partner and Store Manager keep it, and the
+ * Kitchen Manager and Service Manager carry this area.
+ */
+export function canApproveSignups(role: Role | undefined): boolean {
+  return !!role && SIGNUP_APPROVER_ROLES.includes(role);
 }
 
 /** Whether the given role sees the Today screen read-only. */

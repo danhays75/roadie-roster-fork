@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAccessState } from "@/hooks/useAccess";
+import { canSeeContactInfo, useAccessState } from "@/hooks/useAccess";
 import { useI18n } from "@/hooks/useI18n";
 import {
   useApproveUser,
@@ -42,9 +42,6 @@ import { useMemo, useState } from "react";
 
 /** Roles whose profile carries trainer stations and travel dates. */
 const TRAVEL_ROLES: Role[] = [Role.trainer, Role.visitingManager];
-
-/** Roles allowed to see a staff member's work phone and email. */
-const CONTACT_ROLES: Role[] = [Role.admin, Role.storeManager];
 
 /** A `YYYY-MM-DD` value for a date input, read in UTC. */
 function dateOnlyToInput(value: bigint | undefined): string {
@@ -173,7 +170,7 @@ export function PendingApprovalCard({ user }: { user: PendingUser }) {
   const { t } = useI18n();
   const access = useAccessState();
   const viewerRole = access.kind === "granted" ? access.grant.role : undefined;
-  const canSeeContact = !!viewerRole && CONTACT_ROLES.includes(viewerRole);
+  const canSeeContact = canSeeContactInfo(viewerRole);
   const isAdmin = viewerRole === Role.admin;
 
   const { data: positions } = usePositions();

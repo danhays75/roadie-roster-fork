@@ -72,7 +72,7 @@ module {
     signups : Map.Map<Common.SignupId, Signup.SignupSubmission>,
     caller : Principal,
   ) : [Signup.SignupSubmission] {
-    Auth.requireManager(accessGrants, demoState, caller);
+    Auth.requireSignupApprover(accessGrants, demoState, caller);
     signups.values()
       .filter(func(s) = s.isDemo == Auth.demoActive(demoState) and s.status == #pending)
       .map(func(s) = { s with photo = null })
@@ -87,7 +87,7 @@ module {
     caller : Principal,
     id : Common.SignupId,
   ) : ?Signup.SignupSubmission {
-    Auth.requireManager(accessGrants, demoState, caller);
+    Auth.requireSignupApprover(accessGrants, demoState, caller);
     switch (signups.get(id)) {
       case (?s) {
         if (s.isDemo != Auth.demoActive(demoState)) {
@@ -108,7 +108,7 @@ module {
     caller : Principal,
     id : Common.SignupId,
   ) : ?Common.PhotoRef {
-    Auth.requireManager(accessGrants, demoState, caller);
+    Auth.requireSignupApprover(accessGrants, demoState, caller);
     switch (signups.get(id)) {
       case (?s) {
         if (s.isDemo != Auth.demoActive(demoState)) {
@@ -132,7 +132,7 @@ module {
     caller : Principal,
     id : Common.SignupId,
   ) : [Signup.DuplicateMatch] {
-    Auth.requireManager(accessGrants, demoState, caller);
+    Auth.requireSignupApprover(accessGrants, demoState, caller);
     let submission = signups.get(id) ?? Runtime.trap("Signup not found");
     if (submission.isDemo != Auth.demoActive(demoState)) {
       Runtime.trap("Signup not found");
@@ -194,7 +194,7 @@ module {
     decision : Signup.ApprovalDecision,
     signature : Common.SignatureRef,
   ) : Common.RoadieId {
-    Auth.requireManager(accessGrants, demoState, caller);
+    Auth.requireSignupApprover(accessGrants, demoState, caller);
     let submission = signups.get(id) ?? Runtime.trap("Signup not found");
     if (submission.isDemo != Auth.demoActive(demoState)) {
       Runtime.trap("Signup not found");
@@ -284,7 +284,7 @@ module {
     caller : Principal,
     id : Common.SignupId,
   ) : () {
-    Auth.requireManager(accessGrants, demoState, caller);
+    Auth.requireSignupApprover(accessGrants, demoState, caller);
     let submission = signups.get(id) ?? Runtime.trap("Signup not found");
     if (submission.isDemo != Auth.demoActive(demoState)) {
       Runtime.trap("Signup not found");

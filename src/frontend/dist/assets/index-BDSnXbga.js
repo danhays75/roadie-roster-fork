@@ -51046,18 +51046,12 @@ var GROUPS_ROLES = [
 	Role.visitingManager,
 	Role.leadership
 ];
-/** Roles allowed to edit a shift board (Admin, Managing Partner, Store Manager, Training Manager). */
-var GROUP_EDITOR_ROLES = [
+[
 	...ADMIN_ROLES,
 	Role.storeManager,
 	Role.trainingManager
 ];
-/**
-* Roles allowed to record a check-in on the trainer check-in board: the roles
-* that may write a check-in on the backend (Admin, Managing Partner, Store
-* Manager, Training Manager, NSO Trainer).
-*/
-var CHECK_IN_ROLES = [
+[
 	...ADMIN_ROLES,
 	Role.storeManager,
 	Role.trainingManager,
@@ -51073,6 +51067,57 @@ var ABSENT_ALERT_ROLES = [
 	Role.storeManager,
 	Role.trainingManager,
 	Role.visitingManager
+];
+/**
+* Roles allowed to see a roadie's contact info (work phone, email, contact
+* set): Admin, Managing Partner, Store Manager, plus the Kitchen Manager and
+* Service Manager, who carry this area. Dedicated to contact visibility so the
+* other role lists keep today's roles.
+*/
+var CONTACT_INFO_ROLES = [
+	...ADMIN_ROLES,
+	Role.storeManager,
+	Role.kitchenManager,
+	Role.serviceManager
+];
+/**
+* Roles allowed to edit a shift board or group: Admin, Managing Partner, Store
+* Manager, Training Manager, plus the Kitchen Manager and Service Manager, who
+* carry this area. Dedicated to board editing so GROUP_EDITOR_ROLES keeps
+* today's roles for every other action it gates.
+*/
+var SHIFT_BOARD_EDITOR_ROLES = [
+	...ADMIN_ROLES,
+	Role.storeManager,
+	Role.trainingManager,
+	Role.kitchenManager,
+	Role.serviceManager
+];
+/**
+* Roles allowed to record and change check-ins: Admin, Managing Partner, Store
+* Manager, Training Manager, NSO Trainer, plus the Kitchen Manager and Service
+* Manager, who carry this area. Dedicated to check-ins so CHECK_IN_ROLES keeps
+* today's roles for every other action it gates.
+*/
+var CHECK_IN_MANAGER_ROLES = [
+	...ADMIN_ROLES,
+	Role.storeManager,
+	Role.trainingManager,
+	Role.trainer,
+	Role.kitchenManager,
+	Role.serviceManager
+];
+/**
+* Roles allowed to open the approvals queue and approve or reject kiosk
+* sign-ups: Admin, Managing Partner, Store Manager, plus the Kitchen Manager
+* and Service Manager, who carry this area. Dedicated to sign-up approval so
+* APPROVAL_ROLES keeps today's roles for every other action it gates.
+*/
+var SIGNUP_APPROVER_ROLES = [
+	...ADMIN_ROLES,
+	Role.storeManager,
+	Role.kitchenManager,
+	Role.serviceManager
 ];
 /**
 * Roles that see the Today screen read-only: they may read the day's summary
@@ -51290,10 +51335,6 @@ function canArchive(role) {
 function canAdmin(role) {
 	return isAdminRole(role);
 }
-/** Whether the given role may open the approvals queue. */
-function canApprove(role) {
-	return !!role && APPROVAL_ROLES.includes(role);
-}
 /** Whether the given role may open the export surface. */
 function canExport(role) {
 	return !!role && EXPORT_ROLES.includes(role);
@@ -51325,10 +51366,6 @@ function canLeaders(role) {
 /** Whether the given role may view the Groups shift boards. */
 function canGroups(role) {
 	return !!role && GROUPS_ROLES.includes(role);
-}
-/** Whether the given role may edit a shift board. */
-function canEditGroups(role) {
-	return !!role && GROUP_EDITOR_ROLES.includes(role);
 }
 /** Whether the given role may open the Orientation check-in surface. */
 function canOrientation(role) {
@@ -51380,13 +51417,41 @@ function canUniforms(role) {
 function canEditUniforms(role) {
 	return !!role && UNIFORM_EDITOR_ROLES.includes(role);
 }
-/** Whether the given role may record a check-in on the Today board. */
-function canCheckIn(role) {
-	return !!role && CHECK_IN_ROLES.includes(role);
-}
 /** Whether the given role may see the absent alerts list. */
 function canSeeAbsentAlerts(role) {
 	return !!role && ABSENT_ALERT_ROLES.includes(role);
+}
+/**
+* Whether the given role may see a roadie's contact info (work phone, email,
+* contact set). Admin, Managing Partner and Store Manager keep it, and the
+* Kitchen Manager and Service Manager carry this area.
+*/
+function canSeeContactInfo(role) {
+	return !!role && CONTACT_INFO_ROLES.includes(role);
+}
+/**
+* Whether the given role may edit a shift board or group. Admin, Managing
+* Partner, Store Manager and Training Manager keep it, and the Kitchen Manager
+* and Service Manager carry this area.
+*/
+function canEditShiftBoards(role) {
+	return !!role && SHIFT_BOARD_EDITOR_ROLES.includes(role);
+}
+/**
+* Whether the given role may record and change check-ins. Admin, Managing
+* Partner, Store Manager, Training Manager and NSO Trainer keep it, and the
+* Kitchen Manager and Service Manager carry this area.
+*/
+function canManageCheckIns(role) {
+	return !!role && CHECK_IN_MANAGER_ROLES.includes(role);
+}
+/**
+* Whether the given role may open the approvals queue and approve or reject
+* kiosk sign-ups. Admin, Managing Partner and Store Manager keep it, and the
+* Kitchen Manager and Service Manager carry this area.
+*/
+function canApproveSignups(role) {
+	return !!role && SIGNUP_APPROVER_ROLES.includes(role);
 }
 /** Whether the given role sees the Today screen read-only. */
 function isTodayReadOnly(role) {
@@ -51989,6 +52054,9 @@ var dictionaries = {
 		"today.checkIn.state.none": "Not checked in",
 		"today.checkIn.error": "We couldn't save that check-in.",
 		"today.checkIn.readOnly": "You can view check-ins but not record them.",
+		"today.checkIn.managerTitle": "Check in · {shift}",
+		"today.checkIn.managerHint": "Pick a shift to record who showed up. Present, Late or Absent per roadie.",
+		"today.checkIn.managerEmpty": "No shifts are scheduled for today.",
 		"today.alerts.title": "Absent alerts",
 		"today.alerts.empty": "No absent alerts right now.",
 		"today.alerts.photoAlt": "Roadie photo",
@@ -52993,6 +53061,9 @@ var dictionaries = {
 		"today.checkIn.state.none": "Sin registrar",
 		"today.checkIn.error": "No pudimos guardar ese registro.",
 		"today.checkIn.readOnly": "Puedes ver los registros pero no registrarlos.",
+		"today.checkIn.managerTitle": "Registro · {shift}",
+		"today.checkIn.managerHint": "Elige un turno para registrar quién llegó. Presente, Tarde o Ausente por roadie.",
+		"today.checkIn.managerEmpty": "No hay turnos programados para hoy.",
 		"today.alerts.title": "Alertas de ausencia",
 		"today.alerts.empty": "No hay alertas de ausencia ahora mismo.",
 		"today.alerts.photoAlt": "Foto del roadie",
@@ -61306,7 +61377,7 @@ function AccessPanel() {
 	const demo = useDemo();
 	const viewerRole = access.kind === "granted" ? access.grant.role : void 0;
 	const isAdmin = viewerRole === Role.admin;
-	const canSeeContact = viewerRole === Role.admin || viewerRole === Role.storeManager;
+	const canSeeContact = canSeeContactInfo(viewerRole);
 	const grants = useAccessGrants();
 	const adminCount = useAdminCount();
 	const { data: storeInfo } = useStoreInfo();
@@ -100793,7 +100864,7 @@ function AdminPage() {
 	const positions = usePositions();
 	const access = useAccessState();
 	const viewerRole = access.kind === "granted" ? access.grant.role : void 0;
-	const canSeeCrews = !!viewerRole && APPROVAL_ROLES.includes(viewerRole);
+	const canSeeCrews = viewerRole === Role.admin || viewerRole === Role.managingPartner || viewerRole === Role.storeManager;
 	useSeedWhenEmpty(positions.isSuccess, (positions.data?.length ?? 0) === 0);
 	const realSettingsTabs = [
 		"positions",
@@ -101195,8 +101266,6 @@ function ApprovalRoleSelect({ id, value, onChange }) {
 //#region src/components/approvals/PendingApprovalCard.tsx
 /** Roles whose profile carries trainer stations and travel dates. */
 var TRAVEL_ROLES = [Role.trainer, Role.visitingManager];
-/** Roles allowed to see a staff member's work phone and email. */
-var CONTACT_ROLES$1 = [Role.admin, Role.storeManager];
 /** A `YYYY-MM-DD` value for a date input, read in UTC. */
 function dateOnlyToInput(value) {
 	if (value === void 0) return "";
@@ -101297,7 +101366,7 @@ function PendingApprovalCard({ user }) {
 	const { t } = useI18n();
 	const access = useAccessState();
 	const viewerRole = access.kind === "granted" ? access.grant.role : void 0;
-	const canSeeContact = !!viewerRole && CONTACT_ROLES$1.includes(viewerRole);
+	const canSeeContact = canSeeContactInfo(viewerRole);
 	const isAdmin = viewerRole === Role.admin;
 	const { data: positions } = usePositions();
 	const { data: roadies } = useRoadies();
@@ -102725,8 +102794,8 @@ var __vitePreload = function preload(baseModule, deps, importerUrl) {
 };
 //#endregion
 //#region src/pages/Dashboard.tsx
-var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-Bdc7KAYt.js").then((m) => ({ default: m.KpiTiles })), []));
-var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-Bnp1EMwv.js").then((m) => ({ default: m.OpeningTimelineView })), []));
+var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-CPlYc0rL.js").then((m) => ({ default: m.KpiTiles })), []));
+var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-BXUU9sdm.js").then((m) => ({ default: m.OpeningTimelineView })), []));
 var KPI_SKELETON_TILES = [
 	"hired",
 	"needed",
@@ -105697,7 +105766,7 @@ function GroupsPage() {
 	const access = useAccessState();
 	const role = access.kind === "granted" ? access.grant.role : void 0;
 	const canView = !!role;
-	const editable = canEditGroups(role);
+	const editable = canEditShiftBoards(role);
 	const isMobile = useIsMobile(BOARD_BREAKPOINT);
 	const demo = useDemo();
 	const schedule = useSchedule();
@@ -114998,12 +115067,6 @@ function TabsContent({ className, ...props }) {
 }
 //#endregion
 //#region src/pages/RoadieCard.tsx
-/** Roles allowed to see the manager-only tab. */
-var MANAGER_ROLES = [
-	Role.admin,
-	Role.managingPartner,
-	Role.storeManager
-];
 /**
 * Parse a route param into a roadie id. Only a non-empty run of digits is a
 * valid id; anything else (a slug, a negative number, an empty segment) is
@@ -115040,7 +115103,7 @@ function RoadieCardContent() {
 	const { data: crews } = useCrews();
 	const access = useAccessState();
 	const role = access.kind === "granted" ? access.grant.role : void 0;
-	const isManager = role !== void 0 && MANAGER_ROLES.includes(role);
+	const isManager = canSeeContactInfo(role);
 	const mayEdit = canEditRoadie(role);
 	const mayArchive = canArchive(role);
 	const positionList = positions ?? [];
@@ -115734,11 +115797,9 @@ function MoveAlertDialog({ alertId, name, open, onOpenChange }) {
 }
 //#endregion
 //#region src/components/alerts/AbsentAlertsList.tsx
-/** Roles that may call or text an absent roadie's contact phone. */
-var CONTACT_ROLES = [Role.admin, Role.storeManager];
 /** Whether the given role may see the Call and Text contact actions. */
 function canContact(role) {
-	return !!role && CONTACT_ROLES.includes(role);
+	return canSeeContactInfo(role);
 }
 /** One absent roadie: photo, name, shift, contact links and alert actions. */
 function AbsentAlertCard({ alert, index, role }) {
@@ -117373,12 +117434,67 @@ function ShiftAttendanceRow({ summary, index }) {
 	});
 }
 /**
+* The check-in board for a manager who may record check-ins but does not train
+* a group: a shift picker over today's shifts and the shared CheckInBoard for
+* the chosen shift, so a Kitchen Manager or Service Manager can record who
+* showed up. Renders nothing when today has no shift to check in.
+*/
+function ManagerCheckInSection({ summaries }) {
+	const { t } = useDashboardCopy();
+	const [selectedKey, setSelectedKey] = (0, import_react.useState)(null);
+	const selected = (0, import_react.useMemo)(() => {
+		if (summaries.length === 0) return void 0;
+		return summaries.find((summary) => `${summary.eventId.toString()}-${summary.shift}` === selectedKey) ?? summaries[0];
+	}, [summaries, selectedKey]);
+	if (!selected) return null;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "space-y-4",
+		"data-ocid": "today.managerCheckIn.section",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "min-w-0",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					className: "font-display text-xl font-bold uppercase tracking-wide text-foreground",
+					children: t("today.checkIn.managerTitle", { shift: selected.shiftLabel })
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mt-1 text-sm text-muted-foreground",
+					children: t("today.checkIn.managerHint")
+				})]
+			}),
+			summaries.length > 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "flex flex-wrap gap-2",
+				"data-ocid": "today.managerCheckIn.shiftPicker",
+				children: summaries.map((summary) => {
+					const key = `${summary.eventId.toString()}-${summary.shift}`;
+					const active = key === `${selected.eventId.toString()}-${selected.shift}`;
+					return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						type: "button",
+						variant: active ? "default" : "outline",
+						className: "touch-target",
+						"aria-pressed": active,
+						"data-ocid": `today.managerCheckIn.shift.${summary.shift}`,
+						onClick: () => setSelectedKey(key),
+						children: summary.shiftLabel
+					}, key);
+				})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckInBoard, {
+				eventId: selected.eventId,
+				shift: selected.shift,
+				shiftLabel: selected.shiftLabel
+			})
+		]
+	});
+}
+/**
 * The manager-facing Today content: the caller's own crew (when they own one)
 * first, then the absent alerts list, then today's shifts with an "x / y
 * checked in" count per shift, each tappable to open that shift's check-in
-* board on the Groups page.
+* board on the Groups page. A manager who may record check-ins but does not
+* train a group (Kitchen Manager, Service Manager) also gets a check-in board
+* for today's shifts, so they can record who showed up.
 */
-function ManagerToday({ role }) {
+function ManagerToday({ role, mayCheckIn }) {
 	const { t } = useDashboardCopy();
 	const { data: today, isLoading, isError, refetch } = useToday();
 	const summaries = today?.shiftSummaries ?? [];
@@ -117388,6 +117504,7 @@ function ManagerToday({ role }) {
 		/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReadyForFinalAlertCard, {}),
 		/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MyCrewSection, {}),
 		/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AbsentAlertsList, { role }),
+		mayCheckIn && !isLoading && !isError && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ManagerCheckInSection, { summaries }),
 		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 			className: "space-y-4",
 			"data-ocid": "today.shifts.section",
@@ -117483,7 +117600,7 @@ function TodayPage() {
 	const access = useAccessState();
 	const role = access.kind === "granted" ? access.grant.role : void 0;
 	const isTrainer = role === Role.trainer;
-	const mayCheckIn = canCheckIn(role);
+	const mayCheckIn = canManageCheckIns(role);
 	const maySeeManager = canSeeManagerToday(role);
 	const readOnly = isTodayReadOnly(role);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -117495,7 +117612,10 @@ function TodayPage() {
 				subtitle: t("app.tagline")
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PracticeRunCard, {}),
-			isTrainer ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrainerToday, { mayCheckIn }) : maySeeManager ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ManagerToday, { role }) : readOnly ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReadOnlyToday, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+			isTrainer ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrainerToday, { mayCheckIn }) : maySeeManager ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ManagerToday, {
+				role,
+				mayCheckIn
+			}) : readOnly ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReadOnlyToday, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				"data-ocid": "today.placeholder",
 				className: "rounded-lg border border-dashed border-border bg-card p-8 text-center",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
@@ -117710,7 +117830,7 @@ function GuardedAdmin() {
 function GuardedApprovals() {
 	const role = useRole();
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RouteGuard, {
-		allowed: canApprove(role),
+		allowed: canApproveSignups(role),
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ApprovalsPage, {})
 	});
 }

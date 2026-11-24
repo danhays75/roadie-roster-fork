@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAccessState } from "@/hooks/useAccess";
+import { canSeeContactInfo, useAccessState } from "@/hooks/useAccess";
 import { useDemo } from "@/hooks/useDemo";
 import { useI18n } from "@/hooks/useI18n";
 import {
@@ -586,8 +586,7 @@ export function AccessPanel() {
   const demo = useDemo();
   const viewerRole = access.kind === "granted" ? access.grant.role : undefined;
   const isAdmin = viewerRole === Role.admin;
-  const canSeeContact =
-    viewerRole === Role.admin || viewerRole === Role.storeManager;
+  const canSeeContact = canSeeContactInfo(viewerRole);
   const grants = useAccessGrants();
   const adminCount = useAdminCount();
   const { data: storeInfo } = useStoreInfo();
