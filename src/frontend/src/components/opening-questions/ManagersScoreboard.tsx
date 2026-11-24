@@ -16,6 +16,11 @@ import { useMemo } from "react";
  * still has questions needing approval carries a Nudge button. A manager who
  * was already nudged on the current store-local day shows "Nudged today" and
  * cannot be nudged again; the backend enforces the same rule.
+ *
+ * `nudgeTargets` is the set of principals the backend would accept a nudge for
+ * right now (owners with at least one non-Final question they own by area and
+ * have not approved). A row outside that set shows no Nudge button, so the
+ * button never appears for a target the backend would refuse.
  */
 export function ManagersScoreboard({
   rows,
@@ -24,6 +29,7 @@ export function ManagersScoreboard({
   onSelect,
   onClear,
   canNudge = false,
+  nudgeTargets,
   changeLog,
   onNudge,
   nudgingPrincipal,
@@ -35,6 +41,7 @@ export function ManagersScoreboard({
   onSelect: (row: ManagerScoreRow) => void;
   onClear: () => void;
   canNudge?: boolean;
+  nudgeTargets?: Set<string>;
   changeLog?: ChangeLogEntry[];
   onNudge?: (row: ManagerScoreRow) => void;
   nudgingPrincipal?: string | null;
@@ -110,7 +117,10 @@ export function ManagersScoreboard({
           {rows.map((row, index) => {
             const key = row.principal.toText();
             const active = key === activePrincipal;
-            const needsNudge = canNudge && row.pendingCount > 0n;
+            const needsNudge =
+              canNudge &&
+              row.pendingCount > 0n &&
+              (nudgeTargets === undefined || nudgeTargets.has(key));
             const wasNudged = needsNudge && nudgedToday.has(row.displayName);
             const isNudging = nudgingPrincipal === key;
             const nudgeFailed = nudgeErrorPrincipal === key;

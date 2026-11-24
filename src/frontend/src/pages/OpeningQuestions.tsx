@@ -4,9 +4,10 @@ import type {
   QuestionFilter,
   QuestionId,
   QuestionView,
+  Role,
   SuggestionId,
 } from "@/backend";
-import { QuestionTab } from "@/backend";
+import { QuestionTab, SuggestionState } from "@/backend";
 import { PageHeader } from "@/components/PageHeader";
 import {
   ActiveOwnerFilter,
@@ -43,6 +44,7 @@ import {
   canOpeningQuestions,
   isAdminRole,
   isOpeningQuestionsOwner,
+  ownsOpeningQuestionArea,
   useAccessState,
 } from "@/hooks/useAccess";
 import { useDemo } from "@/hooks/useDemo";
@@ -55,7 +57,9 @@ import {
   useLeaders,
   useMarkOpeningQuestionFinal,
   useMarkOpeningQuestionsFinal,
+  useMyOpeningQuestionNudges,
   useMyPendingOpeningQuestionApprovals,
+  useOpeningQuestionAlerts,
   useOpeningQuestionFinishBy,
   useOpeningQuestionManagerScoreboard,
   useOpeningQuestions,
@@ -76,7 +80,6 @@ import {
   areaLabelKey,
   discussionTimeLeft,
   finishByBannerText,
-  isDiscussionOpen,
   nextPendingQuestion,
   tabLabelKey,
   visibleQuestionTabs,
@@ -149,6 +152,9 @@ export default function OpeningQuestionsPage() {
   const role = grant?.role;
   const isAdmin = isAdminRole(role);
   const isOwner = isOpeningQuestionsOwner(role);
+  // Ownership is per question, so the page passes the viewer's role down and
+  // every card decides with `ownsOpeningQuestionArea(role, question.area)`.
+  const viewerRole = role;
   const canFinalize = canFinalizeOpeningQuestions(role);
   const canRead = canOpeningQuestions(role);
   const demoOn = demo.enabled;
@@ -193,6 +199,11 @@ export default function OpeningQuestionsPage() {
   // pay for that read.
   const canNudge = isAdmin;
   const changeLog = useChangeLog();
+  // The caller's own alerts and nudges keep the Opening Qs badge and the Today
+  // nudge card fresh: sending a nudge invalidates both keys, and mounting them
+  // here means the recipient's counts update without a full reload.
+  const openingAlerts = useOpeningQuestionAlerts(canRead && !demoOn);
+  const myNudges = useMyOpeningQuestionNudges(canRead && !demoOn);
   const nudge = useSendOpeningQuestionNudge();
   const [nudgeErrorPrincipal, setNudgeErrorPrincipal] = useState<string | null>(
     null,
@@ -202,7 +213,8 @@ export default function OpeningQuestionsPage() {
     : null;
 
   // The person filter narrows the listed questions to those still waiting on
-  // that owner's approval. It is applied on top of the tab and filter rows.
+  // that owner's approval. It is applied on top of the tab and filter rows, and
+  // only keeps questions that person actually owns by area.
   const ownerFiltered = useMemo(() => {
     if (!ownerFilter) return questions;
     const key = ownerFilter.principal.toText();
@@ -210,6 +222,7 @@ export default function OpeningQuestionsPage() {
       (view) =>
         !view.isFinal &&
         !view.myApproved &&
+        ownsOpeningQuestionArea(ownerFilter.role, view.question.area) &&
         view.owners.some((owner) => owner.principal.toText() === key),
     );
   }, [questions, ownerFilter]);
@@ -273,7 +286,15 @@ export default function OpeningQuestionsPage() {
     EMPTY_FILTER,
     isOwner && canRead && !demoOn,
   );
-  const myQuestionsCount = myQuestionsList.data?.length ?? 0;
+  // The tab counts follow the same per-question ownership rule as the rows, so
+  // they are derived from the unfiltered list rather than a backend total.
+  const myQuestionsCount = useMemo(
+    () =>
+      (myQuestionsList.data ?? []).filter((view) =>
+        ownsOpeningQuestionArea(viewerRole, view.question.area),
+      ).length,
+    [myQuestionsList.data, viewerRole],
+  );
 
   // The section headers report each section's real Final count and the owner's
   // real need-you count, so they read from the whole section rather than the
@@ -285,12 +306,22 @@ export default function OpeningQuestionsPage() {
   );
   const allQuestions = allQuestionsList.data ?? [];
 
-  // Needs my approval carries the caller's own pending-approval count, not the
-  // answered count the progress summary reports.
+  // Needs my approval carries the caller's own pending-approval count, derived
+  // from the same per-question ownership rule as the rows it lists.
   const pendingApprovals = useMyPendingOpeningQuestionApprovals(
     isOwner && canRead && !demoOn,
   );
-  const needsMyApprovalCount = pendingApprovals.data ?? 0n;
+  const needsMyApprovalCount = useMemo(() => {
+    if (pendingApprovals.data === undefined) return 0n;
+    return BigInt(
+      (myQuestionsList.data ?? []).filter(
+        (view) =>
+          !view.myApproved &&
+          !view.isFinal &&
+          ownsOpeningQuestionArea(viewerRole, view.question.area),
+      ).length,
+    );
+  }, [myQuestionsList.data, pendingApprovals.data, viewerRole]);
 
   // The Finish-by date and its day counts, computed on the backend against the
   // store clock. Every role that can read the section sees the banner.
@@ -334,14 +365,37 @@ export default function OpeningQuestionsPage() {
   const location = storeInfo?.locationName ?? "";
 
   // The caller's own questions still needing their approval, in imported order.
-  // Next only moves between these: owned, not yet approved and not Final.
+  // Next only moves between these: owned by area, not yet approved and not
+  // Final.
   const myPendingQuestions = useMemo(
     () =>
       (myQuestionsList.data ?? []).filter(
-        (view) => !view.myApproved && !view.isFinal,
+        (view) =>
+          !view.myApproved &&
+          !view.isFinal &&
+          ownsOpeningQuestionArea(viewerRole, view.question.area),
       ),
-    [myQuestionsList.data],
+    [myQuestionsList.data, viewerRole],
   );
+
+  // The scoreboard principals the backend would accept a nudge for right now:
+  // owners with at least one non-Final question they own by area and have not
+  // approved. A row outside this set shows no Nudge button.
+  const nudgeTargets = useMemo(() => {
+    const targets = new Set<string>();
+    for (const row of scoreboardRows) {
+      const key = row.principal.toText();
+      const hasPending = allQuestions.some(
+        (view) =>
+          !view.isFinal &&
+          !view.myApproved &&
+          ownsOpeningQuestionArea(row.role, view.question.area) &&
+          view.owners.some((owner) => owner.principal.toText() === key),
+      );
+      if (hasPending) targets.add(key);
+    }
+    return targets;
+  }, [allQuestions, scoreboardRows]);
 
   // After a question is approved, work out the next one still needing the
   // caller's approval and scroll to it once it has rendered.
@@ -537,11 +591,18 @@ export default function OpeningQuestionsPage() {
           onSelect={(row) => setOwnerFilter(row)}
           onClear={() => setOwnerFilter(null)}
           canNudge={canNudge}
+          nudgeTargets={nudgeTargets}
           changeLog={changeLog.data}
           onNudge={(row) => {
             setNudgeErrorPrincipal(null);
             nudge.mutate(row.principal, {
               onError: () => setNudgeErrorPrincipal(row.principal.toText()),
+              onSuccess: () => {
+                // Refresh the caller's own alerts and nudges so the Opening Qs
+                // badge and Today nudge card reflect the send without a reload.
+                void openingAlerts.refetch();
+                void myNudges.refetch();
+              },
             });
           }}
           nudgingPrincipal={nudgingPrincipal}
@@ -713,6 +774,7 @@ export default function OpeningQuestionsPage() {
           allQuestions={allQuestions}
           isAdmin={isAdmin}
           isOwner={isOwner}
+          viewerRole={viewerRole}
           canFinalize={canFinalize}
           isPending={anyPending}
           filterActive={hasFilters(filter)}
@@ -1135,6 +1197,7 @@ function FilterBar({
 interface QuestionActions {
   isAdmin: boolean;
   isOwner: boolean;
+  viewerRole: Role | undefined;
   canFinalize: boolean;
   isPending: boolean;
   onSaveAnswer: (id: QuestionId, answer: string) => void;
@@ -1200,7 +1263,8 @@ function QuestionSections({
   }, [questions]);
 
   // The whole section, keyed by title, so a header's Final count and need-you
-  // badge stay correct even when a tab or filter narrows the listed rows.
+  // badge stay correct even when a tab or filter narrows the listed rows. The
+  // need-you count only counts questions the viewer owns by area.
   const sectionTotals = useMemo(() => {
     const map = new Map<
       string,
@@ -1211,11 +1275,17 @@ function QuestionSections({
       const bucket = map.get(key) ?? { final: 0, total: 0, needYou: 0 };
       bucket.total += 1;
       if (view.isFinal) bucket.final += 1;
-      if (!view.myApproved && !view.isFinal) bucket.needYou += 1;
+      if (
+        !view.myApproved &&
+        !view.isFinal &&
+        ownsOpeningQuestionArea(actions.viewerRole, view.question.area)
+      ) {
+        bucket.needYou += 1;
+      }
       map.set(key, bucket);
     }
     return map;
-  }, [allQuestions]);
+  }, [allQuestions, actions.viewerRole]);
 
   // While a filter or search is active only matching sections render, and they
   // open automatically so the matches are visible without extra taps.
@@ -1262,7 +1332,12 @@ function QuestionSections({
         const sectionTotal = totals?.total ?? items.length;
         const needYou =
           totals?.needYou ??
-          items.filter((v) => !v.myApproved && !v.isFinal).length;
+          items.filter(
+            (v) =>
+              !v.myApproved &&
+              !v.isFinal &&
+              ownsOpeningQuestionArea(actions.viewerRole, v.question.area),
+          ).length;
         const allShown = showAll[sectionTitle] ?? false;
         const visible = allShown ? items : items.slice(0, SECTION_PAGE);
         const panelId = `oq-section-panel-${sectionTitle.replace(/\s+/g, "-")}`;
@@ -1361,13 +1436,19 @@ function QuestionCard({
   const [proposed, setProposed] = useState("");
   const [note, setNote] = useState("");
 
-  const canEdit = actions.isAdmin || actions.isOwner;
+  // Ownership is per question: a Kitchen Manager owns Kitchen and Both, a
+  // Service Manager owns Service and Both, and the Managing Partner owns Dan.
+  // Admins may edit any answer but only owners approve.
+  const ownsQuestion = ownsOpeningQuestionArea(actions.viewerRole, q.area);
+  const canEdit = actions.isAdmin || ownsQuestion;
   const stripe = AREA_COLORS[q.area];
   const questionKey = q.id.toString();
   const selectable = actions.batchMode && view.readyForFinal && !view.isFinal;
   const isSelected = selectable && actions.selected.has(questionKey);
-  const openSuggestion = q.suggestions.find((s) =>
-    isDiscussionOpen(s.discussionEndsAt),
+  // The 48-hour window drives only the countdown and nudges; a pending
+  // suggestion stays decidable until it is accepted or declined.
+  const openSuggestion = q.suggestions.find(
+    (s) => s.state === SuggestionState.open,
   );
 
   const startEdit = () => {
@@ -1516,7 +1597,7 @@ function QuestionCard({
               <p className="whitespace-pre-wrap text-sm text-foreground">
                 {q.answer.trim() ? q.answer : t("oq.card.answerEmpty")}
               </p>
-              {canEdit && (
+              {canEdit && !view.isFinal && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -1528,6 +1609,14 @@ function QuestionCard({
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                   {t("oq.card.editAnswer")}
                 </Button>
+              )}
+              {canEdit && view.isFinal && (
+                <p
+                  data-ocid="oq.question.edit_locked"
+                  className="mt-1 text-xs text-muted-foreground"
+                >
+                  {t("oq.card.reopenToChange")}
+                </p>
               )}
             </div>
           )}
@@ -1557,7 +1646,7 @@ function QuestionCard({
               )}
             </div>
 
-            {actions.isOwner && (
+            {ownsQuestion && (
               <div className="space-y-1">
                 <label
                   htmlFor={`oq-approve-${q.id.toString()}`}
@@ -1726,6 +1815,7 @@ function QuestionCard({
             canPost
             isPending={actions.isPending}
             canDecide={actions.isAdmin}
+            canAccept={!view.isFinal}
             onReply={(suggestionId, text) =>
               actions.onReply(q.id, suggestionId, text)
             }

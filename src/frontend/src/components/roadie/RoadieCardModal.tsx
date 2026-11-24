@@ -52,7 +52,11 @@ function useCardHistory(open: boolean, key: string | null, onBack: () => void) {
     if (open && key && !pushed.current) {
       const url = new URL(window.location.href);
       url.searchParams.set(CARD_PARAM, key);
-      window.history.pushState({ [CARD_PARAM]: key }, "", url);
+      window.history.pushState(
+        { ...window.history.state, [CARD_PARAM]: key },
+        "",
+        url,
+      );
       pushed.current = true;
     }
   }, [open, key]);
@@ -72,7 +76,8 @@ function useCardHistory(open: boolean, key: string | null, onBack: () => void) {
       const url = new URL(window.location.href);
       if (url.searchParams.has(CARD_PARAM)) {
         url.searchParams.delete(CARD_PARAM);
-        window.history.replaceState({}, "", url);
+        const { [CARD_PARAM]: _card, ...state } = window.history.state ?? {};
+        window.history.replaceState(state, "", url);
       }
     }
     onBackRef.current();
@@ -87,7 +92,8 @@ function useCardHistory(open: boolean, key: string | null, onBack: () => void) {
       const url = new URL(window.location.href);
       if (url.searchParams.has(CARD_PARAM)) {
         url.searchParams.delete(CARD_PARAM);
-        window.history.replaceState({}, "", url);
+        const { [CARD_PARAM]: _card, ...state } = window.history.state ?? {};
+        window.history.replaceState(state, "", url);
       }
     }
     onBackRef.current();

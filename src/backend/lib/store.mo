@@ -21,14 +21,24 @@ module {
     var nextChangeLogId : Nat;
   };
 
-  /// Read the current store configuration (any role except Kiosk).
+  /// Read the current store configuration. Readable by every real, non-expired
+  /// role except Kiosk and Integration; the caller's real role is used, never a
+  /// demo role, so demo mode can never raise anyone's access to real settings.
   public func getStoreInfo(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
     storeInfo : { var value : Store.StoreInfo },
     caller : Principal,
   ) : Store.StoreInfo {
-    ignore Auth.requireReadable(accessGrants, demoState, caller);
+    ignore demoState;
+    let role = Auth.realRole(accessGrants, caller)
+      ?? Runtime.trap("Access denied: caller is not registered or access has ended");
+    if (role == #kiosk) {
+      Runtime.trap("Access denied: Kiosk logins may only submit a sign-up");
+    };
+    if (role == #integration) {
+      Runtime.trap("Access denied: Integration role may only read the Shareable export");
+    };
     storeInfo.value;
   };
 
@@ -507,7 +517,7 @@ module {
   ) : () {
     switch (Auth.effectiveRole(accessGrants, demoState, caller)) {
       case (?role) {
-        if (role != #admin and role != #storeManager and role != #trainingManager) {
+        if (not Auth.roleHasAdminRights(role) and role != #storeManager and role != #trainingManager) {
           Runtime.trap("Access denied: Admin, Store Manager or Training Manager role required");
         };
       };

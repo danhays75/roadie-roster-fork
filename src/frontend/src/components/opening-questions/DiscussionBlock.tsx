@@ -22,6 +22,7 @@ export function DiscussionBlock({
   onComment,
   onDecide,
   canDecide,
+  canAccept = true,
   isPending,
   className,
   ocid,
@@ -33,6 +34,8 @@ export function DiscussionBlock({
   onComment: (text: string) => void;
   onDecide?: (suggestionId: bigint, accept: boolean) => void;
   canDecide?: boolean;
+  /** Whether Accept is allowed; the backend refuses it on a Final question. */
+  canAccept?: boolean;
   isPending?: boolean;
   className?: string;
   ocid?: string;
@@ -77,6 +80,9 @@ export function DiscussionBlock({
         <ul className="space-y-3">
           {suggestions.map((suggestion) => {
             const open = isDiscussionOpen(suggestion.discussionEndsAt);
+            // A pending suggestion stays decidable until it is accepted or
+            // declined; the 48-hour window only drives the countdown and nudges.
+            const pending = suggestion.state === SuggestionState.open;
             const replies = comments.filter(
               (c) => c.suggestionId === suggestion.id,
             );
@@ -192,14 +198,14 @@ export function DiscussionBlock({
                   </div>
                 )}
 
-                {canDecide && open && onDecide && (
-                  <div className="mt-2 flex gap-2">
+                {canDecide && pending && onDecide && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
                       size="sm"
                       className="touch-target"
                       data-ocid="oq.discussion.accept_button"
-                      disabled={isPending}
+                      disabled={isPending || !canAccept}
                       onClick={() => onDecide(suggestion.id, true)}
                     >
                       {t("oq.discussion.accept")}
@@ -215,6 +221,14 @@ export function DiscussionBlock({
                     >
                       {t("oq.discussion.decline")}
                     </Button>
+                    {!canAccept && (
+                      <span
+                        data-ocid="oq.discussion.accept_locked"
+                        className="text-xs text-muted-foreground"
+                      >
+                        {t("oq.card.reopenToChange")}
+                      </span>
+                    )}
                   </div>
                 )}
               </li>

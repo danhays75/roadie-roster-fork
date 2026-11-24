@@ -50,7 +50,8 @@ module {
 
   /// The demo role a signed-in caller is currently impersonating, or null when
   /// demo mode is off, the caller is anonymous, or the caller has not chosen a
-  /// role. A signed-in caller with no stored entry defaults to demo Admin.
+  /// role. A caller with no stored entry gets no demo role at all: demo mode
+  /// never grants access to someone who was never approved.
   public func demoRoleFor(
     demoState : Common.DemoState,
     caller : Principal,
@@ -63,7 +64,7 @@ module {
     };
     switch (demoState.demoRoles.get(caller)) {
       case (?entry) { ?entry.role };
-      case null { ?#admin };
+      case null { null };
     };
   };
 
@@ -175,6 +176,92 @@ module {
   /// True when a role holds every Admin permission: Admin or Managing Partner.
   public func roleHasAdminRights(role : Common.Role) : Bool {
     role == #admin or role == #managingPartner;
+  };
+
+  /// True when a role may read the Opening Questions section: Admin, Managing
+  /// Partner, Store Manager, Training Manager, Kitchen Manager or Service
+  /// Manager. Every other role is refused.
+  public func roleCanReadOpeningQuestions(role : Common.Role) : Bool {
+    roleHasAdminRights(role)
+      or role == #storeManager
+      or role == #trainingManager
+      or role == #kitchenManager
+      or role == #serviceManager;
+  };
+
+  /// Require the caller's *real* role to be one that may read Opening
+  /// Questions, ignoring any impersonated demo role, so demo mode can never
+  /// raise anyone's access to real Opening Questions data. Traps otherwise.
+  public func requireRealOpeningQuestionsReader(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    caller : Principal,
+  ) : Common.Role {
+    let role = realRole(accessGrants, caller)
+      ?? Runtime.trap("Access denied: caller is not registered or access has ended");
+    if (not roleCanReadOpeningQuestions(role)) {
+      Runtime.trap("Access denied: your role may not read Opening Questions");
+    };
+    role;
+  };
+
+  /// Require the caller's *real* role to hold Admin rights (Admin or Managing
+  /// Partner), ignoring any impersonated demo role. Traps otherwise.
+  public func requireRealAdminRights(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    caller : Principal,
+  ) : () {
+    switch (realRole(accessGrants, caller)) {
+      case (?role) {
+        if (not roleHasAdminRights(role)) {
+          Runtime.trap("Access denied: Admin role required");
+        };
+      };
+      case null {
+        Runtime.trap("Access denied: Admin role required");
+      };
+    };
+  };
+
+  /// True when the caller's *real* role holds Admin rights (Admin or Managing
+  /// Partner), ignoring any impersonated demo role.
+  public func isRealAdmin(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    caller : Principal,
+  ) : Bool {
+    switch (realRole(accessGrants, caller)) {
+      case (?role) { roleHasAdminRights(role) };
+      case null { false };
+    };
+  };
+
+  /// True when the caller's *real* role is the Managing Partner, ignoring any
+  /// impersonated demo role.
+  public func isRealManagingPartner(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    caller : Principal,
+  ) : Bool {
+    switch (realRole(accessGrants, caller)) {
+      case (?role) { role == #managingPartner };
+      case null { false };
+    };
+  };
+
+  /// True when a grant is a real, non-expired Managing Partner.
+  public func isActiveManagingPartner(grant : Access.AccessGrant) : Bool {
+    if (grant.role != #managingPartner) {
+      return false;
+    };
+    switch (grant.accessEndsAt) {
+      case (?endsAt) { Time.now() < endsAt };
+      case null { true };
+    };
+  };
+
+  /// True when at least one real, non-expired Managing Partner grant exists.
+  public func hasActiveManagingPartner(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+  ) : Bool {
+    accessGrants.values().any(func(g) = isActiveManagingPartner(g));
   };
 
   /// True when the caller is a registered, non-expired Admin or Managing

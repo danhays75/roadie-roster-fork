@@ -50800,9 +50800,14 @@ var OPENING_QUESTIONS_ROLES = [
 * Roles that own Opening Questions: the Kitchen Manager owns Kitchen and Both
 * questions, the Service Manager owns Service and Both, and the Managing
 * Partner owns the Dan questions. The role itself carries the area, so no
-* separate grant field is needed.
+* separate grant field is needed. Ownership is per question, so use
+* `ownsOpeningQuestionArea` rather than this list for any question-level check.
 */
-var OPENING_QUESTIONS_OWNER_ROLES = [Role.kitchenManager, Role.serviceManager];
+var OPENING_QUESTIONS_OWNER_ROLES = [
+	Role.kitchenManager,
+	Role.serviceManager,
+	Role.managingPartner
+];
 /**
 * Roles allowed to open a full profile from a card pop-up: Admin and Managing
 * Partner always, plus the Store Manager, who sees the link today. Every other
@@ -51135,6 +51140,23 @@ function canOpeningQuestions(role) {
 /** Whether the given role owns Opening Questions as a Kitchen or Service Manager. */
 function isOpeningQuestionsOwner(role) {
 	return !!role && OPENING_QUESTIONS_OWNER_ROLES.includes(role);
+}
+/**
+* Whether the given role owns a question in the given area. This mirrors the
+* backend `ownsArea` exactly: the Kitchen Manager owns Kitchen and Both, the
+* Service Manager owns Service and Both, and the Managing Partner owns Dan.
+* Every per-question gate (Approve, untick, Edit, My questions, Needs my
+* approval, Next, need-you counts and nudge targets) uses this rule.
+*/
+function ownsOpeningQuestionArea(role, area) {
+	if (!role || !area) return false;
+	switch (area) {
+		case QuestionArea.kitchen: return role === Role.kitchenManager;
+		case QuestionArea.service: return role === Role.serviceManager;
+		case QuestionArea.both: return role === Role.kitchenManager || role === Role.serviceManager;
+		case QuestionArea.dan: return role === Role.managingPartner;
+		default: return false;
+	}
 }
 /**
 * Whether the given role may mark a question final or reopen it. Only the
@@ -51977,6 +51999,7 @@ var dictionaries = {
 		"oq.card.youApproved": "You approved",
 		"oq.card.youApprovedOn": "You approved · {date}",
 		"oq.card.finalLocked": "Final · reopen to change",
+		"oq.card.reopenToChange": "Reopen to change",
 		"oq.card.otherApprovals": "Other approvals",
 		"oq.card.finalBy": "Final · {name}",
 		"oq.card.finalByOwners": "Final · all owners approved",
@@ -52965,6 +52988,7 @@ var dictionaries = {
 		"oq.card.youApproved": "La aprobaste",
 		"oq.card.youApprovedOn": "La aprobaste · {date}",
 		"oq.card.finalLocked": "Final · reabre para cambiar",
+		"oq.card.reopenToChange": "Reabre para cambiar",
 		"oq.card.otherApprovals": "Otras aprobaciones",
 		"oq.card.finalBy": "Final · {name}",
 		"oq.card.finalByOwners": "Final · todos los responsables aprobaron",
@@ -62738,7 +62762,10 @@ function useCardHistory(open, key, onBack) {
 		if (open && key && !pushed.current) {
 			const url = new URL(window.location.href);
 			url.searchParams.set(CARD_PARAM, key);
-			window.history.pushState({ [CARD_PARAM]: key }, "", url);
+			window.history.pushState({
+				...window.history.state,
+				[CARD_PARAM]: key
+			}, "", url);
 			pushed.current = true;
 		}
 	}, [open, key]);
@@ -62755,7 +62782,8 @@ function useCardHistory(open, key, onBack) {
 				const url = new URL(window.location.href);
 				if (url.searchParams.has(CARD_PARAM)) {
 					url.searchParams.delete(CARD_PARAM);
-					window.history.replaceState({}, "", url);
+					const { [CARD_PARAM]: _card, ...state } = window.history.state ?? {};
+					window.history.replaceState(state, "", url);
 				}
 			}
 			onBackRef.current();
@@ -62766,7 +62794,8 @@ function useCardHistory(open, key, onBack) {
 				const url = new URL(window.location.href);
 				if (url.searchParams.has(CARD_PARAM)) {
 					url.searchParams.delete(CARD_PARAM);
-					window.history.replaceState({}, "", url);
+					const { [CARD_PARAM]: _card, ...state } = window.history.state ?? {};
+					window.history.replaceState(state, "", url);
 				}
 			}
 			onBackRef.current();
@@ -102334,8 +102363,8 @@ var __vitePreload = function preload(baseModule, deps, importerUrl) {
 };
 //#endregion
 //#region src/pages/Dashboard.tsx
-var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-7utHiDrE.js").then((m) => ({ default: m.KpiTiles })), []));
-var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-PyqkkAwz.js").then((m) => ({ default: m.OpeningTimelineView })), []));
+var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-DfGtPz63.js").then((m) => ({ default: m.KpiTiles })), []));
+var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-6Lsv7-1v.js").then((m) => ({ default: m.OpeningTimelineView })), []));
 var KPI_SKELETON_TILES = [
 	"hired",
 	"needed",
@@ -108234,7 +108263,7 @@ function ApprovalChips({ owners, approved, className, ocid }) {
 * mutations and passes them in, so this block stays presentational and can be
 * reused by the page and the admin panel.
 */
-function DiscussionBlock({ suggestions, comments, canPost, onReply, onComment, onDecide, canDecide, isPending, className, ocid }) {
+function DiscussionBlock({ suggestions, comments, canPost, onReply, onComment, onDecide, canDecide, canAccept = true, isPending, className, ocid }) {
 	const { t } = useI18n();
 	const [comment, setComment] = (0, import_react.useState)("");
 	const [replyTo, setReplyTo] = (0, import_react.useState)(null);
@@ -108271,6 +108300,7 @@ function DiscussionBlock({ suggestions, comments, canPost, onReply, onComment, o
 				className: "space-y-3",
 				children: suggestions.map((suggestion) => {
 					const open = isDiscussionOpen(suggestion.discussionEndsAt);
+					const pending = suggestion.state === SuggestionState.open;
 					const replies = comments.filter((c) => c.suggestionId === suggestion.id);
 					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
 						className: "rounded-lg border border-border bg-muted/40 p-3",
@@ -108347,26 +108377,34 @@ function DiscussionBlock({ suggestions, comments, canPost, onReply, onComment, o
 									children: t("oq.discussion.reply")
 								})
 							}),
-							canDecide && open && onDecide && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "mt-2 flex gap-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-									type: "button",
-									size: "sm",
-									className: "touch-target",
-									"data-ocid": "oq.discussion.accept_button",
-									disabled: isPending,
-									onClick: () => onDecide(suggestion.id, true),
-									children: t("oq.discussion.accept")
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-									type: "button",
-									size: "sm",
-									variant: "outline",
-									className: "touch-target",
-									"data-ocid": "oq.discussion.decline_button",
-									disabled: isPending,
-									onClick: () => onDecide(suggestion.id, false),
-									children: t("oq.discussion.decline")
-								})]
+							canDecide && pending && onDecide && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-2 flex flex-wrap items-center gap-2",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										type: "button",
+										size: "sm",
+										className: "touch-target",
+										"data-ocid": "oq.discussion.accept_button",
+										disabled: isPending || !canAccept,
+										onClick: () => onDecide(suggestion.id, true),
+										children: t("oq.discussion.accept")
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										type: "button",
+										size: "sm",
+										variant: "outline",
+										className: "touch-target",
+										"data-ocid": "oq.discussion.decline_button",
+										disabled: isPending,
+										onClick: () => onDecide(suggestion.id, false),
+										children: t("oq.discussion.decline")
+									}),
+									!canAccept && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										"data-ocid": "oq.discussion.accept_locked",
+										className: "text-xs text-muted-foreground",
+										children: t("oq.card.reopenToChange")
+									})
+								]
 							})
 						]
 					}, suggestion.id.toString());
@@ -108448,8 +108486,13 @@ function Skeleton({ className, ...props }) {
 * still has questions needing approval carries a Nudge button. A manager who
 * was already nudged on the current store-local day shows "Nudged today" and
 * cannot be nudged again; the backend enforces the same rule.
+*
+* `nudgeTargets` is the set of principals the backend would accept a nudge for
+* right now (owners with at least one non-Final question they own by area and
+* have not approved). A row outside that set shows no Nudge button, so the
+* button never appears for a target the backend would refuse.
 */
-function ManagersScoreboard({ rows, isLoading, activePrincipal, onSelect, onClear, canNudge = false, changeLog, onNudge, nudgingPrincipal, nudgeErrorPrincipal }) {
+function ManagersScoreboard({ rows, isLoading, activePrincipal, onSelect, onClear, canNudge = false, nudgeTargets, changeLog, onNudge, nudgingPrincipal, nudgeErrorPrincipal }) {
 	const { t } = useI18n();
 	const activeRow = activePrincipal ? rows.find((row) => row.principal.toText() === activePrincipal) : void 0;
 	const nudgedToday = (0, import_react.useMemo)(() => {
@@ -108505,7 +108548,7 @@ function ManagersScoreboard({ rows, isLoading, activePrincipal, onSelect, onClea
 			children: rows.map((row, index) => {
 				const key = row.principal.toText();
 				const active = key === activePrincipal;
-				const needsNudge = canNudge && row.pendingCount > 0n;
+				const needsNudge = canNudge && row.pendingCount > 0n && (nudgeTargets === void 0 || nudgeTargets.has(key));
 				const wasNudged = needsNudge && nudgedToday.has(row.displayName);
 				const isNudging = nudgingPrincipal === key;
 				const nudgeFailed = nudgeErrorPrincipal === key;
@@ -110027,6 +110070,7 @@ function OpeningQuestionsPage() {
 	const role = (access.kind === "granted" ? access.grant : null)?.role;
 	const isAdmin = isAdminRole(role);
 	const isOwner = isOpeningQuestionsOwner(role);
+	const viewerRole = role;
 	const canFinalize = canFinalizeOpeningQuestions(role);
 	const canRead = canOpeningQuestions(role);
 	const demoOn = demo.enabled;
@@ -110050,13 +110094,15 @@ function OpeningQuestionsPage() {
 	const activeOwnerPrincipal = ownerFilter?.principal.toText() ?? null;
 	const canNudge = isAdmin;
 	const changeLog = useChangeLog();
+	const openingAlerts = useOpeningQuestionAlerts(canRead && !demoOn);
+	const myNudges = useMyOpeningQuestionNudges(canRead && !demoOn);
 	const nudge = useSendOpeningQuestionNudge();
 	const [nudgeErrorPrincipal, setNudgeErrorPrincipal] = (0, import_react.useState)(null);
 	const nudgingPrincipal = nudge.isPending ? nudge.variables?.toText() ?? null : null;
 	const ownerFiltered = (0, import_react.useMemo)(() => {
 		if (!ownerFilter) return questions;
 		const key = ownerFilter.principal.toText();
-		return questions.filter((view) => !view.isFinal && !view.myApproved && view.owners.some((owner) => owner.principal.toText() === key));
+		return questions.filter((view) => !view.isFinal && !view.myApproved && ownsOpeningQuestionArea(ownerFilter.role, view.question.area) && view.owners.some((owner) => owner.principal.toText() === key));
 	}, [questions, ownerFilter]);
 	const [keptApproved, setKeptApproved] = (0, import_react.useState)([]);
 	const keepApprovedInPlace = activeTab === QuestionTab.needsMyApproval;
@@ -110089,9 +110135,17 @@ function OpeningQuestionsPage() {
 	});
 	const toggleSelectAll = () => setSelected(allReadySelected ? /* @__PURE__ */ new Set() : new Set(readyIds));
 	const myQuestionsList = useOpeningQuestions(QuestionTab.myQuestions, EMPTY_FILTER, isOwner && canRead && !demoOn);
-	const myQuestionsCount = myQuestionsList.data?.length ?? 0;
+	const myQuestionsCount = (0, import_react.useMemo)(() => (myQuestionsList.data ?? []).filter((view) => ownsOpeningQuestionArea(viewerRole, view.question.area)).length, [myQuestionsList.data, viewerRole]);
 	const allQuestions = useOpeningQuestions(QuestionTab.all, EMPTY_FILTER, canRead && !demoOn).data ?? [];
-	const needsMyApprovalCount = useMyPendingOpeningQuestionApprovals(isOwner && canRead && !demoOn).data ?? 0n;
+	const pendingApprovals = useMyPendingOpeningQuestionApprovals(isOwner && canRead && !demoOn);
+	const needsMyApprovalCount = (0, import_react.useMemo)(() => {
+		if (pendingApprovals.data === void 0) return 0n;
+		return BigInt((myQuestionsList.data ?? []).filter((view) => !view.myApproved && !view.isFinal && ownsOpeningQuestionArea(viewerRole, view.question.area)).length);
+	}, [
+		myQuestionsList.data,
+		pendingApprovals.data,
+		viewerRole
+	]);
 	const finishBy = useOpeningQuestionFinishBy(canRead && !demoOn);
 	const finishByText = finishByBannerText(finishBy.data, t);
 	const finishByOverdue = (finishBy.data?.daysOverdue ?? 0n) > 0n;
@@ -110110,7 +110164,15 @@ function OpeningQuestionsPage() {
 	const anyPending = saveAnswer.isPending || approve.isPending || withdraw.isPending || markFinal.isPending || markFinalBatch.isPending || reopen.isPending || postSuggestion.isPending || replySuggestion.isPending || postComment.isPending || decideSuggestion.isPending;
 	const storeNumber = storeInfo?.storeNumber ?? "";
 	const location = storeInfo?.locationName ?? "";
-	const myPendingQuestions = (0, import_react.useMemo)(() => (myQuestionsList.data ?? []).filter((view) => !view.myApproved && !view.isFinal), [myQuestionsList.data]);
+	const myPendingQuestions = (0, import_react.useMemo)(() => (myQuestionsList.data ?? []).filter((view) => !view.myApproved && !view.isFinal && ownsOpeningQuestionArea(viewerRole, view.question.area)), [myQuestionsList.data, viewerRole]);
+	const nudgeTargets = (0, import_react.useMemo)(() => {
+		const targets = /* @__PURE__ */ new Set();
+		for (const row of scoreboardRows) {
+			const key = row.principal.toText();
+			if (allQuestions.some((view) => !view.isFinal && !view.myApproved && ownsOpeningQuestionArea(row.role, view.question.area) && view.owners.some((owner) => owner.principal.toText() === key))) targets.add(key);
+		}
+		return targets;
+	}, [allQuestions, scoreboardRows]);
 	const handleApproved = (id) => {
 		const next = nextPendingQuestion(myPendingQuestions, id);
 		setNextTarget({
@@ -110285,10 +110347,17 @@ function OpeningQuestionsPage() {
 				onSelect: (row) => setOwnerFilter(row),
 				onClear: () => setOwnerFilter(null),
 				canNudge,
+				nudgeTargets,
 				changeLog: changeLog.data,
 				onNudge: (row) => {
 					setNudgeErrorPrincipal(null);
-					nudge.mutate(row.principal, { onError: () => setNudgeErrorPrincipal(row.principal.toText()) });
+					nudge.mutate(row.principal, {
+						onError: () => setNudgeErrorPrincipal(row.principal.toText()),
+						onSuccess: () => {
+							openingAlerts.refetch();
+							myNudges.refetch();
+						}
+					});
 				},
 				nudgingPrincipal,
 				nudgeErrorPrincipal
@@ -110414,6 +110483,7 @@ function OpeningQuestionsPage() {
 				allQuestions,
 				isAdmin,
 				isOwner,
+				viewerRole,
 				canFinalize,
 				isPending: anyPending,
 				filterActive: hasFilters(filter),
@@ -110760,11 +110830,11 @@ function QuestionSections({ questions, allQuestions, filterActive, nextTarget, .
 			};
 			bucket.total += 1;
 			if (view.isFinal) bucket.final += 1;
-			if (!view.myApproved && !view.isFinal) bucket.needYou += 1;
+			if (!view.myApproved && !view.isFinal && ownsOpeningQuestionArea(actions.viewerRole, view.question.area)) bucket.needYou += 1;
 			map.set(key, bucket);
 		}
 		return map;
-	}, [allQuestions]);
+	}, [allQuestions, actions.viewerRole]);
 	const isOpen = (title) => filterActive || (expanded[title] ?? false);
 	const toggle = (title) => setExpanded((prev) => ({
 		...prev,
@@ -110804,7 +110874,7 @@ function QuestionSections({ questions, allQuestions, filterActive, nextTarget, .
 			const totals = sectionTotals.get(sectionTitle);
 			const finalCount = totals?.final ?? items.filter((v) => v.isFinal).length;
 			const sectionTotal = totals?.total ?? items.length;
-			const needYou = totals?.needYou ?? items.filter((v) => !v.myApproved && !v.isFinal).length;
+			const needYou = totals?.needYou ?? items.filter((v) => !v.myApproved && !v.isFinal && ownsOpeningQuestionArea(actions.viewerRole, v.question.area)).length;
 			const allShown = showAll[sectionTitle] ?? false;
 			const visible = allShown ? items : items.slice(0, SECTION_PAGE);
 			const panelId = `oq-section-panel-${sectionTitle.replace(/\s+/g, "-")}`;
@@ -110874,12 +110944,13 @@ function QuestionCard({ view, ...actions }) {
 	const [suggesting, setSuggesting] = (0, import_react.useState)(false);
 	const [proposed, setProposed] = (0, import_react.useState)("");
 	const [note, setNote] = (0, import_react.useState)("");
-	const canEdit = actions.isAdmin || actions.isOwner;
+	const ownsQuestion = ownsOpeningQuestionArea(actions.viewerRole, q.area);
+	const canEdit = actions.isAdmin || ownsQuestion;
 	const stripe = AREA_COLORS[q.area];
 	const questionKey = q.id.toString();
 	const selectable = actions.batchMode && view.readyForFinal && !view.isFinal;
 	const isSelected = selectable && actions.selected.has(questionKey);
-	const openSuggestion = q.suggestions.find((s) => isDiscussionOpen(s.discussionEndsAt));
+	const openSuggestion = q.suggestions.find((s) => s.state === SuggestionState.open);
 	const startEdit = () => {
 		setDraft(q.answer);
 		setEditing(true);
@@ -111011,21 +111082,29 @@ function QuestionCard({ view, ...actions }) {
 						})]
 					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "rounded-md bg-muted/60 px-3 py-2",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "whitespace-pre-wrap text-sm text-foreground",
-							children: q.answer.trim() ? q.answer : t("oq.card.answerEmpty")
-						}), canEdit && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-							type: "button",
-							variant: "ghost",
-							size: "sm",
-							className: "touch-target mt-1 -ml-2",
-							"data-ocid": "oq.question.edit_button",
-							onClick: startEdit,
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Pencil, {
-								className: "h-3.5 w-3.5",
-								"aria-hidden": "true"
-							}), t("oq.card.editAnswer")]
-						})]
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "whitespace-pre-wrap text-sm text-foreground",
+								children: q.answer.trim() ? q.answer : t("oq.card.answerEmpty")
+							}),
+							canEdit && !view.isFinal && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								type: "button",
+								variant: "ghost",
+								size: "sm",
+								className: "touch-target mt-1 -ml-2",
+								"data-ocid": "oq.question.edit_button",
+								onClick: startEdit,
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Pencil, {
+									className: "h-3.5 w-3.5",
+									"aria-hidden": "true"
+								}), t("oq.card.editAnswer")]
+							}),
+							canEdit && view.isFinal && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-ocid": "oq.question.edit_locked",
+								className: "mt-1 text-xs text-muted-foreground",
+								children: t("oq.card.reopenToChange")
+							})
+						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "space-y-2",
@@ -111052,7 +111131,7 @@ function QuestionCard({ view, ...actions }) {
 									})
 								]
 							}),
-							actions.isOwner && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							ownsQuestion && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "space-y-1",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
@@ -111191,6 +111270,7 @@ function QuestionCard({ view, ...actions }) {
 						canPost: true,
 						isPending: actions.isPending,
 						canDecide: actions.isAdmin,
+						canAccept: !view.isFinal,
 						onReply: (suggestionId, text) => actions.onReply(q.id, suggestionId, text),
 						onComment: (text) => actions.onComment(q.id, text),
 						onDecide: (suggestionId, accept) => actions.onDecide(q.id, suggestionId, accept),

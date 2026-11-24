@@ -124,14 +124,29 @@ module {
     isLeaderRole(grant.role) and not Auth.isDemoLeader(grant);
   };
 
+  /// True when a grant is a real, non-expired leader grant. An expired grant
+  /// never counts as an owner.
+  func isActiveRealLeader(grant : Access.AccessGrant) : Bool {
+    isRealLeader(grant) and isGrantActive(grant);
+  };
+
+  /// True when a grant's access has not ended.
+  func isGrantActive(grant : Access.AccessGrant) : Bool {
+    switch (grant.accessEndsAt) {
+      case (?endsAt) { Time.now() < endsAt };
+      case null { true };
+    };
+  };
+
   /// The live owners of a question: the Managing Partner for `#dan`, the
   /// Kitchen Manager for `#kitchen`, the Service Manager for `#service`, and
-  /// both managers for `#both`. Computed from the current grants, never stored.
+  /// both managers for `#both`. Computed from the current, non-expired grants,
+  /// never stored.
   func ownersOf(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     area : OQ.QuestionArea,
   ) : [OQ.OwnerView] {
-    accessGrants.values().filter(func(g) = isRealLeader(g) and ownsArea(g.role, area)).map(func(g) {
+    accessGrants.values().filter(func(g) = isActiveRealLeader(g) and ownsArea(g.role, area)).map(func(g) {
       { principal = g.principal; displayName = displayName(g) };
     }).toArray();
   };
@@ -161,13 +176,15 @@ module {
   };
 
   /// True when the caller may edit a question's answer: an owner or an Admin.
+  /// The caller's real role is used, never a demo role.
   func canEdit(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
     caller : Principal,
     area : OQ.QuestionArea,
   ) : Bool {
-    Auth.isAdmin(accessGrants, demoState, caller) or isOwner(accessGrants, caller, area);
+    ignore demoState;
+    Auth.isRealAdmin(accessGrants, caller) or isOwner(accessGrants, caller, area);
   };
 
   /// True when the caller has approved a question.
@@ -267,18 +284,41 @@ module {
     };
   };
 
-  /// True when the caller may read the section: any readable role except
-  /// Integration.
+  /// Require the caller's real role to be one that may read Opening Questions
+  /// (Admin, Managing Partner, Store Manager, Training Manager, Kitchen Manager
+  /// or Service Manager), each with a non-expired grant. The caller's real role
+  /// is used, never a demo role, so demo mode can never raise anyone's access
+  /// to real Opening Questions data. Every other role traps.
   func requireSectionReader(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
     caller : Principal,
   ) : Common.Role {
-    let role = Auth.requireReadable(accessGrants, demoState, caller);
-    if (role == #integration) {
-      Runtime.trap("Access denied: Integration role may not read Opening Questions");
+    ignore demoState;
+    Auth.requireRealOpeningQuestionsReader(accessGrants, caller);
+  };
+
+  /// Require the caller's real Admin rights (Admin or Managing Partner),
+  /// ignoring any demo role.
+  func requireRealAdmin(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : () {
+    ignore demoState;
+    Auth.requireRealAdminRights(accessGrants, caller);
+  };
+
+  /// Require the caller's real Managing Partner role, ignoring any demo role.
+  func requireRealManagingPartner(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : () {
+    ignore demoState;
+    if (not Auth.isRealManagingPartner(accessGrants, caller)) {
+      Runtime.trap("Access denied: Managing Partner role required");
     };
-    role;
   };
 
   /// Refuse every write while demo mode is on.
@@ -341,7 +381,7 @@ module {
   ) : [OQ.QuestionView] {
     ignore requireSectionReader(accessGrants, demoState, caller);
     let now = nowOf(demoState, storeInfo);
-    let isMp = Auth.isManagingPartner(accessGrants, demoState, caller);
+    let isMp = Auth.isRealManagingPartner(accessGrants, caller);
     let search = switch (filter.search) {
       case (?s) {
         let trimmed = s.trim(#predicate(func(c : Char) : Bool { c.isWhitespace() }));
@@ -459,6 +499,9 @@ module {
     if (not canEdit(accessGrants, demoState, caller, q.area)) {
       Runtime.trap("Access denied: only an owner or Admin may edit this answer");
     };
+    if (isFinal(q)) {
+      Runtime.trap("This question is Final; the Managing Partner must reopen it before the answer can change");
+    };
     let changed = q.answer != answer;
     let updated : OQ.OpeningQuestion = {
       q with
@@ -556,7 +599,7 @@ module {
   ) : () {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
-    Auth.requireManagingPartner(accessGrants, demoState, caller);
+    requireRealManagingPartner(accessGrants, demoState, caller);
     let q = requireQuestion(state, id);
     if (isFinal(q)) {
       return;
@@ -588,7 +631,7 @@ module {
   ) : () {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
-    Auth.requireManagingPartner(accessGrants, demoState, caller);
+    requireRealManagingPartner(accessGrants, demoState, caller);
     let q = requireQuestion(state, id);
     if (not isFinal(q)) {
       return;
@@ -734,8 +777,11 @@ module {
   ) : () {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
-    Auth.requireAdmin(accessGrants, demoState, caller);
+    requireRealAdmin(accessGrants, demoState, caller);
     let q = requireQuestion(state, id);
+    if (accept and isFinal(q)) {
+      Runtime.trap("This question is Final; the Managing Partner must reopen it before a suggestion can be accepted");
+    };
     let now = Time.now();
     var found = false;
     let suggestions = q.suggestions.map(func(s) {
@@ -856,7 +902,7 @@ module {
   ) : OQ.ImportValidation {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
-    Auth.requireAdmin(accessGrants, demoState, caller);
+    requireRealAdmin(accessGrants, demoState, caller);
     if (state.questions.size() > 0) {
       return #err({ sectionTitle = ""; number = null; message = "Questions already exist; clear them before importing" });
     };
@@ -912,7 +958,7 @@ module {
   ) : () {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
-    Auth.requireAdmin(accessGrants, demoState, caller);
+    requireRealAdmin(accessGrants, demoState, caller);
     if (confirm != "CLEAR") {
       Runtime.trap("Type CLEAR to confirm");
     };
@@ -937,7 +983,7 @@ module {
       q.suggestions.any(func(s) = s.state == #open and s.author != caller)
     }).size();
     let decisionsDue = all.filter(func(q) = decisionDue(q, now)).size();
-    let readyForFinal = if (Auth.isManagingPartner(accessGrants, demoState, caller)) {
+    let readyForFinal = if (Auth.isRealManagingPartner(accessGrants, caller)) {
       all.filter(func(q) = isReadyForFinal(accessGrants, q)).size();
     } else { 0 };
     {
@@ -956,7 +1002,7 @@ module {
     caller : Principal,
   ) : OQ.EmailSettings {
     ignore requireSectionReader(accessGrants, demoState, caller);
-    Auth.requireAdmin(accessGrants, demoState, caller);
+    requireRealAdmin(accessGrants, demoState, caller);
     state.emailSettings.value;
   };
 
@@ -973,7 +1019,7 @@ module {
   ) : () {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
-    Auth.requireAdmin(accessGrants, demoState, caller);
+    requireRealAdmin(accessGrants, demoState, caller);
     state.emailSettings.value := settings;
     ignore ChangeLog.record(changeLog, logCounters, caller, "openingQuestion.emailSettingsUpdated", null, false, "Daily email " # (if settings.enabled { "enabled" } else { "disabled" }));
   };
@@ -990,11 +1036,11 @@ module {
     caller : Principal,
   ) : [OQ.ManagerScoreRow] {
     ignore requireSectionReader(accessGrants, demoState, caller);
-    if (not Auth.isAdmin(accessGrants, demoState, caller)) {
+    if (not Auth.isRealAdmin(accessGrants, caller)) {
       Runtime.trap("Access denied: only the Managing Partner or an Admin may read the Managers scoreboard");
     };
     let all = state.questions.values().toArray();
-    let rows = accessGrants.values().filter(func(g) = isRealLeader(g) and ownsAnyArea(g.role)).map(func(g) {
+    let rows = accessGrants.values().filter(func(g) = isActiveRealLeader(g) and ownsAnyArea(g.role)).map(func(g) {
       let owned = all.filter(func(q) = ownsArea(g.role, q.area));
       let approved = owned.filter(func(q) = hasApproved(q, g.principal));
       let pending = owned.filter(func(q) = not hasApproved(q, g.principal) and not isFinal(q));
@@ -1038,7 +1084,7 @@ module {
   ) : OQ.BatchFinalResult {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
-    Auth.requireManagingPartner(accessGrants, demoState, caller);
+    requireRealManagingPartner(accessGrants, demoState, caller);
     var marked = 0;
     var skipped = 0;
     for (id in ids.values()) {
@@ -1077,7 +1123,7 @@ module {
     id : OQ.QuestionId,
   ) : [OQ.QuestionHistoryEntry] {
     ignore requireSectionReader(accessGrants, demoState, caller);
-    if (not Auth.isAdmin(accessGrants, demoState, caller)) {
+    if (not Auth.isRealAdmin(accessGrants, caller)) {
       Runtime.trap("Access denied: only the Managing Partner or an Admin may read question history");
     };
     state.history.values().filter(func(e) = e.questionId == id).toArray().sort(func(a, b) {
@@ -1122,7 +1168,7 @@ module {
   ) : () {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
-    if (not Auth.isAdmin(accessGrants, demoState, caller)) {
+    if (not Auth.isRealAdmin(accessGrants, caller)) {
       Runtime.trap("Access denied: only the Managing Partner or an Admin may set the Finish-by date");
     };
     state.finishBy.value := { finishBy };
@@ -1149,14 +1195,15 @@ module {
   ) : () {
     ignore requireSectionReader(accessGrants, demoState, caller);
     requireRealWrite(demoState);
-    if (not Auth.isAdmin(accessGrants, demoState, caller)) {
+    if (not Auth.isRealAdmin(accessGrants, caller)) {
       Runtime.trap("Access denied: only the Managing Partner or an Admin may send a nudge");
     };
     if (not ownsAnyArea(switch (Auth.realRole(accessGrants, manager)) { case (?r) { r }; case null { #kiosk } })) {
       Runtime.trap("Access denied: that person does not own Opening Questions");
     };
+    let managerRole = switch (Auth.realRole(accessGrants, manager)) { case (?r) { r }; case null { #kiosk } };
     let pending = state.questions.values().filter(func(q) {
-      ownsArea(switch (Auth.realRole(accessGrants, manager)) { case (?r) { r }; case null { #kiosk } }, q.area)
+      ownsArea(managerRole, q.area)
         and not hasApproved(q, manager)
         and not isFinal(q);
     }).size();

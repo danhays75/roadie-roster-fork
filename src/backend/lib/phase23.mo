@@ -2495,12 +2495,22 @@ module {
     let nextEvent = if (summaries.size() == 0) { nextEventView(schedule, now) } else { null };
 
     // The Managing Partner gets the Opening Questions ready-for-final alert.
-    let openingQuestionsReadyForFinal = if (Auth.isManagingPartner(accessGrants, demoState, caller)) {
+    // The caller's real role is used, never a demo role, so demo mode can never
+    // raise anyone's access to real Opening Questions data.
+    let openingQuestionsReadyForFinal = if (Auth.isRealManagingPartner(accessGrants, caller)) {
       OpeningQuestionsLib.getAlerts(accessGrants, demoState, { questions = openingQuestions; emailSettings = openingQuestionEmailSettings; history = Map.empty(); finishBy = { var value = { finishBy = null } }; nudges = openingQuestionNudges }, { var value = storeInfo }, caller).readyForFinal;
     } else { 0 };
 
-    // The caller's own Opening Questions nudge alerts.
-    let myNudges = OpeningQuestionsLib.getMyNudges(accessGrants, demoState, { questions = openingQuestions; emailSettings = openingQuestionEmailSettings; history = Map.empty(); finishBy = { var value = { finishBy = null } }; nudges = openingQuestionNudges }, caller);
+    // The caller's own Opening Questions nudge alerts, only for a caller whose
+    // real role may read Opening Questions.
+    let myNudges = switch (Auth.realRole(accessGrants, caller)) {
+      case (?r) {
+        if (Auth.roleCanReadOpeningQuestions(r)) {
+          OpeningQuestionsLib.getMyNudges(accessGrants, demoState, { questions = openingQuestions; emailSettings = openingQuestionEmailSettings; history = Map.empty(); finishBy = { var value = { finishBy = null } }; nudges = openingQuestionNudges }, caller);
+        } else { [] };
+      };
+      case null { [] };
+    };
 
     {
       role;

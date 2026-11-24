@@ -44,7 +44,7 @@ module {
     contactSet : Roadie.ContactSet,
   ) : Common.SignupId {
     let role = Auth.requireRegistered(accessGrants, demoState, caller);
-    if (role != #kiosk and role != #storeManager and role != #admin) {
+    if (role != #kiosk and role != #storeManager and not Auth.roleHasAdminRights(role)) {
       Runtime.trap("Access denied: Kiosk, Store Manager or Admin role required");
     };
     let id = counters.nextSignupId;

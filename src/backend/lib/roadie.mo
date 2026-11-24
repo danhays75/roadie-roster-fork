@@ -662,6 +662,7 @@ module {
         };
         switch (grant.role) {
           case (#admin) {};
+          case (#managingPartner) {};
           case (#storeManager) {};
           case (#trainingManager) {};
           case (_) { Runtime.trap("Pick a manager for this crew") };

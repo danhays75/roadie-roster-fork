@@ -227,7 +227,9 @@ module {
 
   /// Approve a pending user with a role and options (real Admin only, refused
   /// while demo mode is on). An Admin grant is always stored with no end date,
-  /// so an admin can never be end-dated into lockout.
+  /// so an admin can never be end-dated into lockout. Only a Managing Partner
+  /// may grant the Managing Partner role, unless no non-expired Managing
+  /// Partner exists yet, in which case an Admin may grant it.
   public func approveUser(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -238,6 +240,9 @@ module {
     Auth.requireRealSettingsAdmin(accessGrants, demoState, caller);
     if (not pendingUsers.containsKey(request.principal)) {
       Runtime.trap("No pending request for this principal");
+    };
+    if (request.role == #managingPartner) {
+      requireCanManageManagingPartner(accessGrants, caller);
     };
     pendingUsers.remove(request.principal);
     // An Admin or Managing Partner grant never carries an end date.
@@ -258,9 +263,28 @@ module {
     });
   };
 
+  /// Internal: only a real Managing Partner may grant the Managing Partner
+  /// role, or change, expire or remove a Managing Partner's grant. An Admin may
+  /// do so only when no non-expired Managing Partner exists, so the app can
+  /// never lock itself out.
+  func requireCanManageManagingPartner(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    caller : Principal,
+  ) : () {
+    if (Auth.isRealManagingPartner(accessGrants, caller)) {
+      return;
+    };
+    if (not Auth.hasActiveManagingPartner(accessGrants)) {
+      return;
+    };
+    Runtime.trap("Access denied: only a Managing Partner may change a Managing Partner grant");
+  };
+
   /// Change an existing user's role (real Admin only, refused while demo mode
   /// is on). Refuses any change that would leave zero active admins, including
-  /// demoting the last admin.
+  /// demoting the last admin. Only a Managing Partner may grant the Managing
+  /// Partner role or change a Managing Partner's grant, unless no non-expired
+  /// Managing Partner exists.
   public func updateUserRole(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -270,6 +294,9 @@ module {
   ) : () {
     Auth.requireRealSettingsAdmin(accessGrants, demoState, caller);
     let grant = accessGrants.get(principal) ?? Runtime.trap("Access grant not found");
+    if (grant.role == #managingPartner or role == #managingPartner) {
+      requireCanManageManagingPartner(accessGrants, caller);
+    };
     if (Auth.roleHasAdminRights(grant.role) and not Auth.roleHasAdminRights(role) and isActiveAdmin(grant) and countAdmins(accessGrants) <= 1) {
       Runtime.trap("Cannot demote the last active admin");
     };
@@ -299,7 +326,8 @@ module {
   /// Update a user's access end date (real Admin only, refused while demo mode
   /// is on). Refuses ANY end date (past or future) on the last active admin, so
   /// the last admin can never be end-dated into lockout. An Admin grant is
-  /// always stored with no end date.
+  /// always stored with no end date. Only a Managing Partner may expire a
+  /// Managing Partner's grant, unless no non-expired Managing Partner exists.
   public func updateAccessEnd(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -309,6 +337,9 @@ module {
   ) : () {
     Auth.requireRealSettingsAdmin(accessGrants, demoState, caller);
     let grant = accessGrants.get(principal) ?? Runtime.trap("Access grant not found");
+    if (grant.role == #managingPartner) {
+      requireCanManageManagingPartner(accessGrants, caller);
+    };
     if (Auth.roleHasAdminRights(grant.role)) {
       // An admin can never be end-dated at all.
       if (accessEndsAt != null) {
@@ -321,7 +352,8 @@ module {
   };
 
   /// Remove a user's access (real Admin only, refused while demo mode is on);
-  /// the last admin cannot be removed.
+  /// the last admin cannot be removed. Only a Managing Partner may remove a
+  /// Managing Partner's grant, unless no non-expired Managing Partner exists.
   public func removeUser(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
@@ -330,6 +362,9 @@ module {
   ) : () {
     Auth.requireRealSettingsAdmin(accessGrants, demoState, caller);
     let grant = accessGrants.get(principal) ?? Runtime.trap("Access grant not found");
+    if (grant.role == #managingPartner) {
+      requireCanManageManagingPartner(accessGrants, caller);
+    };
     if (Auth.roleHasAdminRights(grant.role) and isActiveAdmin(grant) and countAdmins(accessGrants) <= 1) {
       Runtime.trap("Cannot remove the last active admin");
     };

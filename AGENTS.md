@@ -89,6 +89,10 @@
 - Touch targets at least 44px; fully responsive
 - Preview only; do not go live or publish
 - Do not change roles, permissions for other pages, the card design, Opening Questions or any data
+- Keep every existing feature, all stored data and all migrations
+- Do not change the design, copy or anything not listed
+- Add a data migration if a fix needs one so live data upgrades safely
+- Report what changed for each of the nine and which tests passed or failed
 
 ## Accepted Requirements
 
@@ -317,6 +321,15 @@
 - The Managing Partner and Admins can open every leader's and roadie's full profile whatever role that leader has, including Managing Partner, Kitchen Manager and Service Manager; other roles keep today's access
 - Closing the pop-up by opening a full profile does not navigate back, and the phone's back button on the full profile returns to the list
 - Do not change roles, permissions for other pages, the card design, Opening Questions or any data
+- Per-question Opening Questions ownership in the frontend matching the backend, including Managing Partner owning Dan
+- Accept and Decline shown on any pending suggestion regardless of the 48-hour window, hidden once decided
+- Answer saves and suggestion accepts refused on Final questions until the Managing Partner reopens
+- Expired grants no longer counted as question owners
+- Every Opening Questions backend call restricted to the six allowed roles with non-expired grants
+- No demo Admin default and real roles used for Opening Questions, history, scoreboard, alerts and store settings
+- Only a Managing Partner can grant, change, expire or remove the Managing Partner role, with the no-MP exception
+- Managing Partner given Admin access in gift bags, sign-up submit, uniform viewer and crew owner
+- Card pop-up preserves router history state while opening and closing
 
 ## Verified Commands
 
@@ -326,14 +339,6 @@
 
 ## Learnings
 
-- getMyPendingOpeningQuestionApprovals returns the caller's own pending-approval count; the Needs my approval tab badge must read it, never progress.answered.
-- approve and withdrawApproval in lib/openingquestions.mo both trap while a question is Final, and withdrawApproval removes only the caller's own principal from approvals.
-- index.css defines --success/--success-foreground in light and dark; tailwind.config.js must map success DEFAULT and foreground for text-success/bg-success to emit CSS.
-- Keeping an approved card in place on Needs my approval needs a list-skipping approve mutation plus a page-level merge that a reset effect clears on tab switch, or the card outlives the count.
-- Opening Questions section header Final and need-you counts must read the unfiltered All list (allQuestions from useOpeningQuestions(QuestionTab.all, EMPTY_FILTER)), never the tab or filtered rows, or they undercount on narrowed tabs.
-- The Opening Questions history popup resolves names through staffDisplayName with a localized non-empty fallback (oq.history.unknownPerson), never an empty string, so no line shows a blank or a principal fragment.
-- QuestionHistoryEntry.kind is a generated enum; switch on string literals and map to copy keys without a value import.
-- openingQuestionHistory is exposed as an OQL manual entity in main.mo's Expose call with controllerOnly, and getOpeningQuestionHistory is documented in api-doc.mo as Managing Partner and Admin only.
 - Opening Questions batch selection is keyed by id.toString() and mapped back with BigInt(id); batch mode clears the selection whenever the tab leaves Ready for final.
 - The Opening Questions scoreboard row role label uses t(`profile.role.${row.role}`); only admin/managingPartner/kitchenManager/serviceManager keys exist in copy.ts.
 - Manager scoreboard rows derive from accessGrants filtered by isRealLeader and an owner role; pendingCount excludes Final questions.
@@ -351,3 +356,11 @@
 - RoadieCardModal renderFullProfile receives (entry, onNavigate); onNavigate must be called before navigating so the pushed ?card history entry is cleared.
 - The roadie full page's local MANAGER_ROLES in src/frontend/src/pages/RoadieCard.tsx must include managingPartner so the Managing Partner sees the manager view.
 - listLeaders is readable by every non-kiosk, non-integration role, so the leader full page needs no extra role filter beyond the existing canLeaders guard.
+- Opening Questions owners must filter grants by non-expired accessEndsAt, not just isRealLeader, or expired managers still block Ready for final.
+- Opening Questions guards must use realRole-based helpers (requireRealOpeningQuestionsReader, requireRealAdminRights, isRealManagingPartner), never demo-aware Auth.isAdmin or requireReadable.
+- ownsOpeningQuestionArea in src/frontend/src/hooks/useAccess.ts is the per-question ownership rule: kitchenManager owns kitchen and both, serviceManager owns service and both, managingPartner owns dan.
+- oq.card.reopenToChange is the dedicated Final-lock message key; oq.card.finalLocked stays for the approval checkbox lock.
+- The backend refuses accepting a suggestion on a Final question but still allows declining one, so the frontend gates Accept alone on isFinal.
+- OpeningQuestions.tsx mounts useOpeningQuestionAlerts and useMyOpeningQuestionNudges and refetches both after a nudge; the nudge mutation invalidates both keys via OPENING_QUESTION_KEYS.
+- The card pop-up keeps router history state by spreading window.history.state on push and stripping only ?card on replaceState, so back from a full profile returns to the list.
+- Biome noUnusedVariables defaults ignoreRestSiblings true, so the rest-sibling destructure used to strip ?card passes lint.

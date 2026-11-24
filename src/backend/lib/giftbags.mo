@@ -24,7 +24,7 @@ module {
     filter : GiftBags.GiftBagFilter,
   ) : GiftBags.GiftBagsData {
     let role = Auth.requireRegistered(accessGrants, demoState, caller);
-    if (role != #admin and role != #storeManager and role != #trainingManager) {
+    if (not Auth.roleHasAdminRights(role) and role != #storeManager and role != #trainingManager) {
       Runtime.trap("Access denied: Admin, Store Manager or Training Manager role required");
     };
 

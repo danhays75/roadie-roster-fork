@@ -1,4 +1,4 @@
-import { Role } from "@/backend";
+import { QuestionArea, Role } from "@/backend";
 import { demoRoleToRole } from "@/hooks/useDemo";
 import { useDemoState, useMyAccess } from "@/hooks/useQueries";
 import type { AccessGrant, AccessState, MyAccessView, NavItem } from "@/types";
@@ -80,11 +80,13 @@ export const OPENING_QUESTIONS_ROLES: Role[] = [
  * Roles that own Opening Questions: the Kitchen Manager owns Kitchen and Both
  * questions, the Service Manager owns Service and Both, and the Managing
  * Partner owns the Dan questions. The role itself carries the area, so no
- * separate grant field is needed.
+ * separate grant field is needed. Ownership is per question, so use
+ * `ownsOpeningQuestionArea` rather than this list for any question-level check.
  */
 export const OPENING_QUESTIONS_OWNER_ROLES: Role[] = [
   Role.kitchenManager,
   Role.serviceManager,
+  Role.managingPartner,
 ];
 
 /**
@@ -431,6 +433,32 @@ export function canOpeningQuestions(role: Role | undefined): boolean {
 /** Whether the given role owns Opening Questions as a Kitchen or Service Manager. */
 export function isOpeningQuestionsOwner(role: Role | undefined): boolean {
   return !!role && OPENING_QUESTIONS_OWNER_ROLES.includes(role);
+}
+
+/**
+ * Whether the given role owns a question in the given area. This mirrors the
+ * backend `ownsArea` exactly: the Kitchen Manager owns Kitchen and Both, the
+ * Service Manager owns Service and Both, and the Managing Partner owns Dan.
+ * Every per-question gate (Approve, untick, Edit, My questions, Needs my
+ * approval, Next, need-you counts and nudge targets) uses this rule.
+ */
+export function ownsOpeningQuestionArea(
+  role: Role | undefined,
+  area: QuestionArea | undefined,
+): boolean {
+  if (!role || !area) return false;
+  switch (area) {
+    case QuestionArea.kitchen:
+      return role === Role.kitchenManager;
+    case QuestionArea.service:
+      return role === Role.serviceManager;
+    case QuestionArea.both:
+      return role === Role.kitchenManager || role === Role.serviceManager;
+    case QuestionArea.dan:
+      return role === Role.managingPartner;
+    default:
+      return false;
+  }
 }
 
 /**
