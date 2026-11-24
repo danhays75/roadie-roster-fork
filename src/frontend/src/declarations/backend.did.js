@@ -1023,6 +1023,18 @@ export const PendingUser = IDL.Record({
   'staffProfile' : IDL.Opt(StaffProfile),
   'requestedAt' : Timestamp,
 });
+export const TrainerNoteView = IDL.Record({
+  'id' : IDL.Nat,
+  'day' : DateOnly,
+  'didWell' : IDL.Text,
+  'roadieId' : RoadieId,
+  'createdAt' : Timestamp,
+  'authorName' : IDL.Text,
+  'isDemo' : IDL.Bool,
+  'author' : IDL.Principal,
+  'shift' : Shift,
+  'workOn' : IDL.Text,
+});
 export const UnassignedRoadieRow = IDL.Record({
   'demoPhotoUrl' : IDL.Opt(IDL.Text),
   'roadieId' : RoadieId,
@@ -1283,7 +1295,11 @@ export const idlService = IDL.Service({
     ),
   'listSchedule' : IDL.Func([], [IDL.Vec(ScheduleEvent)], ['query']),
   'listShiftBoards' : IDL.Func([], [IDL.Vec(ShiftBoardView)], ['query']),
-  'listTrainerNotes' : IDL.Func([RoadieId], [IDL.Vec(TrainerNote)], ['query']),
+  'listTrainerNotes' : IDL.Func(
+      [RoadieId],
+      [IDL.Vec(TrainerNoteView)],
+      ['query'],
+    ),
   'listUnassignedPendingRoadies' : IDL.Func(
       [],
       [IDL.Vec(UnassignedRoadieRow)],
@@ -2398,6 +2414,18 @@ export const idlFactory = ({ IDL }) => {
     'staffProfile' : IDL.Opt(StaffProfile),
     'requestedAt' : Timestamp,
   });
+  const TrainerNoteView = IDL.Record({
+    'id' : IDL.Nat,
+    'day' : DateOnly,
+    'didWell' : IDL.Text,
+    'roadieId' : RoadieId,
+    'createdAt' : Timestamp,
+    'authorName' : IDL.Text,
+    'isDemo' : IDL.Bool,
+    'author' : IDL.Principal,
+    'shift' : Shift,
+    'workOn' : IDL.Text,
+  });
   const UnassignedRoadieRow = IDL.Record({
     'demoPhotoUrl' : IDL.Opt(IDL.Text),
     'roadieId' : RoadieId,
@@ -2672,7 +2700,7 @@ export const idlFactory = ({ IDL }) => {
     'listShiftBoards' : IDL.Func([], [IDL.Vec(ShiftBoardView)], ['query']),
     'listTrainerNotes' : IDL.Func(
         [RoadieId],
-        [IDL.Vec(TrainerNote)],
+        [IDL.Vec(TrainerNoteView)],
         ['query'],
       ),
     'listUnassignedPendingRoadies' : IDL.Func(

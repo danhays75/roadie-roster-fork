@@ -918,6 +918,18 @@ export interface TrainerNote {
   'shift' : Shift,
   'workOn' : string,
 }
+export interface TrainerNoteView {
+  'id' : bigint,
+  'day' : DateOnly,
+  'didWell' : string,
+  'roadieId' : RoadieId,
+  'createdAt' : Timestamp,
+  'authorName' : string,
+  'isDemo' : boolean,
+  'author' : Principal,
+  'shift' : Shift,
+  'workOn' : string,
+}
 export interface UnassignedRoadieRow {
   'demoPhotoUrl' : [] | [string],
   'roadieId' : RoadieId,
@@ -1040,7 +1052,11 @@ export interface _SERVICE {
    */
   'acknowledgeAlert' : ActorMethod<[AlertId], undefined>,
   /**
-   * / Add a trainer note (Trainer/Admin/Store Manager only).
+   * / Add a trainer note (Trainer, Training Manager, Kitchen Manager, Service
+   * / Manager, Store Manager, Managing Partner or Admin). A Trainer may add only
+   * / for a roadie in their own stations. Refuses a blank note, a field over
+   * / 1,000 characters, an archived roadie and a roadie from the other demo
+   * / partition.
    */
   'addTrainerNote' : ActorMethod<[TrainerNote], bigint>,
   /**
@@ -1488,11 +1504,12 @@ export interface _SERVICE {
    */
   'listShiftBoards' : ActorMethod<[], Array<ShiftBoardView>>,
   /**
-   * / List trainer notes for a roadie. Restricted the same way roadies are:
-   * / Integration sees nothing, and a trainer sees notes only for roadies in
-   * / their assigned stations.
+   * / List trainer notes for a roadie, newest first, each with the author's
+   * / display name. Restricted the same way roadies are: Integration sees
+   * / nothing, and a trainer sees notes only for roadies in their assigned
+   * / stations.
    */
-  'listTrainerNotes' : ActorMethod<[RoadieId], Array<TrainerNote>>,
+  'listTrainerNotes' : ActorMethod<[RoadieId], Array<TrainerNoteView>>,
   /**
    * / List the pending roadies with no usable orientation session (Admin, Store
    * / Manager, Training Manager or Visiting Manager).
@@ -1757,7 +1774,8 @@ export interface _SERVICE {
    */
   'updateStoreInfo' : ActorMethod<[StoreInfo], undefined>,
   /**
-   * / Edit a trainer note within its 24-hour lock window (author only).
+   * / Edit a trainer note within its 24-hour lock window (author only). Refuses
+   * / a blank note and a field over 1,000 characters.
    */
   'updateTrainerNote' : ActorMethod<[TrainerNote], undefined>,
   /**

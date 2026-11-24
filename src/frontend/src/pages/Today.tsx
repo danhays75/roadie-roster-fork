@@ -6,8 +6,9 @@ import type {
   Roadie,
   ShiftBoardRoadie,
   ShiftCheckInSummary,
+  TrainerNoteView,
 } from "@/backend";
-import { Role } from "@/backend";
+import { Role, createActor } from "@/backend";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -21,27 +22,46 @@ import {
 } from "@/components/roadie/RoadieCardModal";
 import { RoadiePhoto } from "@/components/roadie/RoadiePhoto";
 import { RoadieStageBadge } from "@/components/roadie/RoadieTile";
+import { TrainerNoteForm } from "@/components/roadie/TrainerNoteForm";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  canAddTrainerNote,
   canFinalizeOpeningQuestions,
   canManageCheckIns,
   canOpeningQuestions,
+  canReadTrainerNotes,
   canSeeManagerToday,
   isTodayReadOnly,
   useAccessState,
   useRealAccessGrant,
 } from "@/hooks/useAccess";
 import {
+  useDemoState,
   useDismissGroupChangeNotice,
   useGroupChangeNotices,
+  useMyAccess,
   useMyCrew,
   useMyGroup,
   useMyOpeningQuestionNudges,
   useOpeningQuestionAlerts,
   useRoadies,
+  useStoreInfo,
   useToday,
 } from "@/hooks/useQueries";
-import { formatTimestamp } from "@/lib/format";
+import {
+  dateOnlyToDate,
+  formatTimestamp,
+  pretendDateToInstant,
+  refToDataUrl,
+} from "@/lib/format";
+import { useActor } from "@caffeineai/core-infrastructure";
+import { useQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   BellRing,
@@ -51,6 +71,7 @@ import {
   Clock,
   Loader2,
   MessageSquare,
+  NotebookPen,
   Users,
   X,
 } from "lucide-react";
@@ -148,48 +169,89 @@ function GroupChangeNoticeCard({ notice }: { notice: GroupChangeNotice }) {
   );
 }
 
-/** One roadie in the trainer's group: photo and name, tappable to open the card. */
+/**
+ * One roadie in the trainer's group: photo and name, tappable to open the card.
+ * A role that may add a note gets a small Add note button, and a check mark
+ * appears once the caller has written today's note for this roadie.
+ */
 function GroupRoadieCard({
   roadie,
   index,
   onOpen,
+  canAddNote,
+  hasTodayNote,
+  onAddNote,
 }: {
   roadie: ShiftBoardRoadie;
   index: number;
   onOpen: () => void;
+  canAddNote: boolean;
+  hasTodayNote: boolean;
+  onAddNote: () => void;
 }) {
+  const { t } = useDashboardCopy();
+
   return (
     <li data-ocid={`today.myGroup.item.${index}`} className="h-full">
-      <button
-        type="button"
-        data-ocid={`today.myGroup.item.${index}.link`}
-        onClick={onOpen}
-        className="group flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-card text-left shadow-subtle transition-smooth hover:-translate-y-0.5 hover:shadow-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      >
-        <RoadiePhoto
-          id={roadie.roadieId}
-          name={roadie.name}
-          className="aspect-[4/3] w-full rounded-none border-0 border-b-2 border-primary"
-          iconClassName="h-8 w-8"
-          ocid={`today.myGroup.item.${index}.photo`}
-          fallback={
-            <span
-              className="flex h-full w-full items-center justify-center font-display text-2xl font-bold uppercase tracking-wide text-[#14284B]"
-              aria-hidden="true"
-            >
-              {roadie.name.slice(0, 2).toUpperCase()}
+      <div className="group flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card shadow-subtle transition-smooth hover:-translate-y-0.5 hover:shadow-elevated">
+        <button
+          type="button"
+          data-ocid={`today.myGroup.item.${index}.link`}
+          onClick={onOpen}
+          className="flex w-full flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <RoadiePhoto
+            id={roadie.roadieId}
+            name={roadie.name}
+            className="aspect-[4/3] w-full rounded-none border-0 border-b-2 border-primary"
+            iconClassName="h-8 w-8"
+            ocid={`today.myGroup.item.${index}.photo`}
+            fallback={
+              <span
+                className="flex h-full w-full items-center justify-center font-display text-2xl font-bold uppercase tracking-wide text-[#14284B]"
+                aria-hidden="true"
+              >
+                {roadie.name.slice(0, 2).toUpperCase()}
+              </span>
+            }
+          />
+          <span className="flex min-w-0 flex-1 flex-col gap-1 p-3">
+            <span className="truncate font-display text-sm font-semibold uppercase tracking-wide text-foreground">
+              {roadie.name}
             </span>
-          }
-        />
-        <span className="flex min-w-0 flex-1 flex-col gap-1 p-3">
-          <span className="truncate font-display text-sm font-semibold uppercase tracking-wide text-foreground">
-            {roadie.name}
+            <span className="truncate text-xs text-muted-foreground">
+              {roadie.positionCode}
+            </span>
           </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {roadie.positionCode}
-          </span>
-        </span>
-      </button>
+        </button>
+        {canAddNote && (
+          <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2">
+            {hasTodayNote ? (
+              <span
+                data-ocid={`today.myGroup.item.${index}.note_done`}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary"
+              >
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">{t("today.myGroup.noteDone")}</span>
+              </span>
+            ) : (
+              <span aria-hidden="true" />
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="touch-target"
+              aria-label={t("today.myGroup.addNoteFor", { name: roadie.name })}
+              data-ocid={`today.myGroup.item.${index}.add_note_button`}
+              onClick={onAddNote}
+            >
+              <NotebookPen className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              {t("today.myGroup.addNote")}
+            </Button>
+          </div>
+        )}
+      </div>
     </li>
   );
 }
@@ -390,14 +452,75 @@ function MyCrewSection() {
 }
 
 /**
+ * Whether the caller has already written a note for `roadieId` on `day`. Only
+ * the caller's own notes count, so the check mark reflects this person's work.
+ */
+function hasTodayNote(
+  notes: TrainerNoteView[] | undefined,
+  roadieId: ShiftBoardRoadie["roadieId"],
+  day: bigint,
+  principal: string | null,
+): boolean {
+  if (!notes || !principal) return false;
+  return notes.some(
+    (note) =>
+      note.roadieId.toString() === roadieId.toString() &&
+      note.day === day &&
+      note.author.toText() === principal,
+  );
+}
+
+/**
  * The trainer's own group for the current or next shift: the shift label, the
  * filled-of-capacity count, the roadies' photos and names, and a link to all
- * groups. Tapping a roadie opens the shared card pop-up.
+ * groups. Tapping a roadie opens the shared card pop-up. A role that may add a
+ * note gets a small Add note button on each tile that opens the shared note
+ * form for that roadie and today's shift, and a check mark once the caller has
+ * written today's note for that roadie.
  */
-function MyGroupSection({ group }: { group: MyGroupView }) {
+function MyGroupSection({
+  group,
+  role,
+}: {
+  group: MyGroupView;
+  role: Role | undefined;
+}) {
   const { t } = useDashboardCopy();
   const { data: allRoadies } = useRoadies();
+  const { data: demo } = useDemoState();
+  const { data: store } = useStoreInfo();
+  const { data: access } = useMyAccess();
+  const { actor, isFetching } = useActor(createActor);
   const [cardIndex, setCardIndex] = useState<number | null>(null);
+  const [noteRoadie, setNoteRoadie] = useState<ShiftBoardRoadie | null>(null);
+
+  const canAddNote = canAddTrainerNote(role);
+  const canReadNotes = canReadTrainerNotes(role);
+  const principal = access?.grant?.principal.toText() ?? null;
+
+  // Today's day in store time, or the demo pretend date when demo mode is on,
+  // matching the day the shared note form defaults to.
+  const todayDay = useMemo(() => {
+    const pretendDate = demo?.enabled ? demo.pretendDate : undefined;
+    const instant = pretendDate
+      ? pretendDateToInstant(pretendDate, {
+          timeZone: store?.timeZone,
+          amShiftStart: store?.amShiftStart,
+          pmShiftStart: store?.pmShiftStart,
+        })
+      : null;
+    const now = instant ?? new Date();
+    return (
+      BigInt(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) *
+      1_000_000n
+    );
+  }, [
+    demo?.enabled,
+    demo?.pretendDate,
+    store?.amShiftStart,
+    store?.pmShiftStart,
+    store?.timeZone,
+  ]);
 
   const roadieById = useMemo(() => {
     const map = new Map<string, Roadie>();
@@ -424,6 +547,33 @@ function MyGroupSection({ group }: { group: MyGroupView }) {
     entries.forEach((entry, index) => map.set(entry.key, index));
     return map;
   }, [entries]);
+
+  // Every group roadie's notes, so each tile's check mark reflects that
+  // roadie's own notes rather than only the roadie whose dialog is open. Demo
+  // notes stay demo notes: the backend returns only the current partition's
+  // notes, and the check mark counts only the caller's own notes.
+  const groupRoadieIds = useMemo(
+    () => groupRoadies.map((roadie) => roadie.roadieId),
+    [groupRoadies],
+  );
+  const groupNotesQueries = useQueries({
+    queries: groupRoadieIds.map((roadieId) => ({
+      queryKey: ["trainerNotes", roadieId.toString()],
+      queryFn: async (): Promise<TrainerNoteView[]> => {
+        if (!actor || roadieId === undefined) return [];
+        return actor.listTrainerNotes(roadieId);
+      },
+      enabled: canReadNotes && !!actor && !isFetching,
+    })),
+  });
+  const notesByRoadie = useMemo(() => {
+    const map = new Map<string, TrainerNoteView[]>();
+    groupRoadieIds.forEach((roadieId, index) => {
+      const data = groupNotesQueries[index]?.data;
+      if (data) map.set(roadieId.toString(), data);
+    });
+    return map;
+  }, [groupRoadieIds, groupNotesQueries]);
 
   return (
     <section className="space-y-4" data-ocid="today.myGroup.section">
@@ -462,6 +612,14 @@ function MyGroupSection({ group }: { group: MyGroupView }) {
               key={roadie.roadieId.toString()}
               roadie={roadie}
               index={index}
+              canAddNote={canAddNote}
+              hasTodayNote={hasTodayNote(
+                notesByRoadie.get(roadie.roadieId.toString()),
+                roadie.roadieId,
+                todayDay,
+                principal,
+              )}
+              onAddNote={() => setNoteRoadie(roadie)}
               onOpen={() =>
                 setCardIndex(
                   entryIndexById.get(roadie.roadieId.toString()) ?? null,
@@ -481,6 +639,33 @@ function MyGroupSection({ group }: { group: MyGroupView }) {
         }}
         onIndexChange={setCardIndex}
       />
+
+      <Dialog
+        open={noteRoadie !== null}
+        onOpenChange={(next) => {
+          if (!next) setNoteRoadie(null);
+        }}
+      >
+        <DialogContent data-ocid="today.myGroup.note_dialog">
+          <DialogTitle>
+            {t("today.myGroup.noteDialogTitle", {
+              name: noteRoadie?.name ?? "",
+            })}
+          </DialogTitle>
+          <DialogDescription>
+            {t("today.myGroup.noteDialogDescription", {
+              name: noteRoadie?.name ?? "",
+            })}
+          </DialogDescription>
+          {noteRoadie && (
+            <TrainerNoteForm
+              roadieId={noteRoadie.roadieId}
+              onDone={() => setNoteRoadie(null)}
+              onCancel={() => setNoteRoadie(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -717,7 +902,13 @@ function ReadyForFinalAlertCard() {
  * mounted for roles that may read the shift boards, so the group and notice
  * reads never run for a role the backend would reject.
  */
-function TrainerToday({ mayCheckIn }: { mayCheckIn: boolean }) {
+function TrainerToday({
+  mayCheckIn,
+  role,
+}: {
+  mayCheckIn: boolean;
+  role: Role | undefined;
+}) {
   const { t } = useDashboardCopy();
   const { data: group, isLoading, isError, refetch } = useMyGroup();
   const { data: notices } = useGroupChangeNotices();
@@ -756,7 +947,7 @@ function TrainerToday({ mayCheckIn }: { mayCheckIn: boolean }) {
               shiftLabel={group.shiftLabel}
             />
           )}
-          <MyGroupSection group={group} />
+          <MyGroupSection group={group} role={role} />
         </>
       )}
 
@@ -1175,7 +1366,7 @@ export default function TodayPage() {
       <PracticeRunCard />
 
       {isTrainer ? (
-        <TrainerToday mayCheckIn={mayCheckIn} />
+        <TrainerToday mayCheckIn={mayCheckIn} role={role} />
       ) : maySeeManager ? (
         <ManagerToday role={role} mayCheckIn={mayCheckIn} />
       ) : readOnly ? (

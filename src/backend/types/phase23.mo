@@ -176,6 +176,21 @@ module {
     isDemo : Bool;
   };
 
+  /// A trainer note as returned to the client: the stored note plus the
+  /// author's display name. The stored `TrainerNote` type is unchanged.
+  public type TrainerNoteView = {
+    id : Nat;
+    author : Principal;
+    authorName : Text;
+    roadieId : Common.RoadieId;
+    shift : Common.Shift;
+    day : Common.DateOnly;
+    didWell : Text;
+    workOn : Text;
+    createdAt : Common.Timestamp;
+    isDemo : Bool;
+  };
+
   /// A leader talk with per-roadie attendance. `isDemo` marks a demo talk.
   public type LeaderTalk = {
     id : Common.LeaderTalkId;

@@ -5,7 +5,7 @@ import type {
   ScheduleEvent,
   StoreInfo,
 } from "@/backend";
-import { EventKind, RoadieStatus, Role, createActor } from "@/backend";
+import { EventKind, RoadieStatus, createActor } from "@/backend";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { StoreLogo } from "@/components/StoreLogo";
@@ -22,6 +22,7 @@ import {
   canFinalizeOpeningQuestions,
   canOpeningQuestions,
   canSeeAbsentAlerts,
+  isAdminRole,
   useAccessState,
   useDemoAwareStoreInfo,
   useRealAccessGrant,
@@ -294,7 +295,7 @@ function DashboardAlerts({
   // New hires and absent roadies follow demo mode exactly as their own pages do,
   // so their reads run while demo mode is on and show demo data.
   const mayApproveSignups = canApproveSignups(role);
-  const { data: pendingSignups } = usePendingSignups();
+  const { data: pendingSignups } = usePendingSignups(mayApproveSignups);
   const maySeeAbsent = canSeeAbsentAlerts(role);
   const { data: absentAlerts } = useAbsentAlerts(maySeeAbsent);
 
@@ -318,7 +319,7 @@ function DashboardAlerts({
     ? Number(questionAlerts?.newSuggestionsOrReplies ?? 0)
     : 0;
   const decisionsDue =
-    mayReadQuestions && realRole === Role.admin
+    mayReadQuestions && isAdminRole(realRole)
       ? Number(questionAlerts?.decisionsDue ?? 0)
       : 0;
   const readyForFinal =

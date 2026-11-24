@@ -182,20 +182,26 @@ mixin (
     Phase23Lib.getMyCrew(accessGrants, demoState, crews, roadies, positions, checklists, orientationCheckoffs, schedule, checkIns, storeInfo.value, caller);
   };
 
-  /// Add a trainer note (Trainer/Admin/Store Manager only).
+  /// Add a trainer note (Trainer, Training Manager, Kitchen Manager, Service
+  /// Manager, Store Manager, Managing Partner or Admin). A Trainer may add only
+  /// for a roadie in their own stations. Refuses a blank note, a field over
+  /// 1,000 characters, an archived roadie and a roadie from the other demo
+  /// partition.
   public shared ({ caller }) func addTrainerNote(note : Phase23.TrainerNote) : async Nat {
-    Phase23Lib.addTrainerNote(accessGrants, demoState, trainerNotes, changeLog, counters, storeInfo.value, caller, note);
+    Phase23Lib.addTrainerNote(accessGrants, demoState, trainerNotes, roadies, changeLog, counters, storeInfo.value, caller, note);
   };
 
-  /// Edit a trainer note within its 24-hour lock window (author only).
+  /// Edit a trainer note within its 24-hour lock window (author only). Refuses
+  /// a blank note and a field over 1,000 characters.
   public shared ({ caller }) func updateTrainerNote(note : Phase23.TrainerNote) : async () {
     Phase23Lib.updateTrainerNote(accessGrants, demoState, trainerNotes, changeLog, counters, storeInfo.value, caller, note);
   };
 
-  /// List trainer notes for a roadie. Restricted the same way roadies are:
-  /// Integration sees nothing, and a trainer sees notes only for roadies in
-  /// their assigned stations.
-  public query ({ caller }) func listTrainerNotes(roadieId : Common.RoadieId) : async [Phase23.TrainerNote] {
+  /// List trainer notes for a roadie, newest first, each with the author's
+  /// display name. Restricted the same way roadies are: Integration sees
+  /// nothing, and a trainer sees notes only for roadies in their assigned
+  /// stations.
+  public query ({ caller }) func listTrainerNotes(roadieId : Common.RoadieId) : async [Phase23.TrainerNoteView] {
     Phase23Lib.listTrainerNotes(accessGrants, demoState, trainerNotes, roadies, caller, roadieId);
   };
 

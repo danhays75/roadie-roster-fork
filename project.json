@@ -1,19 +1,19 @@
 {
-  "overview": "A hiring and orientation roster app for a store's roadie crew, with sign-ups, paperwork, training groups, check-ins and manager tools.",
+  "overview": "A hiring and training roster for a store team, with roadie cards, shift groups, paperwork tracking and trainer notes.",
   "features": [
-    "Track roadies from sign-up through orientation and certification",
-    "Review and approve kiosk sign-ups",
-    "Build training groups and check people in",
-    "Daily email to managers with what needs their attention",
-    "Kitchen and Service Managers get manager access to contact info, groups, check-ins and sign-ups"
+    "Trainer notes on each roadie card, newest first with day, shift and author",
+    "Add and edit a note with the 1,000-character limit shown",
+    "Add a note straight from a roadie tile in My group on Today",
+    "Notes stay separate between demo mode and real data",
+    "English and Spanish copy throughout"
   ],
   "category": "team-management",
   "tags": [
     "roster",
+    "training",
     "hiring",
-    "orientation",
-    "store-operations",
-    "internal-tool"
+    "notes",
+    "store-team"
   ],
-  "last_updated": "2026-11-24T04:34:05.562Z"
+  "last_updated": "2026-11-24T10:38:25.260Z"
 }

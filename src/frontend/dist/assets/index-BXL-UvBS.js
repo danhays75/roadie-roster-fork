@@ -18729,6 +18729,175 @@ var MutationObserver$1 = class extends Subscribable {
 	}
 };
 //#endregion
+//#region ../../../../../../opt/pnpm-templates/build_template/node_modules/.pnpm/@tanstack+query-core@5.95.2/node_modules/@tanstack/query-core/build/modern/queriesObserver.js
+function difference(array1, array2) {
+	const excludeSet = new Set(array2);
+	return array1.filter((x) => !excludeSet.has(x));
+}
+function replaceAt(array, index, value) {
+	const copy = array.slice(0);
+	copy[index] = value;
+	return copy;
+}
+var QueriesObserver = class extends Subscribable {
+	#client;
+	#result;
+	#queries;
+	#options;
+	#observers;
+	#combinedResult;
+	#lastCombine;
+	#lastResult;
+	#lastQueryHashes;
+	#observerMatches = [];
+	constructor(client, queries, options) {
+		super();
+		this.#client = client;
+		this.#options = options;
+		this.#queries = [];
+		this.#observers = [];
+		this.#result = [];
+		this.setQueries(queries);
+	}
+	onSubscribe() {
+		if (this.listeners.size === 1) this.#observers.forEach((observer) => {
+			observer.subscribe((result) => {
+				this.#onUpdate(observer, result);
+			});
+		});
+	}
+	onUnsubscribe() {
+		if (!this.listeners.size) this.destroy();
+	}
+	destroy() {
+		this.listeners = /* @__PURE__ */ new Set();
+		this.#observers.forEach((observer) => {
+			observer.destroy();
+		});
+	}
+	setQueries(queries, options) {
+		this.#queries = queries;
+		this.#options = options;
+		notifyManager.batch(() => {
+			const prevObservers = this.#observers;
+			const newObserverMatches = this.#findMatchingObservers(this.#queries);
+			newObserverMatches.forEach((match) => match.observer.setOptions(match.defaultedQueryOptions));
+			const newObservers = newObserverMatches.map((match) => match.observer);
+			const newResult = newObservers.map((observer) => observer.getCurrentResult());
+			const hasLengthChange = prevObservers.length !== newObservers.length;
+			const hasIndexChange = newObservers.some((observer, index) => observer !== prevObservers[index]);
+			const hasStructuralChange = hasLengthChange || hasIndexChange;
+			const hasResultChange = hasStructuralChange ? true : newResult.some((result, index) => {
+				const prev = this.#result[index];
+				return !prev || !shallowEqualObjects(result, prev);
+			});
+			if (!hasStructuralChange && !hasResultChange) return;
+			if (hasStructuralChange) {
+				this.#observerMatches = newObserverMatches;
+				this.#observers = newObservers;
+			}
+			this.#result = newResult;
+			if (!this.hasListeners()) return;
+			if (hasStructuralChange) {
+				difference(prevObservers, newObservers).forEach((observer) => {
+					observer.destroy();
+				});
+				difference(newObservers, prevObservers).forEach((observer) => {
+					observer.subscribe((result) => {
+						this.#onUpdate(observer, result);
+					});
+				});
+			}
+			this.#notify();
+		});
+	}
+	getCurrentResult() {
+		return this.#result;
+	}
+	getQueries() {
+		return this.#observers.map((observer) => observer.getCurrentQuery());
+	}
+	getObservers() {
+		return this.#observers;
+	}
+	getOptimisticResult(queries, combine) {
+		const matches = this.#findMatchingObservers(queries);
+		const result = matches.map((match) => match.observer.getOptimisticResult(match.defaultedQueryOptions));
+		const queryHashes = matches.map((match) => match.defaultedQueryOptions.queryHash);
+		return [
+			result,
+			(r) => {
+				return this.#combineResult(r ?? result, combine, queryHashes);
+			},
+			() => {
+				return this.#trackResult(result, matches);
+			}
+		];
+	}
+	#trackResult(result, matches) {
+		return matches.map((match, index) => {
+			const observerResult = result[index];
+			return !match.defaultedQueryOptions.notifyOnChangeProps ? match.observer.trackResult(observerResult, (accessedProp) => {
+				matches.forEach((m) => {
+					m.observer.trackProp(accessedProp);
+				});
+			}) : observerResult;
+		});
+	}
+	#combineResult(input, combine, queryHashes) {
+		if (combine) {
+			const lastHashes = this.#lastQueryHashes;
+			const queryHashesChanged = queryHashes !== void 0 && lastHashes !== void 0 && (lastHashes.length !== queryHashes.length || queryHashes.some((hash, i) => hash !== lastHashes[i]));
+			if (!this.#combinedResult || this.#result !== this.#lastResult || queryHashesChanged || combine !== this.#lastCombine) {
+				this.#lastCombine = combine;
+				this.#lastResult = this.#result;
+				if (queryHashes !== void 0) this.#lastQueryHashes = queryHashes;
+				this.#combinedResult = replaceEqualDeep$1(this.#combinedResult, combine(input));
+			}
+			return this.#combinedResult;
+		}
+		return input;
+	}
+	#findMatchingObservers(queries) {
+		const prevObserversMap = /* @__PURE__ */ new Map();
+		this.#observers.forEach((observer) => {
+			const key = observer.options.queryHash;
+			if (!key) return;
+			const previousObservers = prevObserversMap.get(key);
+			if (previousObservers) previousObservers.push(observer);
+			else prevObserversMap.set(key, [observer]);
+		});
+		const observers = [];
+		queries.forEach((options) => {
+			const defaultedOptions = this.#client.defaultQueryOptions(options);
+			const observer = prevObserversMap.get(defaultedOptions.queryHash)?.shift() ?? new QueryObserver(this.#client, defaultedOptions);
+			observers.push({
+				defaultedQueryOptions: defaultedOptions,
+				observer
+			});
+		});
+		return observers;
+	}
+	#onUpdate(observer, result) {
+		const index = this.#observers.indexOf(observer);
+		if (index !== -1) {
+			this.#result = replaceAt(this.#result, index, result);
+			this.#notify();
+		}
+	}
+	#notify() {
+		if (this.hasListeners()) {
+			const previousResult = this.#combinedResult;
+			const newTracked = this.#trackResult(this.#result, this.#observerMatches);
+			if (previousResult !== this.#combineResult(newTracked, this.#options?.combine)) notifyManager.batch(() => {
+				this.listeners.forEach((listener) => {
+					listener(this.#result);
+				});
+			});
+		}
+	}
+};
+//#endregion
 //#region ../../../../../../opt/pnpm-templates/build_template/node_modules/.pnpm/@tanstack+query-core@5.95.2/node_modules/@tanstack/query-core/build/modern/queryCache.js
 var QueryCache = class extends Subscribable {
 	constructor(config = {}) {
@@ -19555,6 +19724,57 @@ var shouldSuspend = (defaultedOptions, result) => defaultedOptions?.suspense && 
 var fetchOptimistic = (defaultedOptions, observer, errorResetBoundary) => observer.fetchOptimistic(defaultedOptions).catch(() => {
 	errorResetBoundary.clearReset();
 });
+//#endregion
+//#region ../../../../../../opt/pnpm-templates/build_template/node_modules/.pnpm/@tanstack+react-query@5.95.2_react@19.1.5/node_modules/@tanstack/react-query/build/modern/useQueries.js
+function useQueries({ queries, ...options }, queryClient) {
+	const client = useQueryClient(queryClient);
+	const isRestoring = useIsRestoring();
+	const errorResetBoundary = useQueryErrorResetBoundary();
+	const defaultedQueries = import_react.useMemo(() => queries.map((opts) => {
+		const defaultedOptions = client.defaultQueryOptions(opts);
+		defaultedOptions._optimisticResults = isRestoring ? "isRestoring" : "optimistic";
+		return defaultedOptions;
+	}), [
+		queries,
+		client,
+		isRestoring
+	]);
+	defaultedQueries.forEach((queryOptions) => {
+		ensureSuspenseTimers(queryOptions);
+		const query = client.getQueryCache().get(queryOptions.queryHash);
+		ensurePreventErrorBoundaryRetry(queryOptions, errorResetBoundary, query);
+	});
+	useClearResetErrorBoundary(errorResetBoundary);
+	const [observer] = import_react.useState(() => new QueriesObserver(client, defaultedQueries, options));
+	const [optimisticResult, getCombinedResult, trackResult] = observer.getOptimisticResult(defaultedQueries, options.combine);
+	const shouldSubscribe = !isRestoring && options.subscribed !== false;
+	import_react.useSyncExternalStore(import_react.useCallback((onStoreChange) => shouldSubscribe ? observer.subscribe(notifyManager.batchCalls(onStoreChange)) : noop, [observer, shouldSubscribe]), () => observer.getCurrentResult(), () => observer.getCurrentResult());
+	import_react.useEffect(() => {
+		observer.setQueries(defaultedQueries, options);
+	}, [
+		defaultedQueries,
+		options,
+		observer
+	]);
+	const suspensePromises = optimisticResult.some((result, index) => shouldSuspend(defaultedQueries[index], result)) ? optimisticResult.flatMap((result, index) => {
+		const opts = defaultedQueries[index];
+		if (opts && shouldSuspend(opts, result)) return fetchOptimistic(opts, new QueryObserver(client, opts), errorResetBoundary);
+		return [];
+	}) : [];
+	if (suspensePromises.length > 0) throw Promise.all(suspensePromises);
+	const firstSingleResultWhichShouldThrow = optimisticResult.find((result, index) => {
+		const query = defaultedQueries[index];
+		return query && getHasError({
+			result,
+			errorResetBoundary,
+			throwOnError: query.throwOnError,
+			query: client.getQueryCache().get(query.queryHash),
+			suspense: query.suspense
+		});
+	});
+	if (firstSingleResultWhichShouldThrow?.error) throw firstSingleResultWhichShouldThrow.error;
+	return getCombinedResult(trackResult());
+}
 //#endregion
 //#region ../../../../../../opt/pnpm-templates/build_template/node_modules/.pnpm/@tanstack+react-query@5.95.2_react@19.1.5/node_modules/@tanstack/react-query/build/modern/useBaseQuery.js
 function useBaseQuery(options, Observer, queryClient) {
@@ -34088,6 +34308,18 @@ var PendingUser = Record({
 	"staffProfile": Opt(StaffProfile),
 	"requestedAt": Timestamp
 });
+var TrainerNoteView = Record({
+	"id": Nat,
+	"day": DateOnly,
+	"didWell": Text,
+	"roadieId": RoadieId,
+	"createdAt": Timestamp,
+	"authorName": Text,
+	"isDemo": Bool,
+	"author": Principal,
+	"shift": Shift$1,
+	"workOn": Text
+});
 var UnassignedRoadieRow = Record({
 	"demoPhotoUrl": Opt(Text),
 	"roadieId": RoadieId,
@@ -34270,7 +34502,7 @@ Service({
 	"listRosterForPosition": Func([PositionId], [Vec(Roadie)], ["query"]),
 	"listSchedule": Func([], [Vec(ScheduleEvent)], ["query"]),
 	"listShiftBoards": Func([], [Vec(ShiftBoardView)], ["query"]),
-	"listTrainerNotes": Func([RoadieId], [Vec(TrainerNote)], ["query"]),
+	"listTrainerNotes": Func([RoadieId], [Vec(TrainerNoteView)], ["query"]),
 	"listUnassignedPendingRoadies": Func([], [Vec(UnassignedRoadieRow)], ["query"]),
 	"loadDemoData": Func([], [DemoDataSummary], []),
 	"loadStoreTemplate": Func([StoreTemplateFile], [TemplateLoadResult], []),
@@ -35389,6 +35621,18 @@ var idlFactory = ({ IDL }) => {
 		"staffProfile": IDL.Opt(StaffProfile),
 		"requestedAt": Timestamp
 	});
+	const TrainerNoteView = IDL.Record({
+		"id": IDL.Nat,
+		"day": DateOnly,
+		"didWell": IDL.Text,
+		"roadieId": RoadieId,
+		"createdAt": Timestamp,
+		"authorName": IDL.Text,
+		"isDemo": IDL.Bool,
+		"author": IDL.Principal,
+		"shift": Shift,
+		"workOn": IDL.Text
+	});
 	const UnassignedRoadieRow = IDL.Record({
 		"demoPhotoUrl": IDL.Opt(IDL.Text),
 		"roadieId": RoadieId,
@@ -35574,7 +35818,7 @@ var idlFactory = ({ IDL }) => {
 		"listRosterForPosition": IDL.Func([PositionId], [IDL.Vec(Roadie)], ["query"]),
 		"listSchedule": IDL.Func([], [IDL.Vec(ScheduleEvent)], ["query"]),
 		"listShiftBoards": IDL.Func([], [IDL.Vec(ShiftBoardView)], ["query"]),
-		"listTrainerNotes": IDL.Func([RoadieId], [IDL.Vec(TrainerNote)], ["query"]),
+		"listTrainerNotes": IDL.Func([RoadieId], [IDL.Vec(TrainerNoteView)], ["query"]),
 		"listUnassignedPendingRoadies": IDL.Func([], [IDL.Vec(UnassignedRoadieRow)], ["query"]),
 		"loadDemoData": IDL.Func([], [DemoDataSummary], []),
 		"loadStoreTemplate": IDL.Func([StoreTemplateFile], [TemplateLoadResult], []),
@@ -37788,7 +38032,7 @@ function from_candid_TemplateScheduleEvent_n52(_uploadFile, _downloadFile, value
 function from_candid_TodayView_n208(_uploadFile, _downloadFile, value) {
 	return from_candid_record_n209(_uploadFile, _downloadFile, value);
 }
-function from_candid_TrainerNote_n283(_uploadFile, _downloadFile, value) {
+function from_candid_TrainerNoteView_n283(_uploadFile, _downloadFile, value) {
 	return from_candid_record_n284(_uploadFile, _downloadFile, value);
 }
 function from_candid_UnassignedRoadieRow_n286(_uploadFile, _downloadFile, value) {
@@ -38526,6 +38770,7 @@ function from_candid_record_n284(_uploadFile, _downloadFile, value) {
 		didWell: value.didWell,
 		roadieId: value.roadieId,
 		createdAt: value.createdAt,
+		authorName: value.authorName,
 		isDemo: value.isDemo,
 		author: value.author,
 		shift: from_candid_Shift_n38(_uploadFile, _downloadFile, value.shift),
@@ -38924,7 +39169,7 @@ function from_candid_vec_n281(_uploadFile, _downloadFile, value) {
 	return value.map((x) => from_candid_ShiftBoardView_n192(_uploadFile, _downloadFile, x));
 }
 function from_candid_vec_n282(_uploadFile, _downloadFile, value) {
-	return value.map((x) => from_candid_TrainerNote_n283(_uploadFile, _downloadFile, x));
+	return value.map((x) => from_candid_TrainerNoteView_n283(_uploadFile, _downloadFile, x));
 }
 function from_candid_vec_n285(_uploadFile, _downloadFile, value) {
 	return value.map((x) => from_candid_UnassignedRoadieRow_n286(_uploadFile, _downloadFile, x));
@@ -43577,6 +43822,38 @@ var MoveRight = createLucideIcon("move-right", [["path", {
 	d: "M2 12H22",
 	key: "1m8cig"
 }]]);
+/**
+* @license lucide-react v0.511.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var NotebookPen = createLucideIcon("notebook-pen", [
+	["path", {
+		d: "M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4",
+		key: "re6nr2"
+	}],
+	["path", {
+		d: "M2 6h4",
+		key: "aawbzj"
+	}],
+	["path", {
+		d: "M2 10h4",
+		key: "l0bgd4"
+	}],
+	["path", {
+		d: "M2 14h4",
+		key: "1gsvsf"
+	}],
+	["path", {
+		d: "M2 18h4",
+		key: "1bu2t1"
+	}],
+	["path", {
+		d: "M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z",
+		key: "pqwjuv"
+	}]
+]);
 /**
 * @license lucide-react v0.511.0 - ISC
 *
@@ -48802,7 +49079,12 @@ function usePendingUsers(enabled = true) {
 		enabled: enabled && !!actor && !isFetching
 	});
 }
-function usePendingSignups() {
+/**
+* The pending kiosk sign-ups queue. Readable by sign-up approvers, so callers
+* pass `enabled` (typically `canApproveSignups(role)`) to avoid a trapping read
+* for a role that may not approve sign-ups.
+*/
+function usePendingSignups(enabled = true) {
 	const { actor, isFetching } = useActor(createActor);
 	return useQuery({
 		queryKey: ["pendingSignups"],
@@ -48810,7 +49092,7 @@ function usePendingSignups() {
 			if (!actor) return [];
 			return actor.listPendingSignups();
 		},
-		enabled: !!actor && !isFetching
+		enabled: enabled && !!actor && !isFetching
 	});
 }
 function useSignupDuplicates(id) {
@@ -50804,6 +51086,58 @@ function useUpdateOpeningQuestionEmailSettings() {
 		}
 	});
 }
+/**
+* A roadie's trainer notes, newest first, each with the author's display name.
+* Restricted the same way roadies are: Integration sees nothing and a trainer
+* sees notes only for roadies in their assigned stations, so callers pass
+* `enabled` (typically `canReadTrainerNotes(role)`) to avoid a trapping read.
+*/
+function useTrainerNotes(roadieId, enabled = true) {
+	const { actor, isFetching } = useActor(createActor);
+	return useQuery({
+		queryKey: ["trainerNotes", roadieId?.toString()],
+		queryFn: async () => {
+			if (!actor || roadieId === void 0) return [];
+			return actor.listTrainerNotes(roadieId);
+		},
+		enabled: enabled && !!actor && !isFetching && roadieId !== void 0
+	});
+}
+/**
+* Add a trainer note (Trainer, Training Manager, Kitchen Manager, Service
+* Manager, Store Manager, Managing Partner or Admin). Refreshes the roadie's
+* note list so the new note appears without a reload.
+*/
+function useAddTrainerNote() {
+	const { actor } = useActor(createActor);
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (note) => {
+			if (!actor) throw new Error("Backend is not ready");
+			return actor.addTrainerNote(note);
+		},
+		onSuccess: (_id, note) => {
+			queryClient.invalidateQueries({ queryKey: ["trainerNotes", note.roadieId.toString()] });
+		}
+	});
+}
+/**
+* Edit a trainer note within its 24-hour lock window (author only). Refreshes
+* the roadie's note list so the edited text appears without a reload.
+*/
+function useUpdateTrainerNote() {
+	const { actor } = useActor(createActor);
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (note) => {
+			if (!actor) throw new Error("Backend is not ready");
+			return actor.updateTrainerNote(note);
+		},
+		onSuccess: (_result, note) => {
+			queryClient.invalidateQueries({ queryKey: ["trainerNotes", note.roadieId.toString()] });
+		}
+	});
+}
 //#endregion
 //#region src/hooks/useDemo.ts
 /** The demo roles offered by the banner's "View as" picker, in display order. */
@@ -51136,6 +51470,32 @@ var SIGNUP_APPROVER_ROLES = [
 	Role.storeManager,
 	Role.kitchenManager,
 	Role.serviceManager
+];
+/**
+* Roles allowed to read a roadie's trainer notes: every read role except Kiosk
+* and Integration, matching the backend's roadie read restriction.
+*/
+var TRAINER_NOTE_READ_ROLES = [
+	...ADMIN_ROLES,
+	Role.storeManager,
+	Role.trainingManager,
+	Role.kitchenManager,
+	Role.serviceManager,
+	Role.trainer,
+	Role.leadership,
+	Role.visitingManager
+];
+/**
+* Roles allowed to add a trainer note: Trainer, Training Manager, Kitchen
+* Manager, Service Manager, Store Manager, Managing Partner and Admin.
+*/
+var TRAINER_NOTE_WRITE_ROLES = [
+	...ADMIN_ROLES,
+	Role.storeManager,
+	Role.trainingManager,
+	Role.kitchenManager,
+	Role.serviceManager,
+	Role.trainer
 ];
 /**
 * Roles that see the Today screen read-only: they may read the day's summary
@@ -51471,6 +51831,21 @@ function canManageCheckIns(role) {
 function canApproveSignups(role) {
 	return !!role && SIGNUP_APPROVER_ROLES.includes(role);
 }
+/**
+* Whether the given role may read a roadie's trainer notes. Every read role
+* except Kiosk and Integration may read them.
+*/
+function canReadTrainerNotes(role) {
+	return !!role && TRAINER_NOTE_READ_ROLES.includes(role);
+}
+/**
+* Whether the given role may add a trainer note. Trainer, Training Manager,
+* Kitchen Manager, Service Manager, Store Manager, Managing Partner and Admin
+* may add one.
+*/
+function canAddTrainerNote(role) {
+	return !!role && TRAINER_NOTE_WRITE_ROLES.includes(role);
+}
 /** Whether the given role sees the Today screen read-only. */
 function isTodayReadOnly(role) {
 	return !!role && TODAY_READ_ONLY_ROLES.includes(role);
@@ -51754,6 +52129,7 @@ var dictionaries = {
 		"roadie.minor": "Minor",
 		"roadie.section.manager": "Manager",
 		"roadie.section.card": "Card",
+		"roadie.section.trainerNotes": "Trainer notes",
 		"roadie.card.tlc": "TLC",
 		"roadie.card.badge": "975",
 		"roadie.card.roadieSince": "Roadie since",
@@ -51858,6 +52234,34 @@ var dictionaries = {
 		"roadie.weekday.sun": "Sun",
 		"roadie.shift.am": "AM",
 		"roadie.shift.pm": "PM",
+		"trainerNotes.title": "Trainer notes",
+		"trainerNotes.subtitle": "What went well and what to work on, logged by shift.",
+		"trainerNotes.add": "Add a note",
+		"trainerNotes.addTitle": "New trainer note",
+		"trainerNotes.editTitle": "Edit trainer note",
+		"trainerNotes.day": "Day",
+		"trainerNotes.shift": "Shift",
+		"trainerNotes.didWell": "Did well",
+		"trainerNotes.didWellPlaceholder": "What did they do well this shift?",
+		"trainerNotes.workOn": "Work on",
+		"trainerNotes.workOnPlaceholder": "What should they focus on next?",
+		"trainerNotes.save": "Save note",
+		"trainerNotes.saving": "Saving…",
+		"trainerNotes.cancel": "Cancel",
+		"trainerNotes.edit": "Edit",
+		"trainerNotes.saved": "Note saved.",
+		"trainerNotes.saveError": "We couldn't save that note.",
+		"trainerNotes.blank": "Add something in Did well or Work on before saving.",
+		"trainerNotes.tooLong": "Keep each field to {max} characters or fewer.",
+		"trainerNotes.counter": "{count}/{max}",
+		"trainerNotes.empty": "No trainer notes yet.",
+		"trainerNotes.emptyHint": "Notes logged after a shift show up here, newest first.",
+		"trainerNotes.loading": "Loading trainer notes…",
+		"trainerNotes.error": "We couldn't load the trainer notes.",
+		"trainerNotes.retry": "Try again",
+		"trainerNotes.author": "By {name}",
+		"trainerNotes.locked": "Editable for 24 hours after it was written.",
+		"trainerNotes.readOnly": "You can read notes but not add them.",
 		"approvals.title": "Approve new hires",
 		"approvals.subtitle": "Approve new roadies and give leaders access",
 		"approvals.empty": "No one is waiting for approval.",
@@ -51961,6 +52365,11 @@ var dictionaries = {
 		"today.myGroup.empty": "You are not training a group on this shift.",
 		"today.myGroup.viewAll": "View all groups",
 		"today.myGroup.capacity": "{count} of {capacity}",
+		"today.myGroup.addNote": "Add note",
+		"today.myGroup.addNoteFor": "Add a note for {name}",
+		"today.myGroup.noteDone": "Today's note is written",
+		"today.myGroup.noteDialogTitle": "Add a note for {name}",
+		"today.myGroup.noteDialogDescription": "Write today's note for {name}. It is saved to their trainer notes.",
 		"today.noGroup.title": "No group this shift",
 		"today.noGroup.body": "You are not training a group on the current or next shift. Your next event will appear here when one is scheduled.",
 		"today.loading": "Loading today…",
@@ -52578,6 +52987,7 @@ var dictionaries = {
 		"roadie.minor": "Menor",
 		"roadie.section.manager": "Gerente",
 		"roadie.section.card": "Ficha",
+		"roadie.section.trainerNotes": "Notas de entrenamiento",
 		"roadie.card.tlc": "TLC",
 		"roadie.card.badge": "975",
 		"roadie.card.roadieSince": "Roadie desde",
@@ -52682,6 +53092,34 @@ var dictionaries = {
 		"roadie.weekday.sun": "Dom",
 		"roadie.shift.am": "AM",
 		"roadie.shift.pm": "PM",
+		"trainerNotes.title": "Notas de entrenamiento",
+		"trainerNotes.subtitle": "Lo que salió bien y lo que hay que trabajar, registrado por turno.",
+		"trainerNotes.add": "Agregar nota",
+		"trainerNotes.addTitle": "Nueva nota de entrenamiento",
+		"trainerNotes.editTitle": "Editar nota de entrenamiento",
+		"trainerNotes.day": "Día",
+		"trainerNotes.shift": "Turno",
+		"trainerNotes.didWell": "Lo hizo bien",
+		"trainerNotes.didWellPlaceholder": "¿Qué hizo bien en este turno?",
+		"trainerNotes.workOn": "Por trabajar",
+		"trainerNotes.workOnPlaceholder": "¿En qué debería enfocarse ahora?",
+		"trainerNotes.save": "Guardar nota",
+		"trainerNotes.saving": "Guardando…",
+		"trainerNotes.cancel": "Cancelar",
+		"trainerNotes.edit": "Editar",
+		"trainerNotes.saved": "Nota guardada.",
+		"trainerNotes.saveError": "No pudimos guardar esa nota.",
+		"trainerNotes.blank": "Escribe algo en Lo hizo bien o Por trabajar antes de guardar.",
+		"trainerNotes.tooLong": "Mantén cada campo en {max} caracteres o menos.",
+		"trainerNotes.counter": "{count}/{max}",
+		"trainerNotes.empty": "Aún no hay notas de entrenamiento.",
+		"trainerNotes.emptyHint": "Las notas registradas después de un turno aparecen aquí, de la más reciente a la más antigua.",
+		"trainerNotes.loading": "Cargando notas de entrenamiento…",
+		"trainerNotes.error": "No pudimos cargar las notas de entrenamiento.",
+		"trainerNotes.retry": "Reintentar",
+		"trainerNotes.author": "Por {name}",
+		"trainerNotes.locked": "Editable durante 24 horas después de escribirse.",
+		"trainerNotes.readOnly": "Puedes leer notas pero no agregarlas.",
 		"approvals.title": "Aprobar nuevos",
 		"approvals.subtitle": "Aprueba nuevos roadies y da acceso a los líderes",
 		"approvals.empty": "Nadie está esperando aprobación.",
@@ -52785,6 +53223,11 @@ var dictionaries = {
 		"today.myGroup.empty": "No estás entrenando a un grupo en este turno.",
 		"today.myGroup.viewAll": "Ver todos los grupos",
 		"today.myGroup.capacity": "{count} de {capacity}",
+		"today.myGroup.addNote": "Agregar nota",
+		"today.myGroup.addNoteFor": "Agregar una nota para {name}",
+		"today.myGroup.noteDone": "La nota de hoy está escrita",
+		"today.myGroup.noteDialogTitle": "Agregar una nota para {name}",
+		"today.myGroup.noteDialogDescription": "Escribe la nota de hoy para {name}. Se guarda en sus notas del entrenador.",
 		"today.noGroup.title": "Sin grupo en este turno",
 		"today.noGroup.body": "No estás entrenando a un grupo en el turno actual o el siguiente. Tu próximo evento aparecerá aquí cuando haya uno programado.",
 		"today.loading": "Cargando hoy…",
@@ -59616,7 +60059,7 @@ function navRank(to) {
 function NavLinks({ onNavigate, className }) {
 	const { t } = useI18n();
 	const role = useCurrentRole();
-	const { data: pendingSignups } = usePendingSignups();
+	const { data: pendingSignups } = usePendingSignups(canApproveSignups(role));
 	usePendingUsers(canAdmin(role));
 	const { data: openingAlerts } = useOpeningQuestionAlerts(canOpeningQuestions(role));
 	const { data: nudges } = useMyOpeningQuestionNudges(canOpeningQuestions(role));
@@ -102478,8 +102921,8 @@ var __vitePreload = function preload(baseModule, deps, importerUrl) {
 };
 //#endregion
 //#region src/pages/Dashboard.tsx
-var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-B_AghAWR.js").then((m) => ({ default: m.KpiTiles })), []));
-var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-Be7ITk05.js").then((m) => ({ default: m.OpeningTimelineView })), []));
+var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-yKsg7H8D.js").then((m) => ({ default: m.KpiTiles })), []));
+var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-CwrYT7Tu.js").then((m) => ({ default: m.OpeningTimelineView })), []));
 var KPI_SKELETON_TILES = [
 	"hired",
 	"needed",
@@ -102659,7 +103102,7 @@ function DashboardAlerts({ paperworkNames, alerts }) {
 	const { data: demoState } = useDemoState();
 	const demoEnabled = demoState?.enabled ?? false;
 	const mayApproveSignups = canApproveSignups(role);
-	const { data: pendingSignups } = usePendingSignups();
+	const { data: pendingSignups } = usePendingSignups(mayApproveSignups);
 	const maySeeAbsent = canSeeAbsentAlerts(role);
 	const { data: absentAlerts } = useAbsentAlerts(maySeeAbsent);
 	const realRole = useRealAccessGrant()?.role;
@@ -102672,7 +103115,7 @@ function DashboardAlerts({ paperworkNames, alerts }) {
 	const paperwork = paperworkNames.length;
 	const needsApproval = mayReadQuestions ? Number(questionAlerts?.needsMyApproval ?? 0) : 0;
 	const newActivity = mayReadQuestions ? Number(questionAlerts?.newSuggestionsOrReplies ?? 0) : 0;
-	const decisionsDue = mayReadQuestions && realRole === Role.admin ? Number(questionAlerts?.decisionsDue ?? 0) : 0;
+	const decisionsDue = mayReadQuestions && isAdminRole(realRole) ? Number(questionAlerts?.decisionsDue ?? 0) : 0;
 	const readyForFinal = mayReadQuestions && canFinalizeOpeningQuestions(realRole) ? Number(questionAlerts?.readyForFinal ?? 0) : 0;
 	if (!(newHires > 0 || absent > 0 || paperwork > 0 || needsApproval > 0 || newActivity > 0 || decisionsDue > 0 || readyForFinal > 0 || openAlerts.length > 0)) return null;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
@@ -114503,6 +114946,398 @@ function RoadieActions({ roadie, positions, crews, canEdit, canArchive }) {
 	});
 }
 //#endregion
+//#region src/components/roadie/TrainerNoteForm.tsx
+/** The maximum length of each note field, matching the backend limit. */
+var TRAINER_NOTE_MAX_LENGTH = 1e3;
+/**
+* The current shift at `now`, in store time: AM before the PM shift start and
+* PM from then on. Falls back to AM when the store times are unknown.
+*/
+function currentShift(now, times) {
+	return now.getHours() * 60 + now.getMinutes() >= Number(times.pmShiftStart ?? 960n) ? Shift.pm : Shift.am;
+}
+/**
+* The default day and shift for a new note: today in store time, or the demo
+* pretend date when demo mode is on, with the current shift.
+*/
+function useDefaultDayAndShift() {
+	const { data: demo } = useDemoState();
+	const { data: store } = useStoreInfo();
+	const pretendDate = demo?.enabled ? demo.pretendDate : void 0;
+	return (0, import_react.useMemo)(() => {
+		const times = {
+			amShiftStart: store?.amShiftStart,
+			pmShiftStart: store?.pmShiftStart
+		};
+		const now = (pretendDate ? pretendDateToInstant(pretendDate, {
+			timeZone: store?.timeZone,
+			amShiftStart: store?.amShiftStart,
+			pmShiftStart: store?.pmShiftStart
+		}) : null) ?? /* @__PURE__ */ new Date();
+		return {
+			day: BigInt(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) * 1000000n,
+			shift: currentShift(now, times)
+		};
+	}, [
+		pretendDate,
+		store?.amShiftStart,
+		store?.pmShiftStart,
+		store?.timeZone
+	]);
+}
+/** A live character counter that turns red once the field is over the limit. */
+function CharCounter({ value }) {
+	const { t } = useI18n();
+	const over = value.length > TRAINER_NOTE_MAX_LENGTH;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+		className: cn("font-mono text-xs tabular-nums", over ? "text-destructive" : "text-muted-foreground"),
+		"aria-live": "polite",
+		children: t("trainerNotes.counter", {
+			count: value.length,
+			max: TRAINER_NOTE_MAX_LENGTH
+		})
+	});
+}
+/**
+* The shared trainer note form. It creates a new note for a roadie, or edits an
+* existing one when `note` is passed. The day defaults to today in store time
+* (or the demo pretend date) and the shift to the current shift. Each field
+* shows its 1,000-character limit and blocks a save past it, and a blank note
+* is refused with a visible message.
+*/
+function TrainerNoteForm({ roadieId, note, onDone, onCancel }) {
+	const { t } = useI18n();
+	const access = useAccessState();
+	const defaults = useDefaultDayAndShift();
+	const add = useAddTrainerNote();
+	const update = useUpdateTrainerNote();
+	const isEdit = !!note;
+	const mutation = isEdit ? update : add;
+	const [day, setDay] = (0, import_react.useState)(() => dateOnlyToInputValue(note?.day ?? defaults.day));
+	const [shift, setShift] = (0, import_react.useState)(note?.shift ?? defaults.shift);
+	const [didWell, setDidWell] = (0, import_react.useState)(note?.didWell ?? "");
+	const [workOn, setWorkOn] = (0, import_react.useState)(note?.workOn ?? "");
+	const [error, setError] = (0, import_react.useState)(null);
+	const [touched, setTouched] = (0, import_react.useState)(false);
+	(0, import_react.useEffect)(() => {
+		if (isEdit || touched) return;
+		setDay(dateOnlyToInputValue(defaults.day));
+		setShift(defaults.shift);
+	}, [
+		defaults.day,
+		defaults.shift,
+		isEdit,
+		touched
+	]);
+	const tooLong = didWell.length > 1e3 || workOn.length > 1e3;
+	const blank = didWell.trim() === "" && workOn.trim() === "";
+	const dayValue = inputValueToDateOnly(day);
+	const canSave = !tooLong && !blank && dayValue !== null;
+	const handleSubmit = (event) => {
+		event.preventDefault();
+		setError(null);
+		if (blank) {
+			setError(t("trainerNotes.blank"));
+			return;
+		}
+		if (tooLong) {
+			setError(t("trainerNotes.tooLong", { max: TRAINER_NOTE_MAX_LENGTH }));
+			return;
+		}
+		if (dayValue === null) return;
+		const payload = {
+			id: note?.id ?? 0n,
+			day: dayValue,
+			didWell: didWell.trim(),
+			roadieId,
+			createdAt: note?.createdAt ?? 0n,
+			isDemo: note?.isDemo ?? false,
+			author: note?.author ?? (access.kind === "granted" ? access.grant.principal : Principal$1.anonymous()),
+			shift,
+			workOn: workOn.trim()
+		};
+		mutation.mutate(payload, {
+			onSuccess: () => {
+				if (!isEdit) {
+					setDidWell("");
+					setWorkOn("");
+					setTouched(false);
+				}
+				onDone?.();
+			},
+			onError: () => {
+				setError(t("trainerNotes.saveError"));
+			}
+		});
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+		"data-ocid": "trainerNotes.form",
+		className: "space-y-4 rounded-lg border border-border bg-card p-5 shadow-subtle",
+		onSubmit: handleSubmit,
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+				className: "font-display text-lg font-bold uppercase tracking-wide",
+				children: isEdit ? t("trainerNotes.editTitle") : t("trainerNotes.addTitle")
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "grid grid-cols-1 gap-4 sm:grid-cols-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "space-y-1.5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+						htmlFor: "trainer-note-day",
+						children: t("trainerNotes.day")
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+						id: "trainer-note-day",
+						type: "date",
+						className: "touch-target",
+						"data-ocid": "trainerNotes.day_input",
+						value: day,
+						onChange: (event) => {
+							setTouched(true);
+							setDay(event.target.value);
+						}
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("fieldset", {
+					className: "space-y-1.5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("legend", {
+						className: "text-sm font-medium leading-none",
+						children: t("trainerNotes.shift")
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "flex gap-2",
+						children: [Shift.am, Shift.pm].map((value) => {
+							const active = shift === value;
+							return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								type: "button",
+								variant: active ? "default" : "outline",
+								className: "touch-target flex-1",
+								"aria-pressed": active,
+								"data-ocid": `trainerNotes.shift_${value}`,
+								onClick: () => {
+									setTouched(true);
+									setShift(value);
+								},
+								children: t(value === Shift.am ? "roadie.shift.am" : "roadie.shift.pm")
+							}, value);
+						})
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "space-y-1.5",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex items-center justify-between gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+						htmlFor: "trainer-note-did-well",
+						children: t("trainerNotes.didWell")
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CharCounter, { value: didWell })]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Textarea, {
+					id: "trainer-note-did-well",
+					"data-ocid": "trainerNotes.didWell_input",
+					value: didWell,
+					placeholder: t("trainerNotes.didWellPlaceholder"),
+					"aria-invalid": didWell.length > TRAINER_NOTE_MAX_LENGTH,
+					onChange: (event) => setDidWell(event.target.value)
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "space-y-1.5",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex items-center justify-between gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+						htmlFor: "trainer-note-work-on",
+						children: t("trainerNotes.workOn")
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CharCounter, { value: workOn })]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Textarea, {
+					id: "trainer-note-work-on",
+					"data-ocid": "trainerNotes.workOn_input",
+					value: workOn,
+					placeholder: t("trainerNotes.workOnPlaceholder"),
+					"aria-invalid": workOn.length > TRAINER_NOTE_MAX_LENGTH,
+					onChange: (event) => setWorkOn(event.target.value)
+				})]
+			}),
+			error && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "text-sm text-destructive",
+				role: "alert",
+				"data-ocid": "trainerNotes.error_state",
+				children: error
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-wrap justify-end gap-2",
+				children: [onCancel && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					type: "button",
+					variant: "outline",
+					className: "touch-target",
+					"data-ocid": "trainerNotes.cancel_button",
+					onClick: onCancel,
+					children: t("trainerNotes.cancel")
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					type: "submit",
+					className: "touch-target",
+					disabled: !canSave || mutation.isPending,
+					"data-ocid": "trainerNotes.submit_button",
+					children: mutation.isPending ? t("trainerNotes.saving") : t("trainerNotes.save")
+				})]
+			})
+		]
+	});
+}
+//#endregion
+//#region src/components/roadie/TrainerNotesTab.tsx
+/** The window, in milliseconds, during which an author may still edit a note. */
+var EDIT_WINDOW_MS = 864e5;
+/** Whether a note is still inside its 24-hour edit window. */
+function isWithinEditWindow(createdAt, now) {
+	const createdMs = Number(createdAt / 1000000n);
+	if (!Number.isFinite(createdMs)) return false;
+	return now - createdMs < EDIT_WINDOW_MS;
+}
+/** One labelled block of note text, hidden when empty. */
+function NoteField({ label, value }) {
+	if (value.trim() === "") return null;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "min-w-0",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("dt", {
+			className: "font-display text-[11px] font-semibold uppercase tracking-widest text-muted-foreground",
+			children: label
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("dd", {
+			className: "mt-0.5 whitespace-pre-wrap break-words text-sm text-foreground",
+			children: value
+		})]
+	});
+}
+/** A single trainer note card with its day, shift, author and two fields. */
+function TrainerNoteCard({ note, index, canEdit, onEdit }) {
+	const { t } = useI18n();
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+		"data-ocid": `trainerNotes.item.${index}`,
+		className: "rounded-lg border border-border bg-card p-4 shadow-subtle",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-wrap items-start justify-between gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex flex-wrap items-center gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "font-display text-sm font-bold uppercase tracking-wide text-foreground",
+						children: formatDateOnly(note.day)
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: cn("rounded-full border border-border px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider", note.shift === Shift.am ? "bg-secondary text-secondary-foreground" : "bg-accent text-accent-foreground"),
+						children: t(note.shift === Shift.am ? "roadie.shift.am" : "roadie.shift.pm")
+					})]
+				}), canEdit && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					type: "button",
+					variant: "ghost",
+					size: "sm",
+					className: "touch-target",
+					"data-ocid": `trainerNotes.edit_button.${index}`,
+					onClick: () => onEdit(note),
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Pencil, {
+						className: "h-4 w-4",
+						"aria-hidden": "true"
+					}), t("trainerNotes.edit")]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-1 text-xs text-muted-foreground",
+				children: t("trainerNotes.author", { name: note.authorName })
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("dl", {
+				className: "mt-3 space-y-3",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NoteField, {
+					label: t("trainerNotes.didWell"),
+					value: note.didWell
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NoteField, {
+					label: t("trainerNotes.workOn"),
+					value: note.workOn
+				})]
+			})
+		]
+	});
+}
+/**
+* The shared trainer notes list for a roadie: notes newest first with their
+* day, shift, author and both fields, an empty state, and an Edit button on the
+* caller's own note while it is under 24 hours old. A role that may add notes
+* gets an "Add a note" action that opens the shared form.
+*/
+function TrainerNotesTab({ roadieId }) {
+	const { t } = useI18n();
+	const access = useAccessState();
+	const role = access.kind === "granted" ? access.grant.role : void 0;
+	const principal = access.kind === "granted" ? access.grant.principal.toText() : null;
+	const canRead = canReadTrainerNotes(role);
+	const canAdd = canAddTrainerNote(role);
+	const { data, isLoading, isError, refetch } = useTrainerNotes(roadieId, canRead);
+	const [adding, setAdding] = (0, import_react.useState)(false);
+	const [editing, setEditing] = (0, import_react.useState)(null);
+	if (!canRead) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EmptyState, {
+		title: t("trainerNotes.title"),
+		message: t("trainerNotes.readOnly"),
+		ocid: "trainerNotes.empty_state"
+	});
+	if (isLoading) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoadingState, {
+		label: t("trainerNotes.loading"),
+		ocid: "trainerNotes.loading_state"
+	});
+	if (isError) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ErrorState, {
+		title: t("trainerNotes.error"),
+		onRetry: () => void refetch(),
+		ocid: "trainerNotes.error_state"
+	});
+	const notes = data ?? [];
+	const now = Date.now();
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		"data-ocid": "trainerNotes.section",
+		className: "space-y-4",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-wrap items-end justify-between gap-3",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					className: "font-display text-lg font-bold uppercase tracking-wide",
+					children: t("trainerNotes.title")
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mt-0.5 text-sm text-muted-foreground",
+					children: t("trainerNotes.subtitle")
+				})] }), canAdd && !adding && !editing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					type: "button",
+					className: "touch-target",
+					"data-ocid": "trainerNotes.add_button",
+					onClick: () => setAdding(true),
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
+						className: "h-4 w-4",
+						"aria-hidden": "true"
+					}), t("trainerNotes.add")]
+				})]
+			}),
+			adding && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrainerNoteForm, {
+				roadieId,
+				onDone: () => setAdding(false),
+				onCancel: () => setAdding(false)
+			}),
+			editing && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrainerNoteForm, {
+				roadieId,
+				note: editing,
+				onDone: () => setEditing(null),
+				onCancel: () => setEditing(null)
+			}),
+			notes.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EmptyState, {
+				title: t("trainerNotes.empty"),
+				message: t("trainerNotes.emptyHint"),
+				ocid: "trainerNotes.empty_state"
+			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+				"data-ocid": "trainerNotes.list",
+				className: "space-y-3",
+				children: notes.map((note, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrainerNoteCard, {
+					note,
+					index: index + 1,
+					canEdit: principal !== null && note.author.toText() === principal && isWithinEditWindow(note.createdAt, now),
+					onEdit: setEditing
+				}, note.id.toString()))
+			})
+		]
+	});
+}
+//#endregion
 //#region ../../../../../../opt/pnpm-templates/build_template/node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.11_@types+react-dom@19.1.11_@types+react@19.1.17__@typ_36cadf73f63477a2272afac63e9bee96/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
 var ENTRY_FOCUS = "rovingFocusGroup.onEntryFocus";
 var EVENT_OPTIONS = {
@@ -114891,6 +115726,7 @@ function RoadieCardContent() {
 	const isManager = canSeeContactInfo(role);
 	const mayEdit = canEditRoadie(role);
 	const mayArchive = canArchive(role);
+	const canReadNotes = canReadTrainerNotes(role);
 	const positionList = positions ?? [];
 	const positionById = (positionId) => positionId === void 0 ? void 0 : positionList.find((position) => position.id === positionId);
 	if (id === void 0) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -114956,17 +115792,26 @@ function RoadieCardContent() {
 					children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsList, {
 							className: "h-auto w-full flex-wrap justify-start gap-1 p-1",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsTrigger, {
-								value: "card",
-								className: "touch-target",
-								"data-ocid": "roadie.card.tab",
-								children: t("roadie.section.card")
-							}), isManager && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsTrigger, {
-								value: "manager",
-								className: "touch-target",
-								"data-ocid": "roadie.manager.tab",
-								children: t("roadie.section.manager")
-							})]
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsTrigger, {
+									value: "card",
+									className: "touch-target",
+									"data-ocid": "roadie.card.tab",
+									children: t("roadie.section.card")
+								}),
+								isManager && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsTrigger, {
+									value: "manager",
+									className: "touch-target",
+									"data-ocid": "roadie.manager.tab",
+									children: t("roadie.section.manager")
+								}),
+								canReadNotes && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsTrigger, {
+									value: "trainer-notes",
+									className: "touch-target",
+									"data-ocid": "roadie.trainerNotes.tab",
+									children: t("roadie.section.trainerNotes")
+								})
+							]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsContent, {
 							value: "card",
@@ -114983,6 +115828,11 @@ function RoadieCardContent() {
 							value: "manager",
 							className: "mt-4",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ManagerTab, { roadie })
+						}),
+						canReadNotes && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsContent, {
+							value: "trainer-notes",
+							className: "mt-4",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrainerNotesTab, { roadieId: roadie.id })
 						})
 					]
 				})
@@ -116529,35 +117379,68 @@ function GroupChangeNoticeCard({ notice }) {
 		})
 	});
 }
-/** One roadie in the trainer's group: photo and name, tappable to open the card. */
-function GroupRoadieCard({ roadie, index, onOpen }) {
+/**
+* One roadie in the trainer's group: photo and name, tappable to open the card.
+* A role that may add a note gets a small Add note button, and a check mark
+* appears once the caller has written today's note for this roadie.
+*/
+function GroupRoadieCard({ roadie, index, onOpen, canAddNote, hasTodayNote, onAddNote }) {
+	const { t } = useDashboardCopy();
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", {
 		"data-ocid": `today.myGroup.item.${index}`,
 		className: "h-full",
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-			type: "button",
-			"data-ocid": `today.myGroup.item.${index}.link`,
-			onClick: onOpen,
-			className: "group flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-card text-left shadow-subtle transition-smooth hover:-translate-y-0.5 hover:shadow-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RoadiePhoto, {
-				id: roadie.roadieId,
-				name: roadie.name,
-				className: "aspect-[4/3] w-full rounded-none border-0 border-b-2 border-primary",
-				iconClassName: "h-8 w-8",
-				ocid: `today.myGroup.item.${index}.photo`,
-				fallback: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-					className: "flex h-full w-full items-center justify-center font-display text-2xl font-bold uppercase tracking-wide text-[#14284B]",
-					"aria-hidden": "true",
-					children: roadie.name.slice(0, 2).toUpperCase()
-				})
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-				className: "flex min-w-0 flex-1 flex-col gap-1 p-3",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-					className: "truncate font-display text-sm font-semibold uppercase tracking-wide text-foreground",
-					children: roadie.name
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-					className: "truncate text-xs text-muted-foreground",
-					children: roadie.positionCode
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "group flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card shadow-subtle transition-smooth hover:-translate-y-0.5 hover:shadow-elevated",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+				type: "button",
+				"data-ocid": `today.myGroup.item.${index}.link`,
+				onClick: onOpen,
+				className: "flex w-full flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RoadiePhoto, {
+					id: roadie.roadieId,
+					name: roadie.name,
+					className: "aspect-[4/3] w-full rounded-none border-0 border-b-2 border-primary",
+					iconClassName: "h-8 w-8",
+					ocid: `today.myGroup.item.${index}.photo`,
+					fallback: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "flex h-full w-full items-center justify-center font-display text-2xl font-bold uppercase tracking-wide text-[#14284B]",
+						"aria-hidden": "true",
+						children: roadie.name.slice(0, 2).toUpperCase()
+					})
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+					className: "flex min-w-0 flex-1 flex-col gap-1 p-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "truncate font-display text-sm font-semibold uppercase tracking-wide text-foreground",
+						children: roadie.name
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "truncate text-xs text-muted-foreground",
+						children: roadie.positionCode
+					})]
+				})]
+			}), canAddNote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex items-center justify-between gap-2 border-t border-border px-3 py-2",
+				children: [hasTodayNote ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+					"data-ocid": `today.myGroup.item.${index}.note_done`,
+					className: "inline-flex items-center gap-1 text-xs font-medium text-primary",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, {
+						className: "h-4 w-4",
+						"aria-hidden": "true"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "sr-only",
+						children: t("today.myGroup.noteDone")
+					})]
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { "aria-hidden": "true" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					type: "button",
+					variant: "outline",
+					size: "sm",
+					className: "touch-target",
+					"aria-label": t("today.myGroup.addNoteFor", { name: roadie.name }),
+					"data-ocid": `today.myGroup.item.${index}.add_note_button`,
+					onClick: onAddNote,
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NotebookPen, {
+						className: "mr-1.5 h-4 w-4",
+						"aria-hidden": "true"
+					}), t("today.myGroup.addNote")]
 				})]
 			})]
 		})
@@ -116719,14 +117602,48 @@ function MyCrewSection() {
 	});
 }
 /**
+* Whether the caller has already written a note for `roadieId` on `day`. Only
+* the caller's own notes count, so the check mark reflects this person's work.
+*/
+function hasTodayNote(notes, roadieId, day, principal) {
+	if (!notes || !principal) return false;
+	return notes.some((note) => note.roadieId.toString() === roadieId.toString() && note.day === day && note.author.toText() === principal);
+}
+/**
 * The trainer's own group for the current or next shift: the shift label, the
 * filled-of-capacity count, the roadies' photos and names, and a link to all
-* groups. Tapping a roadie opens the shared card pop-up.
+* groups. Tapping a roadie opens the shared card pop-up. A role that may add a
+* note gets a small Add note button on each tile that opens the shared note
+* form for that roadie and today's shift, and a check mark once the caller has
+* written today's note for that roadie.
 */
-function MyGroupSection({ group }) {
+function MyGroupSection({ group, role }) {
 	const { t } = useDashboardCopy();
 	const { data: allRoadies } = useRoadies();
+	const { data: demo } = useDemoState();
+	const { data: store } = useStoreInfo();
+	const { data: access } = useMyAccess();
+	const { actor, isFetching } = useActor(createActor);
 	const [cardIndex, setCardIndex] = (0, import_react.useState)(null);
+	const [noteRoadie, setNoteRoadie] = (0, import_react.useState)(null);
+	const canAddNote = canAddTrainerNote(role);
+	const canReadNotes = canReadTrainerNotes(role);
+	const principal = access?.grant?.principal.toText() ?? null;
+	const todayDay = (0, import_react.useMemo)(() => {
+		const pretendDate = demo?.enabled ? demo.pretendDate : void 0;
+		const now = (pretendDate ? pretendDateToInstant(pretendDate, {
+			timeZone: store?.timeZone,
+			amShiftStart: store?.amShiftStart,
+			pmShiftStart: store?.pmShiftStart
+		}) : null) ?? /* @__PURE__ */ new Date();
+		return BigInt(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) * 1000000n;
+	}, [
+		demo?.enabled,
+		demo?.pretendDate,
+		store?.amShiftStart,
+		store?.pmShiftStart,
+		store?.timeZone
+	]);
 	const roadieById = (0, import_react.useMemo)(() => {
 		const map = /* @__PURE__ */ new Map();
 		for (const roadie of allRoadies ?? []) map.set(roadie.id.toString(), roadie);
@@ -116749,6 +117666,23 @@ function MyGroupSection({ group }) {
 		entries.forEach((entry, index) => map.set(entry.key, index));
 		return map;
 	}, [entries]);
+	const groupRoadieIds = (0, import_react.useMemo)(() => groupRoadies.map((roadie) => roadie.roadieId), [groupRoadies]);
+	const groupNotesQueries = useQueries({ queries: groupRoadieIds.map((roadieId) => ({
+		queryKey: ["trainerNotes", roadieId.toString()],
+		queryFn: async () => {
+			if (!actor || roadieId === void 0) return [];
+			return actor.listTrainerNotes(roadieId);
+		},
+		enabled: canReadNotes && !!actor && !isFetching
+	})) });
+	const notesByRoadie = (0, import_react.useMemo)(() => {
+		const map = /* @__PURE__ */ new Map();
+		groupRoadieIds.forEach((roadieId, index) => {
+			const data = groupNotesQueries[index]?.data;
+			if (data) map.set(roadieId.toString(), data);
+		});
+		return map;
+	}, [groupRoadieIds, groupNotesQueries]);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 		className: "space-y-4",
 		"data-ocid": "today.myGroup.section",
@@ -116790,6 +117724,9 @@ function MyGroupSection({ group }) {
 				children: groupRoadies.map((roadie, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(GroupRoadieCard, {
 					roadie,
 					index,
+					canAddNote,
+					hasTodayNote: hasTodayNote(notesByRoadie.get(roadie.roadieId.toString()), roadie.roadieId, todayDay, principal),
+					onAddNote: () => setNoteRoadie(roadie),
 					onOpen: () => setCardIndex(entryIndexById.get(roadie.roadieId.toString()) ?? null)
 				}, roadie.roadieId.toString()))
 			}),
@@ -116801,6 +117738,24 @@ function MyGroupSection({ group }) {
 					if (!next) setCardIndex(null);
 				},
 				onIndexChange: setCardIndex
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
+				open: noteRoadie !== null,
+				onOpenChange: (next) => {
+					if (!next) setNoteRoadie(null);
+				},
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+					"data-ocid": "today.myGroup.note_dialog",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, { children: t("today.myGroup.noteDialogTitle", { name: noteRoadie?.name ?? "" }) }),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, { children: t("today.myGroup.noteDialogDescription", { name: noteRoadie?.name ?? "" }) }),
+						noteRoadie && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrainerNoteForm, {
+							roadieId: noteRoadie.roadieId,
+							onDone: () => setNoteRoadie(null),
+							onCancel: () => setNoteRoadie(null)
+						})
+					]
+				})
 			})
 		]
 	});
@@ -117040,7 +117995,7 @@ function ReadyForFinalAlertCard() {
 * mounted for roles that may read the shift boards, so the group and notice
 * reads never run for a role the backend would reject.
 */
-function TrainerToday({ mayCheckIn }) {
+function TrainerToday({ mayCheckIn, role }) {
 	const { t } = useDashboardCopy();
 	const { data: group, isLoading, isError, refetch } = useMyGroup();
 	const { data: notices } = useGroupChangeNotices();
@@ -117062,7 +118017,10 @@ function TrainerToday({ mayCheckIn }) {
 			eventId: group.eventId,
 			shift: group.shift,
 			shiftLabel: group.shiftLabel
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MyGroupSection, { group })] }),
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MyGroupSection, {
+			group,
+			role
+		})] }),
 		!isLoading && !isError && !group && today?.nextEvent && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NextEventCard, { event: today.nextEvent }),
 		!isLoading && !isError && !group && !today?.nextEvent && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 			"data-ocid": "today.placeholder",
@@ -117397,7 +118355,10 @@ function TodayPage() {
 				subtitle: t("app.tagline")
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PracticeRunCard, {}),
-			isTrainer ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrainerToday, { mayCheckIn }) : maySeeManager ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ManagerToday, {
+			isTrainer ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrainerToday, {
+				mayCheckIn,
+				role
+			}) : maySeeManager ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ManagerToday, {
 				role,
 				mayCheckIn
 			}) : readOnly ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReadOnlyToday, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {

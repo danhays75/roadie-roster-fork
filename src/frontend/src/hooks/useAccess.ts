@@ -232,6 +232,34 @@ export const SIGNUP_APPROVER_ROLES: Role[] = [
 ];
 
 /**
+ * Roles allowed to read a roadie's trainer notes: every read role except Kiosk
+ * and Integration, matching the backend's roadie read restriction.
+ */
+export const TRAINER_NOTE_READ_ROLES: Role[] = [
+  ...ADMIN_ROLES,
+  Role.storeManager,
+  Role.trainingManager,
+  Role.kitchenManager,
+  Role.serviceManager,
+  Role.trainer,
+  Role.leadership,
+  Role.visitingManager,
+];
+
+/**
+ * Roles allowed to add a trainer note: Trainer, Training Manager, Kitchen
+ * Manager, Service Manager, Store Manager, Managing Partner and Admin.
+ */
+export const TRAINER_NOTE_WRITE_ROLES: Role[] = [
+  ...ADMIN_ROLES,
+  Role.storeManager,
+  Role.trainingManager,
+  Role.kitchenManager,
+  Role.serviceManager,
+  Role.trainer,
+];
+
+/**
  * Roles that see the Today screen read-only: they may read the day's summary
  * but cannot record a check-in. Every role that can reach Today but is not a
  * check-in role is read-only.
@@ -601,6 +629,23 @@ export function canManageCheckIns(role: Role | undefined): boolean {
  */
 export function canApproveSignups(role: Role | undefined): boolean {
   return !!role && SIGNUP_APPROVER_ROLES.includes(role);
+}
+
+/**
+ * Whether the given role may read a roadie's trainer notes. Every read role
+ * except Kiosk and Integration may read them.
+ */
+export function canReadTrainerNotes(role: Role | undefined): boolean {
+  return !!role && TRAINER_NOTE_READ_ROLES.includes(role);
+}
+
+/**
+ * Whether the given role may add a trainer note. Trainer, Training Manager,
+ * Kitchen Manager, Service Manager, Store Manager, Managing Partner and Admin
+ * may add one.
+ */
+export function canAddTrainerNote(role: Role | undefined): boolean {
+  return !!role && TRAINER_NOTE_WRITE_ROLES.includes(role);
 }
 
 /** Whether the given role sees the Today screen read-only. */

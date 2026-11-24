@@ -996,6 +996,18 @@ export interface TrainerNote {
     shift: Shift;
     workOn: string;
 }
+export interface TrainerNoteView {
+    id: bigint;
+    day: DateOnly;
+    didWell: string;
+    roadieId: RoadieId;
+    createdAt: Timestamp;
+    authorName: string;
+    isDemo: boolean;
+    author: Principal;
+    shift: Shift;
+    workOn: string;
+}
 export interface UnassignedRoadieRow {
     demoPhotoUrl?: string;
     roadieId: RoadieId;
@@ -1241,7 +1253,11 @@ export interface backendInterface {
      */
     acknowledgeAlert(id: AlertId): Promise<void>;
     /**
-     * / Add a trainer note (Trainer/Admin/Store Manager only).
+     * / Add a trainer note (Trainer, Training Manager, Kitchen Manager, Service
+     * / Manager, Store Manager, Managing Partner or Admin). A Trainer may add only
+     * / for a roadie in their own stations. Refuses a blank note, a field over
+     * / 1,000 characters, an archived roadie and a roadie from the other demo
+     * / partition.
      */
     addTrainerNote(note: TrainerNote): Promise<bigint>;
     /**
@@ -1662,11 +1678,12 @@ export interface backendInterface {
      */
     listShiftBoards(): Promise<Array<ShiftBoardView>>;
     /**
-     * / List trainer notes for a roadie. Restricted the same way roadies are:
-     * / Integration sees nothing, and a trainer sees notes only for roadies in
-     * / their assigned stations.
+     * / List trainer notes for a roadie, newest first, each with the author's
+     * / display name. Restricted the same way roadies are: Integration sees
+     * / nothing, and a trainer sees notes only for roadies in their assigned
+     * / stations.
      */
-    listTrainerNotes(roadieId: RoadieId): Promise<Array<TrainerNote>>;
+    listTrainerNotes(roadieId: RoadieId): Promise<Array<TrainerNoteView>>;
     /**
      * / List the pending roadies with no usable orientation session (Admin, Store
      * / Manager, Training Manager or Visiting Manager).
@@ -1907,7 +1924,8 @@ export interface backendInterface {
      */
     updateStoreInfo(info: StoreInfo): Promise<void>;
     /**
-     * / Edit a trainer note within its 24-hour lock window (author only).
+     * / Edit a trainer note within its 24-hour lock window (author only). Refuses
+     * / a blank note and a field over 1,000 characters.
      */
     updateTrainerNote(note: TrainerNote): Promise<void>;
     /**
@@ -1928,7 +1946,7 @@ export interface backendInterface {
      */
     withdrawOpeningQuestionApproval(id: QuestionId): Promise<void>;
 }
-import type { AbsentAlertView as _AbsentAlertView, AccessGrant as _AccessGrant, AlertId as _AlertId, Approval as _Approval, ApprovalDecision as _ApprovalDecision, ApprovalRequest as _ApprovalRequest, ArchiveReason as _ArchiveReason, AttendanceRecord as _AttendanceRecord, AttendanceState as _AttendanceState, AvailabilitySlot as _AvailabilitySlot, Cell as _Cell, ChangeLogEntry as _ChangeLogEntry, ChangeLogId as _ChangeLogId, CheckInBoardView as _CheckInBoardView, CheckInRow as _CheckInRow, CheckInState as _CheckInState, ChecklistItem as _ChecklistItem, Checklists as _Checklists, Comment as _Comment, CommentId as _CommentId, ContactSet as _ContactSet, Crew as _Crew, CrewId as _CrewId, CrewSummary as _CrewSummary, DailyEmailStatus as _DailyEmailStatus, DashboardView as _DashboardView, DateOnly as _DateOnly, DateTime as _DateTime, DemoActionResult as _DemoActionResult, DemoRole as _DemoRole, DemoShift as _DemoShift, DemoStateView as _DemoStateView, DuplicateMatch as _DuplicateMatch, Email as _Email, Error as _Error, EventId as _EventId, EventKind as _EventKind, ExportData as _ExportData, ExportRow as _ExportRow, FinalSignOff as _FinalSignOff, FinishByView as _FinishByView, GiftBagAnswerCount as _GiftBagAnswerCount, GiftBagCategory as _GiftBagCategory, GiftBagFilter as _GiftBagFilter, GiftBagGroup as _GiftBagGroup, GiftBagLabel as _GiftBagLabel, GiftBagsData as _GiftBagsData, GroupChangeNotice as _GroupChangeNotice, HatSize as _HatSize, House as _House, ImportError as _ImportError, ImportFile as _ImportFile, ImportPreview as _ImportPreview, ImportQuestion as _ImportQuestion, ImportSection as _ImportSection, ImportValidation as _ImportValidation, LeaderSummary as _LeaderSummary, ManagerScoreRow as _ManagerScoreRow, MyAccessView as _MyAccessView, MyCrewRoadieRow as _MyCrewRoadieRow, MyCrewView as _MyCrewView, MyGroupView as _MyGroupView, NextEventView as _NextEventView, NudgeAlert as _NudgeAlert, OpeningQuestion as _OpeningQuestion, OrientationCheckoff as _OrientationCheckoff, OrientationRoadieRow as _OrientationRoadieRow, OrientationSessionOption as _OrientationSessionOption, OrientationSessionView as _OrientationSessionView, OverviewRow as _OverviewRow, OwnerView as _OwnerView, PaperworkStatus as _PaperworkStatus, PendingRequestSummary as _PendingRequestSummary, PendingUser as _PendingUser, PersonName as _PersonName, Phone as _Phone, PhotoRef as _PhotoRef, Position as _Position, PositionId as _PositionId, PretendDate as _PretendDate, QuestionArea as _QuestionArea, QuestionChangeKind as _QuestionChangeKind, QuestionDiscussion as _QuestionDiscussion, QuestionFilter as _QuestionFilter, QuestionHistoryEntry as _QuestionHistoryEntry, QuestionId as _QuestionId, QuestionTab as _QuestionTab, QuestionView as _QuestionView, Result as _Result, Result__1 as _Result__1, Roadie as _Roadie, RoadieId as _RoadieId, RoadieProfile as _RoadieProfile, RoadieStage as _RoadieStage, RoadieStatus as _RoadieStatus, Role as _Role, RosterState as _RosterState, ScheduleEvent as _ScheduleEvent, Shift as _Shift, ShiftBoard as _ShiftBoard, ShiftBoardGroup as _ShiftBoardGroup, ShiftBoardGroupView as _ShiftBoardGroupView, ShiftBoardRoadie as _ShiftBoardRoadie, ShiftBoardView as _ShiftBoardView, ShiftCheckInSummary as _ShiftCheckInSummary, ShirtSize as _ShirtSize, SignOffOutcome as _SignOffOutcome, SignatureRef as _SignatureRef, SignupId as _SignupId, SignupStatus as _SignupStatus, SignupSubmission as _SignupSubmission, StaffProfile as _StaffProfile, StoreDemoView as _StoreDemoView, StoreInfo as _StoreInfo, StoreLogos as _StoreLogos, StoreTemplateFile as _StoreTemplateFile, Suggestion as _Suggestion, SuggestionId as _SuggestionId, SuggestionState as _SuggestionState, TemplateLoadResult as _TemplateLoadResult, TemplatePosition as _TemplatePosition, TemplatePreview as _TemplatePreview, TemplateScheduleEvent as _TemplateScheduleEvent, TimeOfDay as _TimeOfDay, TimeZone as _TimeZone, Timestamp as _Timestamp, TodayView as _TodayView, TrainerNote as _TrainerNote, UnassignedRoadieRow as _UnassignedRoadieRow, UniformCheckoffItem as _UniformCheckoffItem, UniformCheckoffView as _UniformCheckoffView, UniformHouseFilter as _UniformHouseFilter, UniformItemType as _UniformItemType, UniformOrderRow as _UniformOrderRow, UniformOrderTotalsRow as _UniformOrderTotalsRow, UniformOrderView as _UniformOrderView, UniformSizeUnknownRow as _UniformSizeUnknownRow, UserRole as _UserRole, Value as _Value, Weekday as _Weekday, _ImmutableObjectStorageRefillInformation as __ImmutableObjectStorageRefillInformation, _ImmutableObjectStorageRefillResult as __ImmutableObjectStorageRefillResult } from "./declarations/backend.did.d.ts";
+import type { AbsentAlertView as _AbsentAlertView, AccessGrant as _AccessGrant, AlertId as _AlertId, Approval as _Approval, ApprovalDecision as _ApprovalDecision, ApprovalRequest as _ApprovalRequest, ArchiveReason as _ArchiveReason, AttendanceRecord as _AttendanceRecord, AttendanceState as _AttendanceState, AvailabilitySlot as _AvailabilitySlot, Cell as _Cell, ChangeLogEntry as _ChangeLogEntry, ChangeLogId as _ChangeLogId, CheckInBoardView as _CheckInBoardView, CheckInRow as _CheckInRow, CheckInState as _CheckInState, ChecklistItem as _ChecklistItem, Checklists as _Checklists, Comment as _Comment, CommentId as _CommentId, ContactSet as _ContactSet, Crew as _Crew, CrewId as _CrewId, CrewSummary as _CrewSummary, DailyEmailStatus as _DailyEmailStatus, DashboardView as _DashboardView, DateOnly as _DateOnly, DateTime as _DateTime, DemoActionResult as _DemoActionResult, DemoRole as _DemoRole, DemoShift as _DemoShift, DemoStateView as _DemoStateView, DuplicateMatch as _DuplicateMatch, Email as _Email, Error as _Error, EventId as _EventId, EventKind as _EventKind, ExportData as _ExportData, ExportRow as _ExportRow, FinalSignOff as _FinalSignOff, FinishByView as _FinishByView, GiftBagAnswerCount as _GiftBagAnswerCount, GiftBagCategory as _GiftBagCategory, GiftBagFilter as _GiftBagFilter, GiftBagGroup as _GiftBagGroup, GiftBagLabel as _GiftBagLabel, GiftBagsData as _GiftBagsData, GroupChangeNotice as _GroupChangeNotice, HatSize as _HatSize, House as _House, ImportError as _ImportError, ImportFile as _ImportFile, ImportPreview as _ImportPreview, ImportQuestion as _ImportQuestion, ImportSection as _ImportSection, ImportValidation as _ImportValidation, LeaderSummary as _LeaderSummary, ManagerScoreRow as _ManagerScoreRow, MyAccessView as _MyAccessView, MyCrewRoadieRow as _MyCrewRoadieRow, MyCrewView as _MyCrewView, MyGroupView as _MyGroupView, NextEventView as _NextEventView, NudgeAlert as _NudgeAlert, OpeningQuestion as _OpeningQuestion, OrientationCheckoff as _OrientationCheckoff, OrientationRoadieRow as _OrientationRoadieRow, OrientationSessionOption as _OrientationSessionOption, OrientationSessionView as _OrientationSessionView, OverviewRow as _OverviewRow, OwnerView as _OwnerView, PaperworkStatus as _PaperworkStatus, PendingRequestSummary as _PendingRequestSummary, PendingUser as _PendingUser, PersonName as _PersonName, Phone as _Phone, PhotoRef as _PhotoRef, Position as _Position, PositionId as _PositionId, PretendDate as _PretendDate, QuestionArea as _QuestionArea, QuestionChangeKind as _QuestionChangeKind, QuestionDiscussion as _QuestionDiscussion, QuestionFilter as _QuestionFilter, QuestionHistoryEntry as _QuestionHistoryEntry, QuestionId as _QuestionId, QuestionTab as _QuestionTab, QuestionView as _QuestionView, Result as _Result, Result__1 as _Result__1, Roadie as _Roadie, RoadieId as _RoadieId, RoadieProfile as _RoadieProfile, RoadieStage as _RoadieStage, RoadieStatus as _RoadieStatus, Role as _Role, RosterState as _RosterState, ScheduleEvent as _ScheduleEvent, Shift as _Shift, ShiftBoard as _ShiftBoard, ShiftBoardGroup as _ShiftBoardGroup, ShiftBoardGroupView as _ShiftBoardGroupView, ShiftBoardRoadie as _ShiftBoardRoadie, ShiftBoardView as _ShiftBoardView, ShiftCheckInSummary as _ShiftCheckInSummary, ShirtSize as _ShirtSize, SignOffOutcome as _SignOffOutcome, SignatureRef as _SignatureRef, SignupId as _SignupId, SignupStatus as _SignupStatus, SignupSubmission as _SignupSubmission, StaffProfile as _StaffProfile, StoreDemoView as _StoreDemoView, StoreInfo as _StoreInfo, StoreLogos as _StoreLogos, StoreTemplateFile as _StoreTemplateFile, Suggestion as _Suggestion, SuggestionId as _SuggestionId, SuggestionState as _SuggestionState, TemplateLoadResult as _TemplateLoadResult, TemplatePosition as _TemplatePosition, TemplatePreview as _TemplatePreview, TemplateScheduleEvent as _TemplateScheduleEvent, TimeOfDay as _TimeOfDay, TimeZone as _TimeZone, Timestamp as _Timestamp, TodayView as _TodayView, TrainerNote as _TrainerNote, TrainerNoteView as _TrainerNoteView, UnassignedRoadieRow as _UnassignedRoadieRow, UniformCheckoffItem as _UniformCheckoffItem, UniformCheckoffView as _UniformCheckoffView, UniformHouseFilter as _UniformHouseFilter, UniformItemType as _UniformItemType, UniformOrderRow as _UniformOrderRow, UniformOrderTotalsRow as _UniformOrderTotalsRow, UniformOrderView as _UniformOrderView, UniformSizeUnknownRow as _UniformSizeUnknownRow, UserRole as _UserRole, Value as _Value, Weekday as _Weekday, _ImmutableObjectStorageRefillInformation as __ImmutableObjectStorageRefillInformation, _ImmutableObjectStorageRefillResult as __ImmutableObjectStorageRefillResult } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _immutableObjectStorageBlobsAreLive(arg0: Array<Uint8Array>): Promise<Array<boolean>> {
@@ -3415,7 +3433,7 @@ export class Backend implements backendInterface {
             return from_candid_vec_n281(this._uploadFile, this._downloadFile, result);
         }
     }
-    async listTrainerNotes(arg0: RoadieId): Promise<Array<TrainerNote>> {
+    async listTrainerNotes(arg0: RoadieId): Promise<Array<TrainerNoteView>> {
         if (this.processError) {
             try {
                 const result = await this.actor.listTrainerNotes(arg0);
@@ -4463,7 +4481,7 @@ function from_candid_TemplateScheduleEvent_n52(_uploadFile: (file: ExternalBlob)
 function from_candid_TodayView_n208(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _TodayView): TodayView {
     return from_candid_record_n209(_uploadFile, _downloadFile, value);
 }
-function from_candid_TrainerNote_n283(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _TrainerNote): TrainerNote {
+function from_candid_TrainerNoteView_n283(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _TrainerNoteView): TrainerNoteView {
     return from_candid_record_n284(_uploadFile, _downloadFile, value);
 }
 function from_candid_UnassignedRoadieRow_n286(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UnassignedRoadieRow): UnassignedRoadieRow {
@@ -6068,6 +6086,7 @@ function from_candid_record_n284(_uploadFile: (file: ExternalBlob) => Promise<Ui
     didWell: string;
     roadieId: _RoadieId;
     createdAt: _Timestamp;
+    authorName: string;
     isDemo: boolean;
     author: Principal;
     shift: _Shift;
@@ -6078,6 +6097,7 @@ function from_candid_record_n284(_uploadFile: (file: ExternalBlob) => Promise<Ui
     didWell: string;
     roadieId: RoadieId;
     createdAt: Timestamp;
+    authorName: string;
     isDemo: boolean;
     author: Principal;
     shift: Shift;
@@ -6089,6 +6109,7 @@ function from_candid_record_n284(_uploadFile: (file: ExternalBlob) => Promise<Ui
         didWell: value.didWell,
         roadieId: value.roadieId,
         createdAt: value.createdAt,
+        authorName: value.authorName,
         isDemo: value.isDemo,
         author: value.author,
         shift: from_candid_Shift_n38(_uploadFile, _downloadFile, value.shift),
@@ -6942,8 +6963,8 @@ function from_candid_vec_n278(_uploadFile: (file: ExternalBlob) => Promise<Uint8
 function from_candid_vec_n281(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_ShiftBoardView>): Array<ShiftBoardView> {
     return value.map((x)=>from_candid_ShiftBoardView_n192(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n282(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_TrainerNote>): Array<TrainerNote> {
-    return value.map((x)=>from_candid_TrainerNote_n283(_uploadFile, _downloadFile, x));
+function from_candid_vec_n282(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_TrainerNoteView>): Array<TrainerNoteView> {
+    return value.map((x)=>from_candid_TrainerNoteView_n283(_uploadFile, _downloadFile, x));
 }
 function from_candid_vec_n285(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_UnassignedRoadieRow>): Array<UnassignedRoadieRow> {
     return value.map((x)=>from_candid_UnassignedRoadieRow_n286(_uploadFile, _downloadFile, x));

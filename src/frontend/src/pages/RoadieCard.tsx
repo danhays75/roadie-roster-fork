@@ -4,11 +4,13 @@ import { FlipCard } from "@/components/roadie/FlipCard";
 import { ManagerTab } from "@/components/roadie/ManagerTab";
 import { RoadieActions } from "@/components/roadie/RoadieActions";
 import { RoadieStageBadge } from "@/components/roadie/RoadieTile";
+import { TrainerNotesTab } from "@/components/roadie/TrainerNotesTab";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   canArchive,
   canEditRoadie,
+  canReadTrainerNotes,
   canSeeContactInfo,
   useAccessState,
 } from "@/hooks/useAccess";
@@ -65,6 +67,7 @@ function RoadieCardContent() {
   const isManager = canSeeContactInfo(role);
   const mayEdit = canEditRoadie(role);
   const mayArchive = canArchive(role);
+  const canReadNotes = canReadTrainerNotes(role);
 
   const positionList = positions ?? [];
   const positionById = (positionId: bigint | undefined) =>
@@ -157,6 +160,15 @@ function RoadieCardContent() {
                   {t("roadie.section.manager")}
                 </TabsTrigger>
               )}
+              {canReadNotes && (
+                <TabsTrigger
+                  value="trainer-notes"
+                  className="touch-target"
+                  data-ocid="roadie.trainerNotes.tab"
+                >
+                  {t("roadie.section.trainerNotes")}
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="card" className="mt-4">
@@ -178,6 +190,12 @@ function RoadieCardContent() {
             {isManager && (
               <TabsContent value="manager" className="mt-4">
                 <ManagerTab roadie={roadie} />
+              </TabsContent>
+            )}
+
+            {canReadNotes && (
+              <TabsContent value="trainer-notes" className="mt-4">
+                <TrainerNotesTab roadieId={roadie.id} />
               </TabsContent>
             )}
           </Tabs>

@@ -1767,10 +1767,37 @@ module {
       };
     });
   };
+  /// Internal: the 24-hour trainer-note edit lock window in nanoseconds.
+  let lockWindowNanos : Int = 86_400_000_000_000;
+
+  /// Internal: refuse a trainer note whose two fields are both blank, or whose
+  /// either field exceeds the 1,000-character limit.
+  func requireNoteText(didWell : Text, workOn : Text) : () {
+    let blank = func(t : Text) : Bool {
+      t.trim(#predicate(func(c : Char) : Bool { c.isWhitespace() })).size() == 0;
+    };
+    if (blank(didWell) and blank(workOn)) {
+      Runtime.trap("A trainer note needs something in Did well or Work on");
+    };
+    let limit = OpeningQuestionsLib.maxNoteLength;
+    if (didWell.size() > limit) {
+      Runtime.trap("Did well is too long: the limit is " # limit.toText() # " characters");
+    };
+    if (workOn.size() > limit) {
+      Runtime.trap("Work on is too long: the limit is " # limit.toText() # " characters");
+    };
+  };
+
+  /// Add a trainer note. Trainer, Training Manager, Kitchen Manager, Service
+  /// Manager, Store Manager, Managing Partner and Admin may add. A Trainer may
+  /// add only for a roadie in their own stations; everyone else may add for any
+  /// roadie. Refuses a blank note, a field over 1,000 characters, an archived
+  /// roadie and a roadie from the other demo partition.
   public func addTrainerNote(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     demoState : Common.DemoState,
     trainerNotes : Map.Map<Nat, Phase23.TrainerNote>,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
     changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
     counters : Counters,
     storeInfo : Store.StoreInfo,
@@ -1778,13 +1805,37 @@ module {
     note : Phase23.TrainerNote,
   ) : Nat {
     let role = Auth.requireReadable(accessGrants, demoState, caller);
-    if (role != #trainer and not Auth.roleHasAdminRights(role) and role != #storeManager) {
-      Runtime.trap("Access denied: Trainer, Admin or Store Manager role required");
+    let mayAdd = switch (role) {
+      case (#trainer) { true };
+      case (#trainingManager) { true };
+      case (#kitchenManager) { true };
+      case (#serviceManager) { true };
+      case (#storeManager) { true };
+      case (#managingPartner) { true };
+      case (#admin) { true };
+      case (_) { false };
+    };
+    if (not mayAdd) {
+      Runtime.trap("Access denied: Trainer, Training Manager, Kitchen Manager, Service Manager, Store Manager, Managing Partner or Admin role required");
+    };
+    requireNoteText(note.didWell, note.workOn);
+    let roadie = requireVisibleRoadie(roadies, demoState, note.roadieId);
+    if (roadie.status == #archived) {
+      Runtime.trap("Cannot add a note for an archived roadie");
+    };
+    if (role == #trainer and not roadieVisibleToRole(roadie, role, accessGrants, demoState, caller)) {
+      Runtime.trap("Access denied: this roadie is not in your stations");
     };
     let id = counters.nextTrainerNoteId;
     counters.nextTrainerNoteId := id + 1;
-    trainerNotes.add(id, { note with id; author = caller; createdAt = Clock.effectiveNow(demoState, storeInfo); isDemo = Auth.demoActive(demoState) });
-    logWrite(changeLog, counters, demoState, caller, "addTrainerNote", ?note.roadieId, false, "Added trainer note");
+    trainerNotes.add(id, {
+      note with
+      id;
+      author = caller;
+      createdAt = Clock.effectiveNow(demoState, storeInfo);
+      isDemo = Auth.demoActive(demoState);
+    });
+    logWrite(changeLog, counters, demoState, caller, "addTrainerNote", ?note.roadieId, false, "Added a trainer note");
     id;
   };
 
@@ -1800,6 +1851,7 @@ module {
     note : Phase23.TrainerNote,
   ) : () {
     ignore Auth.requireReadable(accessGrants, demoState, caller);
+    requireNoteText(note.didWell, note.workOn);
     let existing = trainerNotes.get(note.id) ?? Runtime.trap("Trainer note not found");
     if (existing.isDemo != Auth.demoActive(demoState)) {
       Runtime.trap("Trainer note not found");
@@ -1807,12 +1859,16 @@ module {
     if (existing.author != caller) {
       Runtime.trap("Access denied: only the author may edit a trainer note");
     };
-    let twentyFourHoursNs : Int = 24 * 60 * 60 * 1_000_000_000;
-    if (Clock.effectiveNow(demoState, storeInfo) > existing.createdAt + twentyFourHoursNs) {
-      Runtime.trap("Trainer note is locked after 24 hours");
+    let now = Clock.effectiveNow(demoState, storeInfo);
+    if (now - existing.createdAt > lockWindowNanos) {
+      Runtime.trap("This note is locked; notes can only be edited within 24 hours");
     };
-    trainerNotes.add(note.id, { existing with didWell = note.didWell; workOn = note.workOn });
-    logWrite(changeLog, counters, demoState, caller, "updateTrainerNote", ?note.roadieId, false, "Edited trainer note");
+    trainerNotes.add(note.id, {
+      existing with
+      didWell = note.didWell;
+      workOn = note.workOn;
+    });
+    logWrite(changeLog, counters, demoState, caller, "updateTrainerNote", ?existing.roadieId, false, "Edited a trainer note");
   };
 
   /// List trainer notes for a roadie. Restricted the same way roadies are:
@@ -1827,26 +1883,32 @@ module {
     roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
     caller : Principal,
     roadieId : Common.RoadieId,
-  ) : [Phase23.TrainerNote] {
+  ) : [Phase23.TrainerNoteView] {
     let role = Auth.requireReadable(accessGrants, demoState, caller);
-    // Integration sees only the Shareable export, so it sees no notes.
     if (role == #integration) {
       return [];
     };
-    // A trainer sees notes only for roadies in their assigned stations.
-    if (role == #trainer) {
-      switch (roadies.get(roadieId)) {
-        case (?roadie) {
-          if (roadie.isDemo != Auth.demoActive(demoState) or not roadieVisibleToRole(roadie, role, accessGrants, demoState, caller)) {
-            return [];
-          };
-        };
-        case null { return [] };
-      };
+    let demo = Auth.demoActive(demoState);
+    let roadie = requireVisibleRoadie(roadies, demoState, roadieId);
+    if (not roadieVisibleToRole(roadie, role, accessGrants, demoState, caller)) {
+      return [];
     };
-    trainerNotes.values()
-      .filter(func(n) = n.isDemo == Auth.demoActive(demoState) and n.roadieId == roadieId)
+    let views = trainerNotes.values()
+      .filter(func(n) = n.isDemo == demo and n.roadieId == roadieId)
+      .map(func(n) = {
+        id = n.id;
+        author = n.author;
+        authorName = principalName(accessGrants, n.author);
+        roadieId = n.roadieId;
+        shift = n.shift;
+        day = n.day;
+        didWell = n.didWell;
+        workOn = n.workOn;
+        createdAt = n.createdAt;
+        isDemo = n.isDemo;
+      })
       .toArray();
+    views.sort(func(a, b) = Int.compare(b.createdAt, a.createdAt));
   };
 
   /// Internal: whether a roadie is visible to a role. A trainer sees only

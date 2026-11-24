@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   NAV_ITEMS,
   canAdmin,
+  canApproveSignups,
   canFinalizeOpeningQuestions,
   canOpeningQuestions,
   canSeeNavItem,
@@ -69,7 +70,7 @@ function NavLinks({
   // The badge reflects the pending sign-ups queue, which Store Managers and
   // Admins may read. The pending-users queue is admin-only, so it is read only
   // for an admin and never for a Store Manager.
-  const { data: pendingSignups } = usePendingSignups();
+  const { data: pendingSignups } = usePendingSignups(canApproveSignups(role));
   usePendingUsers(canAdmin(role));
   // The Opening Qs badge counts the caller's open decisions and approvals. The
   // read is gated so a role that cannot open the section never traps.

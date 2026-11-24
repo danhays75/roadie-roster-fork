@@ -58,6 +58,8 @@ import {
   type SuggestionId,
   type Timestamp,
   type TodayView,
+  type TrainerNote,
+  type TrainerNoteView,
   type UnassignedRoadieRow,
   type UniformCheckoffView,
   type UniformHouseFilter,
@@ -136,7 +138,12 @@ export function usePendingUsers(enabled = true) {
   });
 }
 
-export function usePendingSignups() {
+/**
+ * The pending kiosk sign-ups queue. Readable by sign-up approvers, so callers
+ * pass `enabled` (typically `canApproveSignups(role)`) to avoid a trapping read
+ * for a role that may not approve sign-ups.
+ */
+export function usePendingSignups(enabled = true) {
   const { actor, isFetching } = useActor(createActor);
   return useQuery({
     queryKey: ["pendingSignups"],
@@ -144,7 +151,7 @@ export function usePendingSignups() {
       if (!actor) return [];
       return actor.listPendingSignups();
     },
-    enabled: !!actor && !isFetching,
+    enabled: enabled && !!actor && !isFetching,
   });
 }
 
@@ -2449,6 +2456,72 @@ export function useUpdateOpeningQuestionEmailSettings() {
         queryKey: ["openingQuestionEmailSettings"],
       });
       void queryClient.invalidateQueries({ queryKey: ["changeLog"] });
+    },
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   Trainer notes
+--------------------------------------------------------------------------- */
+
+/**
+ * A roadie's trainer notes, newest first, each with the author's display name.
+ * Restricted the same way roadies are: Integration sees nothing and a trainer
+ * sees notes only for roadies in their assigned stations, so callers pass
+ * `enabled` (typically `canReadTrainerNotes(role)`) to avoid a trapping read.
+ */
+export function useTrainerNotes(
+  roadieId: RoadieId | undefined,
+  enabled = true,
+) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery({
+    queryKey: ["trainerNotes", roadieId?.toString()],
+    queryFn: async (): Promise<TrainerNoteView[]> => {
+      if (!actor || roadieId === undefined) return [];
+      return actor.listTrainerNotes(roadieId);
+    },
+    enabled: enabled && !!actor && !isFetching && roadieId !== undefined,
+  });
+}
+
+/**
+ * Add a trainer note (Trainer, Training Manager, Kitchen Manager, Service
+ * Manager, Store Manager, Managing Partner or Admin). Refreshes the roadie's
+ * note list so the new note appears without a reload.
+ */
+export function useAddTrainerNote() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (note: TrainerNote) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.addTrainerNote(note);
+    },
+    onSuccess: (_id, note) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["trainerNotes", note.roadieId.toString()],
+      });
+    },
+  });
+}
+
+/**
+ * Edit a trainer note within its 24-hour lock window (author only). Refreshes
+ * the roadie's note list so the edited text appears without a reload.
+ */
+export function useUpdateTrainerNote() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (note: TrainerNote) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.updateTrainerNote(note);
+    },
+    onSuccess: (_result, note) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["trainerNotes", note.roadieId.toString()],
+      });
     },
   });
 }

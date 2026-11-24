@@ -107,6 +107,10 @@
 - No backend changes in this round
 - Keep the red alert styling and the AlertTriangle heading
 - English and Spanish copy with the same keys in both
+- Builds on version 16 and keeps everything else exactly as it works today
+- Keep the stored TrainerNote type unchanged so no migration is needed
+- No change to who may read trainer notes
+- Approvals stays as it is
 
 ## Accepted Requirements
 
@@ -397,6 +401,19 @@
 - Only call a query when the person's role may read it; reuse existing hooks and query keys
 - New copy keys in English and Spanish with the same keys in both
 - No backend changes; frontend type-checks and existing tests pass
+- Trainer, Training Manager, Kitchen Manager, Service Manager, Store Manager, Managing Partner and Admin may add a trainer note
+- A Trainer may add a note only for a roadie in their own stations; everyone else may add for any roadie
+- Blank notes and fields over 1,000 characters are refused with a clear message
+- Adding a note for an archived roadie or a roadie from the other demo partition is refused
+- listTrainerNotes returns notes newest first with the author's display name, stored type unchanged
+- A Trainer notes tab on the roadie card lists day, shift, author, Did well and Work on, with Edit for the author under 24 hours
+- An Add note form with day and shift defaults and the character limit shown
+- Today My group tiles get an Add note button and a check mark once today's note is written
+- Demo notes stay demo notes
+- The decisions-due row shows for Admin and Managing Partner
+- usePendingSignups gains an enabled parameter passed from Layout and Dashboard
+- The seven AGENTS.md Learnings lines are restored word for word
+- Frontend type-checks, backend builds, existing tests pass
 
 ## Verified Commands
 
@@ -406,20 +423,6 @@
 
 ## Learnings
 
-- runDailyEmail is idempotent per store day via state.dailyEmail.lastSentDay, added only on a successful send, so a late or repeated timer fire sends nothing more.
-- sendTestEmail uses requireRealAdmin (Admin and Managing Partner) and sends to the caller's own workEmailOf(grant), marked as a test.
-- phase23.mo getToday builds OpeningQuestionsLib.State inline twice; every new State field must be added to both literals or M0151 fails.
-- A timer job needing Timer.setTimer<system> must be a <system> function; a plain func() body fails M0197.
-- api-doc.mo's getApiDoc literal must stay one line with every inner double quote escaped; a split literal fails M0001.
-- canAdmin already includes managingPartner via ADMIN_ROLES, so isAdmin gates the Admin > Opening Questions status line and test button for both roles.
-- DailyEmailStatus.lastSentAt is optional; check !== undefined to distinguish never-sent from a real timestamp.
-- The daily email timer in main.mo re-arms the next day's timer before awaiting runDailyEmail, so a trapping send cannot stop the daily email.
-- runDailyEmail and sendTestEmail use Time.now() for the store day and Finish-by, not nowOf/Clock.effectiveNow, so demo pretend dates cannot shift or repeat real emails.
-- The daily email link is the full https://tlcroadieroster.com/opening-questions address, produced once in lib/openingquestions.mo.
-- Kitchen/Service Manager four-area access uses dedicated helpers: backend Auth.roleHasFourAreaAccess/requireContactViewer/requireGroupEditorFourArea/requireCheckInManager/requireSignupApprover, frontend canSeeContactInfo/canEditShiftBoards/canManageCheckIns/canApproveSignups; isManager, requireManager, requireGroupEditor and the shared frontend role lists stay unwidened.
-- ManagerCheckInSection in Today.tsx mounts the shared CheckInBoard for Kitchen/Service Managers; it renders nothing when today has no shift summaries.
-- getCheckInBoard returns null when the caller has no group on the board, so a manager board only shows roadies in a group they train; the section still renders the shift picker.
-- lib/copy.ts holds two flat object literals en and es typed CopyDictionary; the en block starts near line 7 and the es block near line 1052, and every key removal must delete both locale entries together so the two key sets stay identical.
 - Orphan ui cluster: sidebar was the only importer of separator, sheet and tooltip, so those plus 30 more starter ui files were deletable; 12 ui files remain live.
 - Deleting a frontend hook can orphan its type imports; re-check SignupId, ShiftBoardView, RoadieId, QuestionFilter and translate after each removal.
 - OQL resolver imports (MapEntity, RecordValue, NatValue) in main.mo look unused but are required top-level for .toEntity/.payload derivation; keep them.
@@ -431,3 +434,17 @@
 - usePendingSignups has no enabled gate and is readable by every role, so the Dashboard can call it unconditionally like Approvals and Layout do.
 - Dashboard /opening-questions and /roster routes declare optional validateSearch, so Link needs no search prop.
 - This app gates every route behind Internet Identity, so a mock-backend visual pass only reaches the sign-in screen; Dashboard changes need an authenticated session to verify visually.
+- Integration role is refused on shift boards, Today, Dashboard and every read except buildShareableExport; INTEGRATION_REFUSED_ROUTES plus useMayOpenOpenRoute in App.tsx enforce the routes.
+- Today's Opening Questions alert cards must use useRealAccessGrant, not the demo-aware useAccessState role, to match backend ownership checks.
+- Opening Questions length limits: answer 4,000; comment, reply and suggestion 2,000; notes 1,000, enforced in the backend and shown on each field.
+- The daily Opening Questions email runs from a timer armed in the main.mo actor body that re-arms itself after each run, so it survives upgrades without stored timer state.
+- ManagerScoreRow.nudgedToday is the stored nudge state derived from the nudge record in store time; the scoreboard no longer reads the change log or a hardcoded Chicago day key.
+- Demo leaders are identified by approvedBy == systemActor() (aaaaa-aa), never by work email; migration 32 strips legacy DEMO work emails from system-created grants.
+- getStoreInfo traps for a demo-only caller; getStoreDemoView serves non-sensitive store details while demo is on, and useDemoAwareStoreInfo falls back to it on Dashboard and Groups.
+- usePendingSignups(enabled = true) is gated like useAbsentAlerts; Layout and Dashboard pass canApproveSignups(role) so a role that may not approve sign-ups never calls listPendingSignups.
+- Trainer notes: addTrainerNote allows trainer, trainingManager, kitchenManager, serviceManager, storeManager, admin and managingPartner, with a trainer limited to their own stations; blank notes and fields over 1,000 characters are refused; archived roadies and the other demo partition trap Roadie not found; listTrainerNotes returns TrainerNoteView newest first with authorName while the stored TrainerNote record is unchanged.
+- Trainer notes UI: TrainerNotesTab and TrainerNoteForm in src/frontend/src/components/roadie are shared by the roadie card tab and the Today My group tiles; canReadTrainerNotes and canAddTrainerNote in useAccess.ts gate them.
+- A module-level let in a Motoko lib file must be a literal; 24 * 60 * 60 * 1_000_000_000 fails M0014, so write 86_400_000_000_000.
+- Biome lint/a11y/useSemanticElements rejects a div with role group; use fieldset and legend for a labelled button group.
+- Copy parity check: match keys only at line start so string values containing words like largo are not counted as keys.
+- Today My group check marks need a per-roadie notes query (useQueries over the group roadie ids) keyed trainerNotes plus the roadie id, matching the add and update mutation's invalidation key.
