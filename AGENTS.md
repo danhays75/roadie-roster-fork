@@ -103,6 +103,10 @@
 - When unsure whether something is used, keep it
 - Keep every data migration, the .old/ and deployed/ backend.most files, every stable variable, map and counter, every public endpoint, the who and status fields on the Opening Questions import type, the alerts storage and the Dashboard alert list
 - Keep tests
+- Keep everything else exactly as it works today
+- No backend changes in this round
+- Keep the red alert styling and the AlertTriangle heading
+- English and Spanish copy with the same keys in both
 
 ## Accepted Requirements
 
@@ -385,6 +389,14 @@
 - Keep every migration, the .old/ and deployed/ backend.most files, every stable variable, map and counter, every public endpoint, the who and status fields on the Opening Questions import type, the alerts storage, the Dashboard alert list and tests
 - Frontend type-checks, backend builds, and existing tests still pass
 - Report every removal, the copy key count, anything kept because of uncertainty, and the type-check, build and test results
+- Dashboard alerts box becomes a 'Needs attention' box listing what is waiting on the signed-in person as rows with a count, a short label and a link
+- Rows in order: new hires to approve (/approvals), absent roadies (/today), paperwork incomplete (/roster), Opening Questions (/opening-questions), stored alerts
+- Rows show only when the count is above 0 and the role may act; the whole box hides when nothing is waiting
+- Opening Questions rows hide while demo mode is on and use the caller's real role; ready for final is Managing Partner only
+- Stored alerts get a Dismiss button that acknowledges the alert and refreshes the list
+- Only call a query when the person's role may read it; reuse existing hooks and query keys
+- New copy keys in English and Spanish with the same keys in both
+- No backend changes; frontend type-checks and existing tests pass
 
 ## Verified Commands
 
@@ -394,11 +406,6 @@
 
 ## Learnings
 
-- Integration role is refused on shift boards, Today, Dashboard and every read except buildShareableExport; INTEGRATION_REFUSED_ROUTES plus useMayOpenOpenRoute in App.tsx enforce the routes.
-- Today's Opening Questions alert cards must use useRealAccessGrant, not the demo-aware useAccessState role, to match backend ownership checks.
-- Iter.filter().map() returns an Iter in Motoko; call .toArray() before .sort() when the function returns [T] (M0096 otherwise).
-- Opening Questions length limits: answer 4,000; comment, reply and suggestion 2,000; notes 1,000, enforced in the backend and shown on each field.
-- The daily Opening Questions email runs from a timer armed in the main.mo actor body that re-arms itself after each run, so it survives upgrades without stored timer state.
 - runDailyEmail is idempotent per store day via state.dailyEmail.lastSentDay, added only on a successful send, so a late or repeated timer fire sends nothing more.
 - sendTestEmail uses requireRealAdmin (Admin and Managing Partner) and sends to the caller's own workEmailOf(grant), marked as a test.
 - phase23.mo getToday builds OpeningQuestionsLib.State inline twice; every new State field must be added to both literals or M0151 fails.
@@ -419,3 +426,8 @@
 - lib/copy.ts en and es blocks both hold 822 keys after the version 14 copy restore; verify parity by parsing the two literals, since CopyDictionary is Record<string, string> and typecheck cannot catch a missing key.
 - Kiosk copy lives in src/frontend/src/components/kiosk/copy.ts with its own en/es maps, not in lib/copy.ts, so kiosk t() keys resolve against that dictionary.
 - Version 13 copy text is recoverable from git commit 8df829b:src/frontend/src/lib/copy.ts (en literal lines 7-1090, es literal lines 1093-2190, values often wrapped onto the next line).
+- DashboardAlerts in src/frontend/src/pages/Dashboard.tsx is a Needs attention box: rows for new hires (usePendingSignups, SIGNUP_APPROVER_ROLES, /approvals), absent roadies (useAbsentAlerts, ABSENT_ALERT_ROLES, /today), paperwork (ARCHIVE_ROLES, /roster), Opening Questions (useRealAccessGrant role, hidden in demo, /opening-questions) and stored alerts with a Dismiss button; the box hides when every count is 0.
+- useAcknowledgeAlert in src/frontend/src/hooks/useQueries.ts calls actor.acknowledgeAlert and invalidates ['alerts'] so the Dashboard stored-alert rows refresh after Dismiss.
+- usePendingSignups has no enabled gate and is readable by every role, so the Dashboard can call it unconditionally like Approvals and Layout do.
+- Dashboard /opening-questions and /roster routes declare optional validateSearch, so Link needs no search prop.
+- This app gates every route behind Internet Identity, so a mock-backend visual pass only reaches the sign-in screen; Dashboard changes need an authenticated session to verify visually.

@@ -50276,6 +50276,24 @@ function useAbsentAlerts(enabled = true) {
 	});
 }
 /**
+* Acknowledge a stored alert so it drops out of the Dashboard alerts box
+* (Admin and Store Manager only). Invalidates the alerts list so the box
+* refreshes without a page reload.
+*/
+function useAcknowledgeAlert() {
+	const { actor } = useActor(createActor);
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (id) => {
+			if (!actor) throw new Error("Backend is not ready");
+			return actor.acknowledgeAlert(id);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["alerts"] });
+		}
+	});
+}
+/**
 * Excuse an absent alert with a reason (alert roles only). Invalidates the
 * alerts list and the Today view so the excused state appears.
 */
@@ -61667,12 +61685,44 @@ var dashboardCopy = {
 		es: "{certified} de {hired} certificados"
 	},
 	"dashboard.alerts.title": {
-		en: "Alerts",
-		es: "Alertas"
+		en: "Needs attention",
+		es: "Requiere atención"
 	},
 	"dashboard.alerts.paperwork": {
 		en: "Paperwork incomplete ({count})",
 		es: "Papeleo incompleto ({count})"
+	},
+	"dashboard.alerts.newHires": {
+		en: "New hires to approve ({count})",
+		es: "Nuevas contrataciones por aprobar ({count})"
+	},
+	"dashboard.alerts.absent": {
+		en: "Absent roadies waiting on a decision ({count})",
+		es: "Roadies ausentes esperando una decisión ({count})"
+	},
+	"dashboard.alerts.oqNeedsApproval": {
+		en: "Opening Questions need your approval ({count})",
+		es: "Preguntas de apertura que necesitan tu aprobación ({count})"
+	},
+	"dashboard.alerts.oqNewActivity": {
+		en: "New Opening Questions suggestions or replies ({count})",
+		es: "Nuevas sugerencias o respuestas de Preguntas de apertura ({count})"
+	},
+	"dashboard.alerts.oqDecisionsDue": {
+		en: "Opening Questions decisions due ({count})",
+		es: "Decisiones de Preguntas de apertura pendientes ({count})"
+	},
+	"dashboard.alerts.oqReadyForFinal": {
+		en: "Opening Questions ready for final ({count})",
+		es: "Preguntas de apertura listas para final ({count})"
+	},
+	"dashboard.alerts.dismiss": {
+		en: "Dismiss",
+		es: "Descartar"
+	},
+	"dashboard.alerts.dismissError": {
+		en: "We couldn't dismiss that alert.",
+		es: "No pudimos descartar esa alerta."
 	},
 	"dashboard.position.needed": {
 		en: "{count} needed",
@@ -102428,8 +102478,8 @@ var __vitePreload = function preload(baseModule, deps, importerUrl) {
 };
 //#endregion
 //#region src/pages/Dashboard.tsx
-var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-yVDXM6MF.js").then((m) => ({ default: m.KpiTiles })), []));
-var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-dp7vTnoz.js").then((m) => ({ default: m.OpeningTimelineView })), []));
+var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-B_AghAWR.js").then((m) => ({ default: m.KpiTiles })), []));
+var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-Be7ITk05.js").then((m) => ({ default: m.OpeningTimelineView })), []));
 var KPI_SKELETON_TILES = [
 	"hired",
 	"needed",
@@ -102564,15 +102614,67 @@ function useOrientationWindow(events, now) {
 	}, [events, now]);
 }
 /**
-* The dashboard alerts: a red "Paperwork incomplete" flag for every roadie past
-* the paperwork due date whose paperwork is not 100% complete, plus any
-* unacknowledged backend alerts. Rendered only for managers, who are the roles
-* that may read the check-off and the alerts store.
+* One row in the "Needs attention" box: a count, a short label and a link to
+* the page where the person acts. Styled as a link like the existing rows.
+*/
+function AttentionRow({ to, count, label, detail, ocid }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Link, {
+		to,
+		"data-ocid": ocid,
+		className: "flex min-h-[44px] items-center gap-3 rounded-md border border-destructive/30 bg-card px-3 py-2 text-foreground transition-colors hover:border-destructive/60 hover:bg-destructive/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full bg-destructive/10 px-2 font-display text-sm font-bold tabular-nums text-destructive",
+				children: count
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+				className: "min-w-0 flex-1",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "block font-display text-xs font-semibold uppercase tracking-wider text-destructive",
+					children: label
+				}), detail && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "mt-0.5 block truncate text-sm text-foreground",
+					children: detail
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronRight, {
+				className: "h-4 w-4 shrink-0 text-muted-foreground",
+				"aria-hidden": "true"
+			})
+		]
+	});
+}
+/**
+* The dashboard "Needs attention" box: what is waiting on the signed-in person,
+* each item as one row with a count, a short label and a link to the page where
+* they act. Rows appear in a fixed order — new hires to approve, absent roadies
+* waiting on a decision, paperwork incomplete, Opening Questions, then stored
+* alerts — and only when the count is above 0 and the role may act on it. The
+* whole box hides when nothing is waiting.
 */
 function DashboardAlerts({ paperworkNames, alerts }) {
 	const { t } = useDashboardCopy();
+	const access = useAccessState();
+	const role = access.kind === "granted" ? access.grant.role : void 0;
+	const { data: demoState } = useDemoState();
+	const demoEnabled = demoState?.enabled ?? false;
+	const mayApproveSignups = canApproveSignups(role);
+	const { data: pendingSignups } = usePendingSignups();
+	const maySeeAbsent = canSeeAbsentAlerts(role);
+	const { data: absentAlerts } = useAbsentAlerts(maySeeAbsent);
+	const realRole = useRealAccessGrant()?.role;
+	const mayReadQuestions = canOpeningQuestions(realRole) && !demoEnabled;
+	const { data: questionAlerts } = useOpeningQuestionAlerts(mayReadQuestions);
+	const acknowledge = useAcknowledgeAlert();
 	const openAlerts = alerts.filter((alert) => !alert.acknowledged);
-	if (paperworkNames.length === 0 && openAlerts.length === 0) return null;
+	const newHires = mayApproveSignups ? pendingSignups?.length ?? 0 : 0;
+	const absent = maySeeAbsent ? absentAlerts?.length ?? 0 : 0;
+	const paperwork = paperworkNames.length;
+	const needsApproval = mayReadQuestions ? Number(questionAlerts?.needsMyApproval ?? 0) : 0;
+	const newActivity = mayReadQuestions ? Number(questionAlerts?.newSuggestionsOrReplies ?? 0) : 0;
+	const decisionsDue = mayReadQuestions && realRole === Role.admin ? Number(questionAlerts?.decisionsDue ?? 0) : 0;
+	const readyForFinal = mayReadQuestions && canFinalizeOpeningQuestions(realRole) ? Number(questionAlerts?.readyForFinal ?? 0) : 0;
+	if (!(newHires > 0 || absent > 0 || paperwork > 0 || needsApproval > 0 || newActivity > 0 || decisionsDue > 0 || readyForFinal > 0 || openAlerts.length > 0)) return null;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 		"data-ocid": "dashboard.alerts",
 		className: "space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-4",
@@ -102584,22 +102686,71 @@ function DashboardAlerts({ paperworkNames, alerts }) {
 					"aria-hidden": "true"
 				}), t("dashboard.alerts.title")]
 			}),
-			paperworkNames.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-ocid": "dashboard.alerts.paperwork",
-				className: "rounded-md border border-destructive/30 bg-card px-3 py-2",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "font-display text-xs font-semibold uppercase tracking-wider text-destructive",
-					children: t("dashboard.alerts.paperwork", { count: paperworkNames.length })
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "mt-0.5 text-sm text-foreground",
-					children: paperworkNames.join(", ")
-				})]
+			newHires > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AttentionRow, {
+				to: "/approvals",
+				count: newHires,
+				label: t("dashboard.alerts.newHires", { count: newHires }),
+				ocid: "dashboard.alerts.newHires"
 			}),
-			openAlerts.map((alert) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+			absent > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AttentionRow, {
+				to: "/today",
+				count: absent,
+				label: t("dashboard.alerts.absent", { count: absent }),
+				ocid: "dashboard.alerts.absent"
+			}),
+			paperwork > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AttentionRow, {
+				to: "/roster",
+				count: paperwork,
+				label: t("dashboard.alerts.paperwork", { count: paperwork }),
+				detail: paperworkNames.join(", "),
+				ocid: "dashboard.alerts.paperwork"
+			}),
+			needsApproval > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AttentionRow, {
+				to: "/opening-questions",
+				count: needsApproval,
+				label: t("dashboard.alerts.oqNeedsApproval", { count: needsApproval }),
+				ocid: "dashboard.alerts.oqNeedsApproval"
+			}),
+			newActivity > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AttentionRow, {
+				to: "/opening-questions",
+				count: newActivity,
+				label: t("dashboard.alerts.oqNewActivity", { count: newActivity }),
+				ocid: "dashboard.alerts.oqNewActivity"
+			}),
+			decisionsDue > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AttentionRow, {
+				to: "/opening-questions",
+				count: decisionsDue,
+				label: t("dashboard.alerts.oqDecisionsDue", { count: decisionsDue }),
+				ocid: "dashboard.alerts.oqDecisionsDue"
+			}),
+			readyForFinal > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AttentionRow, {
+				to: "/opening-questions",
+				count: readyForFinal,
+				label: t("dashboard.alerts.oqReadyForFinal", { count: readyForFinal }),
+				ocid: "dashboard.alerts.oqReadyForFinal"
+			}),
+			openAlerts.map((alert) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				"data-ocid": "dashboard.alerts.item",
-				className: "rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground",
-				children: alert.message
-			}, alert.id.toString()))
+				className: "flex min-h-[44px] items-center gap-3 rounded-md border border-border bg-card px-3 py-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "min-w-0 flex-1 text-sm text-foreground",
+					children: alert.message
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					type: "button",
+					variant: "outline",
+					className: "touch-target shrink-0",
+					disabled: acknowledge.isPending,
+					"data-ocid": "dashboard.alerts.dismiss_button",
+					onClick: () => acknowledge.mutate(alert.id),
+					children: t("dashboard.alerts.dismiss")
+				})]
+			}, alert.id.toString())),
+			acknowledge.isError && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				role: "alert",
+				"data-ocid": "dashboard.alerts.dismiss_error",
+				className: "text-sm text-destructive",
+				children: t("dashboard.alerts.dismissError")
+			})
 		]
 	});
 }

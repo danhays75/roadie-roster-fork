@@ -5,7 +5,7 @@ import type {
   ScheduleEvent,
   StoreInfo,
 } from "@/backend";
-import { EventKind, RoadieStatus, createActor } from "@/backend";
+import { EventKind, RoadieStatus, Role, createActor } from "@/backend";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { StoreLogo } from "@/components/StoreLogo";
@@ -17,13 +17,22 @@ import { useDashboardCopy } from "@/components/dashboard/copy";
 import { usePaperworkIncompleteMap } from "@/components/roadie/RoadieTile";
 import { Button } from "@/components/ui/button";
 import {
+  canApproveSignups,
   canArchive,
+  canFinalizeOpeningQuestions,
+  canOpeningQuestions,
+  canSeeAbsentAlerts,
   useAccessState,
   useDemoAwareStoreInfo,
+  useRealAccessGrant,
 } from "@/hooks/useAccess";
 import {
+  useAbsentAlerts,
+  useAcknowledgeAlert,
   useDashboard,
   useDemoState,
+  useOpeningQuestionAlerts,
+  usePendingSignups,
   useRoadies,
   useRosterSummary,
   useSchedule,
@@ -37,7 +46,8 @@ import {
 import { paperworkDueEvent } from "@/lib/schedule";
 import { useActor } from "@caffeineai/core-infrastructure";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, SlidersHorizontal } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { AlertTriangle, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 
 // The two heaviest dashboard sections load on demand so the page shell paints
@@ -217,10 +227,56 @@ function useOrientationWindow(
 }
 
 /**
- * The dashboard alerts: a red "Paperwork incomplete" flag for every roadie past
- * the paperwork due date whose paperwork is not 100% complete, plus any
- * unacknowledged backend alerts. Rendered only for managers, who are the roles
- * that may read the check-off and the alerts store.
+ * One row in the "Needs attention" box: a count, a short label and a link to
+ * the page where the person acts. Styled as a link like the existing rows.
+ */
+function AttentionRow({
+  to,
+  count,
+  label,
+  detail,
+  ocid,
+}: {
+  to: string;
+  count: number;
+  label: string;
+  detail?: string;
+  ocid: string;
+}) {
+  return (
+    <Link
+      to={to}
+      data-ocid={ocid}
+      className="flex min-h-[44px] items-center gap-3 rounded-md border border-destructive/30 bg-card px-3 py-2 text-foreground transition-colors hover:border-destructive/60 hover:bg-destructive/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    >
+      <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full bg-destructive/10 px-2 font-display text-sm font-bold tabular-nums text-destructive">
+        {count}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-display text-xs font-semibold uppercase tracking-wider text-destructive">
+          {label}
+        </span>
+        {detail && (
+          <span className="mt-0.5 block truncate text-sm text-foreground">
+            {detail}
+          </span>
+        )}
+      </span>
+      <ChevronRight
+        className="h-4 w-4 shrink-0 text-muted-foreground"
+        aria-hidden="true"
+      />
+    </Link>
+  );
+}
+
+/**
+ * The dashboard "Needs attention" box: what is waiting on the signed-in person,
+ * each item as one row with a count, a short label and a link to the page where
+ * they act. Rows appear in a fixed order — new hires to approve, absent roadies
+ * waiting on a decision, paperwork incomplete, Opening Questions, then stored
+ * alerts — and only when the count is above 0 and the role may act on it. The
+ * whole box hides when nothing is waiting.
  */
 function DashboardAlerts({
   paperworkNames,
@@ -230,8 +286,56 @@ function DashboardAlerts({
   alerts: Alert[];
 }) {
   const { t } = useDashboardCopy();
+  const access = useAccessState();
+  const role = access.kind === "granted" ? access.grant.role : undefined;
+  const { data: demoState } = useDemoState();
+  const demoEnabled = demoState?.enabled ?? false;
+
+  // New hires and absent roadies follow demo mode exactly as their own pages do,
+  // so their reads run while demo mode is on and show demo data.
+  const mayApproveSignups = canApproveSignups(role);
+  const { data: pendingSignups } = usePendingSignups();
+  const maySeeAbsent = canSeeAbsentAlerts(role);
+  const { data: absentAlerts } = useAbsentAlerts(maySeeAbsent);
+
+  // Opening Questions ownership uses the caller's real role, as Today does, and
+  // the rows hide entirely while demo mode is on.
+  const realRole = useRealAccessGrant()?.role;
+  const mayReadQuestions = canOpeningQuestions(realRole) && !demoEnabled;
+  const { data: questionAlerts } = useOpeningQuestionAlerts(mayReadQuestions);
+
+  const acknowledge = useAcknowledgeAlert();
   const openAlerts = alerts.filter((alert) => !alert.acknowledged);
-  if (paperworkNames.length === 0 && openAlerts.length === 0) return null;
+
+  const newHires = mayApproveSignups ? (pendingSignups?.length ?? 0) : 0;
+  const absent = maySeeAbsent ? (absentAlerts?.length ?? 0) : 0;
+  const paperwork = paperworkNames.length;
+
+  const needsApproval = mayReadQuestions
+    ? Number(questionAlerts?.needsMyApproval ?? 0)
+    : 0;
+  const newActivity = mayReadQuestions
+    ? Number(questionAlerts?.newSuggestionsOrReplies ?? 0)
+    : 0;
+  const decisionsDue =
+    mayReadQuestions && realRole === Role.admin
+      ? Number(questionAlerts?.decisionsDue ?? 0)
+      : 0;
+  const readyForFinal =
+    mayReadQuestions && canFinalizeOpeningQuestions(realRole)
+      ? Number(questionAlerts?.readyForFinal ?? 0)
+      : 0;
+
+  const hasAny =
+    newHires > 0 ||
+    absent > 0 ||
+    paperwork > 0 ||
+    needsApproval > 0 ||
+    newActivity > 0 ||
+    decisionsDue > 0 ||
+    readyForFinal > 0 ||
+    openAlerts.length > 0;
+  if (!hasAny) return null;
 
   return (
     <section
@@ -243,29 +347,105 @@ function DashboardAlerts({
         {t("dashboard.alerts.title")}
       </h2>
 
-      {paperworkNames.length > 0 && (
-        <div
-          data-ocid="dashboard.alerts.paperwork"
-          className="rounded-md border border-destructive/30 bg-card px-3 py-2"
-        >
-          <p className="font-display text-xs font-semibold uppercase tracking-wider text-destructive">
-            {t("dashboard.alerts.paperwork", { count: paperworkNames.length })}
-          </p>
-          <p className="mt-0.5 text-sm text-foreground">
-            {paperworkNames.join(", ")}
-          </p>
-        </div>
+      {newHires > 0 && (
+        <AttentionRow
+          to="/approvals"
+          count={newHires}
+          label={t("dashboard.alerts.newHires", { count: newHires })}
+          ocid="dashboard.alerts.newHires"
+        />
+      )}
+
+      {absent > 0 && (
+        <AttentionRow
+          to="/today"
+          count={absent}
+          label={t("dashboard.alerts.absent", { count: absent })}
+          ocid="dashboard.alerts.absent"
+        />
+      )}
+
+      {paperwork > 0 && (
+        <AttentionRow
+          to="/roster"
+          count={paperwork}
+          label={t("dashboard.alerts.paperwork", { count: paperwork })}
+          detail={paperworkNames.join(", ")}
+          ocid="dashboard.alerts.paperwork"
+        />
+      )}
+
+      {needsApproval > 0 && (
+        <AttentionRow
+          to="/opening-questions"
+          count={needsApproval}
+          label={t("dashboard.alerts.oqNeedsApproval", {
+            count: needsApproval,
+          })}
+          ocid="dashboard.alerts.oqNeedsApproval"
+        />
+      )}
+
+      {newActivity > 0 && (
+        <AttentionRow
+          to="/opening-questions"
+          count={newActivity}
+          label={t("dashboard.alerts.oqNewActivity", { count: newActivity })}
+          ocid="dashboard.alerts.oqNewActivity"
+        />
+      )}
+
+      {decisionsDue > 0 && (
+        <AttentionRow
+          to="/opening-questions"
+          count={decisionsDue}
+          label={t("dashboard.alerts.oqDecisionsDue", { count: decisionsDue })}
+          ocid="dashboard.alerts.oqDecisionsDue"
+        />
+      )}
+
+      {readyForFinal > 0 && (
+        <AttentionRow
+          to="/opening-questions"
+          count={readyForFinal}
+          label={t("dashboard.alerts.oqReadyForFinal", {
+            count: readyForFinal,
+          })}
+          ocid="dashboard.alerts.oqReadyForFinal"
+        />
       )}
 
       {openAlerts.map((alert) => (
-        <p
+        <div
           key={alert.id.toString()}
           data-ocid="dashboard.alerts.item"
-          className="rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground"
+          className="flex min-h-[44px] items-center gap-3 rounded-md border border-border bg-card px-3 py-2"
         >
-          {alert.message}
-        </p>
+          <p className="min-w-0 flex-1 text-sm text-foreground">
+            {alert.message}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            className="touch-target shrink-0"
+            disabled={acknowledge.isPending}
+            data-ocid="dashboard.alerts.dismiss_button"
+            onClick={() => acknowledge.mutate(alert.id)}
+          >
+            {t("dashboard.alerts.dismiss")}
+          </Button>
+        </div>
       ))}
+
+      {acknowledge.isError && (
+        <p
+          role="alert"
+          data-ocid="dashboard.alerts.dismiss_error"
+          className="text-sm text-destructive"
+        >
+          {t("dashboard.alerts.dismissError")}
+        </p>
+      )}
     </section>
   );
 }

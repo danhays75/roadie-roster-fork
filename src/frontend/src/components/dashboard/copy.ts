@@ -51,10 +51,39 @@ const dashboardCopy: Record<string, { en: string; es: string }> = {
     en: "{certified} of {hired} certified",
     es: "{certified} de {hired} certificados",
   },
-  "dashboard.alerts.title": { en: "Alerts", es: "Alertas" },
+  "dashboard.alerts.title": { en: "Needs attention", es: "Requiere atención" },
   "dashboard.alerts.paperwork": {
     en: "Paperwork incomplete ({count})",
     es: "Papeleo incompleto ({count})",
+  },
+  "dashboard.alerts.newHires": {
+    en: "New hires to approve ({count})",
+    es: "Nuevas contrataciones por aprobar ({count})",
+  },
+  "dashboard.alerts.absent": {
+    en: "Absent roadies waiting on a decision ({count})",
+    es: "Roadies ausentes esperando una decisión ({count})",
+  },
+  "dashboard.alerts.oqNeedsApproval": {
+    en: "Opening Questions need your approval ({count})",
+    es: "Preguntas de apertura que necesitan tu aprobación ({count})",
+  },
+  "dashboard.alerts.oqNewActivity": {
+    en: "New Opening Questions suggestions or replies ({count})",
+    es: "Nuevas sugerencias o respuestas de Preguntas de apertura ({count})",
+  },
+  "dashboard.alerts.oqDecisionsDue": {
+    en: "Opening Questions decisions due ({count})",
+    es: "Decisiones de Preguntas de apertura pendientes ({count})",
+  },
+  "dashboard.alerts.oqReadyForFinal": {
+    en: "Opening Questions ready for final ({count})",
+    es: "Preguntas de apertura listas para final ({count})",
+  },
+  "dashboard.alerts.dismiss": { en: "Dismiss", es: "Descartar" },
+  "dashboard.alerts.dismissError": {
+    en: "We couldn't dismiss that alert.",
+    es: "No pudimos descartar esa alerta.",
   },
   "dashboard.position.needed": {
     en: "{count} needed",

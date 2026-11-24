@@ -1846,6 +1846,25 @@ export function useAbsentAlerts(enabled = true) {
 }
 
 /**
+ * Acknowledge a stored alert so it drops out of the Dashboard alerts box
+ * (Admin and Store Manager only). Invalidates the alerts list so the box
+ * refreshes without a page reload.
+ */
+export function useAcknowledgeAlert() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: AlertId) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.acknowledgeAlert(id);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["alerts"] });
+    },
+  });
+}
+
+/**
  * Excuse an absent alert with a reason (alert roles only). Invalidates the
  * alerts list and the Today view so the excused state appears.
  */
