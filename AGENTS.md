@@ -389,14 +389,11 @@
 ## Verified Commands
 
 - **typecheck**: `cd src/frontend && pnpm typecheck`
-- **fix**: `mops check --fix && cd src/frontend && pnpm fix`
+- **fix**: `cd src/frontend && pnpm fix`
 - **build**: `mops build && cd src/frontend && pnpm build`
 
 ## Learnings
 
-- ManagerScoreRow.nudgedToday is the stored nudge state derived from the nudge record in store time; the scoreboard no longer reads the change log or a hardcoded Chicago day key.
-- Demo leaders are identified by approvedBy == systemActor() (aaaaa-aa), never by work email; migration 32 strips legacy DEMO work emails from system-created grants.
-- getStoreInfo traps for a demo-only caller; getStoreDemoView serves non-sensitive store details while demo is on, and useDemoAwareStoreInfo falls back to it on Dashboard and Groups.
 - Integration role is refused on shift boards, Today, Dashboard and every read except buildShareableExport; INTEGRATION_REFUSED_ROUTES plus useMayOpenOpenRoute in App.tsx enforce the routes.
 - Today's Opening Questions alert cards must use useRealAccessGrant, not the demo-aware useAccessState role, to match backend ownership checks.
 - Iter.filter().map() returns an Iter in Motoko; call .toArray() before .sort() when the function returns [T] (M0096 otherwise).
@@ -419,3 +416,6 @@
 - Orphan ui cluster: sidebar was the only importer of separator, sheet and tooltip, so those plus 30 more starter ui files were deletable; 12 ui files remain live.
 - Deleting a frontend hook can orphan its type imports; re-check SignupId, ShiftBoardView, RoadieId, QuestionFilter and translate after each removal.
 - OQL resolver imports (MapEntity, RecordValue, NatValue) in main.mo look unused but are required top-level for .toEntity/.payload derivation; keep them.
+- lib/copy.ts en and es blocks both hold 822 keys after the version 14 copy restore; verify parity by parsing the two literals, since CopyDictionary is Record<string, string> and typecheck cannot catch a missing key.
+- Kiosk copy lives in src/frontend/src/components/kiosk/copy.ts with its own en/es maps, not in lib/copy.ts, so kiosk t() keys resolve against that dictionary.
+- Version 13 copy text is recoverable from git commit 8df829b:src/frontend/src/lib/copy.ts (en literal lines 7-1090, es literal lines 1093-2190, values often wrapped onto the next line).
