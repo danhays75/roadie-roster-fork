@@ -1,18 +1,20 @@
 {
-  "overview": "A store hiring and training roster for Roadie Roster, now readable by your own AI assistant through the Internet Computer MCP connector.",
+  "overview": "A hiring and onboarding roster for a store's roadie crew, with sign-ups, paperwork, orientation, training groups, crews, events and manager reporting.",
   "features": [
-    "Read roadies, positions, pending sign-ups, orientation sessions and attendance, opening questions, crew events and answers, trainer notes and alerts from your own AI assistant",
-    "Access follows each person's real, current role, with Trainers limited to their own stations and crew leaders to their own crew",
-    "Contact details, photos, signatures and birth dates are never shared",
-    "Demo data stays separate from real data"
+    "Track roadies from sign-up through paperwork, orientation and certification",
+    "Approve new hires and manage roles and access",
+    "Build training groups and shift boards",
+    "Organize crews, crew events and RSVP answers",
+    "Opening Questions review with approvals and history",
+    "Read-only data access for an AI assistant, scoped to each person's real role"
   ],
-  "category": "staff-management",
+  "category": "team-management",
   "tags": [
     "roster",
     "hiring",
-    "training",
-    "data-access",
-    "assistant"
+    "onboarding",
+    "staffing",
+    "retail"
   ],
-  "last_updated": "2026-11-25T10:12:31.605Z"
+  "last_updated": "2026-11-25T10:34:08.025Z"
 }

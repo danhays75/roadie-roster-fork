@@ -20,13 +20,17 @@ module {
   /// A principal that is never a real caller in these tests.
   public func other() : Principal = Principal.fromText("2vxsx-fae");
 
+  /// The approver recorded on a real (non-demo) grant. It must not be the
+  /// system actor (`aaaaa-aa`), which marks a grant as a seeded demo leader.
+  public func approver() : Principal = Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai");
+
   /// A grant for `p` with `role`, no end date, no trainer stations.
   public func grant(p : Principal, role : Common.Role) : Access.AccessGrant {
     {
       principal = p;
       role;
       approvedAt = 0;
-      approvedBy = nobody();
+      approvedBy = approver();
       accessEndsAt = null;
       trainerPositionIds = [];
       linkedRoadieId = null;
@@ -40,7 +44,7 @@ module {
       principal = p;
       role;
       approvedAt = 0;
-      approvedBy = nobody();
+      approvedBy = approver();
       accessEndsAt = ?(Time.now() - 86_400_000_000_000);
       trainerPositionIds = [];
       linkedRoadieId = null;
@@ -54,7 +58,7 @@ module {
       principal = p;
       role = #trainer;
       approvedAt = 0;
-      approvedBy = nobody();
+      approvedBy = approver();
       accessEndsAt = null;
       trainerPositionIds = stations;
       linkedRoadieId = null;
@@ -67,6 +71,27 @@ module {
     let m = Map.empty<Principal, Access.AccessGrant>();
     for (g in entries.values()) {
       m.add(g.principal, g);
+    };
+    m;
+  };
+
+  /// A demo-role map holding one caller's chosen demo role, with no stations.
+  public func demoRoles(entries : [(Principal, Common.DemoRole)]) : Map.Map<Principal, Common.DemoRoleEntry> {
+    let m = Map.empty<Principal, Common.DemoRoleEntry>();
+    for ((p, role) in entries.values()) {
+      m.add(p, { role; stations = [] });
+    };
+    m;
+  };
+
+  /// A demo-role map holding one caller's chosen demo role and demo stations.
+  public func demoRolesWithStations(
+    entries : [(Principal, Common.DemoRole)],
+    stations : [Common.PositionId],
+  ) : Map.Map<Principal, Common.DemoRoleEntry> {
+    let m = Map.empty<Principal, Common.DemoRoleEntry>();
+    for ((p, role) in entries.values()) {
+      m.add(p, { role; stations });
     };
     m;
   };
@@ -265,6 +290,13 @@ module {
       updatedBy = nobody();
       isDemo = false;
     };
+  };
+
+  /// An opening question in the Kitchen area approved by `approver`, so the
+  /// Kitchen Manager is its only live owner and has approved it.
+  public func openingQuestionApprovedBy(id : Nat, approver : Principal) : OpeningQuestions.OpeningQuestion {
+    let q = openingQuestion(id);
+    { q with approvals = [{ principal = approver; at = 0 }] };
   };
 
   /// A crew event.

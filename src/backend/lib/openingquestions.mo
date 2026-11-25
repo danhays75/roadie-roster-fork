@@ -225,7 +225,7 @@ module {
 
   /// True when the question is ready for final: every owner approved and it is
   /// not final yet.
-  func isReadyForFinal(
+  public func isReadyForFinal(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     q : OQ.OpeningQuestion,
   ) : Bool {

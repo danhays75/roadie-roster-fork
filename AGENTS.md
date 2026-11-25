@@ -130,6 +130,8 @@
 - Never use a public entity
 - Use the caller's real, non-expired role from the app's access grants, never a demo role
 - Respect demo mode the same way the existing queries do
+- Preview only; do not publish or go live
+- Change nothing outside the OQL data-access layer and its tests
 
 ## Accepted Requirements
 
@@ -507,6 +509,29 @@
 - Add tests for the new entities
 - Keep every existing screen and method exactly as it is
 - Update getApiDoc to describe the OQL entities and who can read each one
+- Every OQL entity filters by the caller's real, non-expired app role from the app's access grants, never a demo role
+- Managing Partner and Admin see every row of every entity
+- Store Manager, Training Manager, Kitchen Manager and Service Manager see exactly what their app screens show today
+- Trainer sees only roadies in their stations and notes about them
+- Crew leaders see their own crew for crewEvent and eventAnswer
+- Contact info, photos, signatures and birth dates stay out
+- Demo data stays separate exactly as the existing queries do
+- Null-typed columns get real types
+- A read-only myAccess entity with the caller's principal, real role, registered/approved state and access end date
+- Read-only only: no new write methods, no changes to existing screens or methods
+- Tests added or updated for these
+- getApiDoc describes the read rules
+- Preview only; do not publish or go live
+- Fix the OQL entities so each row builder is called without the anonymous placeholder and the role check runs against the real caller
+- position, pendingSignup, orientationSession, attendance and alert check the manager visibility rule on the real caller
+- openingQuestion checks the opening-questions visibility rule on the real caller
+- roadie keys its owner column on the roadie id and checks the roadie visibility rule after looking the roadie up
+- trainerNote, crewEvent and eventAnswer use their existing visibility helpers
+- Keep controllerOrScoped on every entity
+- openingQuestion.readyForFinal uses the existing isReadyForFinal logic, not any approval
+- Do not change field lists, types or sample values beyond what this needs
+- No new write methods; keep every screen and existing method as it is
+- Update the tests for these entities
 
 ## Verified Commands
 
@@ -516,11 +541,6 @@
 
 ## Learnings
 
-- Int.compare and Nat.compare return Order.Order, so a sort comparator must test c != #equal, never c != 0.
-- useDemoAwareStoreInfo lives in hooks/useAccess.ts, not useQueries.ts; RosterState is a string enum, so compare roadie.rosterState === RosterState.active.
-- Leader talk Fill is pure dialog state: handleFill only calls setSelected, so New group and Edit group share one code path and Save is the sole mutation trigger; the page passes notYetMet and no longer calls setLeaderTalkAttendance on fill.
-- FlipCard takes an optional leaderTalkLine prop rendered as a caption below the card, so the talk line shows on the roadie page and the card pop-up without touching roadieCard.css.
-- The card talk line is gated by canLeaderTalks(role) in RoadieCard, RoadieCardModal and Roster, so all three surfaces show it to exactly the same reader roles.
 - Crew events live in src/backend/lib/crewevents.mo with mixins/crewevents-api.mo and types/crewevents.mo; the invite key is partition#eventId#roadieId text, matching the demo/real split.
 - Migration 00000034_000000.mo adds the crewEvents and eventInvites maps; adding a counter needs a distinct NewCounters type in the migration or M0170 fires.
 - MapEntity.toEntityManual takes two type args <K, V>; eventInvites is Map<Text, EventInvite> so pass <Text, CrewEvents.EventInvite>.
@@ -541,3 +561,8 @@
 - Entity.build() traps if a scoped level lacks an owner column or newScoped source, and traps if .ownedBy/.ownedByWith/.viewWith is combined with #public_.
 - mops test runs src/backend/test/*.test.mo in interpreter mode and needs no [test] section in mops.toml; a module-level let with a function call is M0014, so fixtures must be funcs.
 - mops test prints one PASS per file and did not fail on an inverted Bool assertion, so Bool-returning tests may not be enforced by the runner.
+- OQL Expose iterators take no caller, so per-row visibility must run in ownedByWith(subject, ownerValue) and the row source must be caller-free; the real query subject is the only caller available there.
+- A crew leader's crewEvent visibility needs the crews and roadies maps, so it lives in lib/oql.mo as canSeeCrewEvent rather than in the caller-free row builder.
+- Fixture grants must use a non-system approver; approvedBy = aaaaa-aa marks a grant as a demo leader and ownersOf skips it, so readiness tests silently pass with no owners.
+- Auth.effectiveRole honours the chosen demo role while demo mode is on, matching the app's existing queries; Auth.realRole ignores it.
+- api-doc.mo is one long source line; grep for distinctive phrases such as 'OQL' confirms doc text even when reads truncate at 2,000 chars.

@@ -12,12 +12,12 @@ import OqlTypes "../types/oql";
 import OqlLib "../lib/oql";
 import Fixtures "fixtures";
 
-/// Tests for the read-only OQL row builders in `lib/oql.mo`. Each builder
-/// returns `?Row`: null when the caller's REAL, non-expired role may not see
-/// that row. These tests drive the builders directly with fixture grants and
-/// records, so they cover every role's visible rows, the Trainer station limit,
-/// the crew-leader limit, demo partitioning, and that Kiosk, Integration,
-/// expired and anonymous callers get nothing.
+/// Tests for the read-only OQL row builders and visibility rules in
+/// `lib/oql.mo`. The row builders build every row without a role check; the
+/// `canSee*` rules decide which rows a caller may read. These tests drive both
+/// directly with fixture grants and records, so they cover every role's visible
+/// rows, the Trainer station limit, the crew-leader limit, demo partitioning,
+/// and that Kiosk, Integration, expired and anonymous callers get nothing.
 module {
   func admin() : Principal = Principal.fromText("aaaaa-aa");
   func managingPartner() : Principal = Principal.fromText("2vxsx-fae");
@@ -52,6 +52,41 @@ module {
     Fixtures.expiredGrant(expired(), #admin),
   ]);
 
+  // Demo mode off: the visibility rules fall back to the caller's real role.
+  func demoOff() : Common.DemoState = {
+    var enabled = false;
+    var turnedOnAt = null;
+    var autoOffAt = null;
+    var pretendDate = null;
+    var demoRoles = Map.empty<Principal, Common.DemoRoleEntry>();
+    var demoTrainerAs = Map.empty<Principal, Principal>();
+    var demoManagerAs = Map.empty<Principal, Principal>();
+  };
+
+  // Demo mode on, with `caller` impersonating `role`. The caller needs no real
+  // grant: demo mode lets any signed-in caller act as the chosen demo role.
+  func demoOn(caller : Principal, role : Common.DemoRole) : Common.DemoState = {
+    var enabled = true;
+    var turnedOnAt = null;
+    var autoOffAt = null;
+    var pretendDate = null;
+    var demoRoles = Fixtures.demoRoles([(caller, role)]);
+    var demoTrainerAs = Map.empty<Principal, Principal>();
+    var demoManagerAs = Map.empty<Principal, Principal>();
+  };
+
+  // Demo mode on, with `caller` impersonating a Trainer whose demo stations are
+  // `stations`.
+  func demoOnTrainer(caller : Principal, stations : [Common.PositionId]) : Common.DemoState = {
+    var enabled = true;
+    var turnedOnAt = null;
+    var autoOffAt = null;
+    var pretendDate = null;
+    var demoRoles = Fixtures.demoRolesWithStations([(caller, #trainer)], stations);
+    var demoTrainerAs = Map.empty<Principal, Principal>();
+    var demoManagerAs = Map.empty<Principal, Principal>();
+  };
+
   // Roadies: id 1 at station 1 (the Trainer's station), id 2 at station 2.
   func roadie1() : Roadie.Roadie = Fixtures.roadie(1, 1, #active, false);
   func roadie2() : Roadie.Roadie = Fixtures.roadie(2, 2, #active, false);
@@ -68,184 +103,201 @@ module {
   // --- Roadies ---
 
   public func testRoadieManagerSeesAll() : Bool {
-    let a = OqlLib.roadieRow(accessGrants(), finalSignOffs(), admin(), roadie1());
-    let b = OqlLib.roadieRow(accessGrants(), finalSignOffs(), admin(), roadie2());
-    a == null and b == null;
+    OqlLib.canSeeRoadie(accessGrants(), demoOff(), admin(), roadie1())
+      and OqlLib.canSeeRoadie(accessGrants(), demoOff(), admin(), roadie2())
+      and OqlLib.canSeeRoadie(accessGrants(), demoOff(), managingPartner(), roadie1())
+      and OqlLib.canSeeRoadie(accessGrants(), demoOff(), managingPartner(), roadie2());
+  };
+
+  public func testRoadieRowBuiltWithoutCaller() : Bool {
+    let row = OqlLib.roadieRow(finalSignOffs(), roadie1());
+    row.id == 1 and row.name == "Roadie 1" and not row.isDemo;
   };
 
   public func testRoadieTrainerStationLimit() : Bool {
-    let inStation = OqlLib.roadieRow(accessGrants(), finalSignOffs(), trainer(), roadie1());
-    let outOfStation = OqlLib.roadieRow(accessGrants(), finalSignOffs(), trainer(), roadie2());
-    inStation != null and outOfStation == null;
+    OqlLib.canSeeRoadie(accessGrants(), demoOff(), trainer(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demoOff(), trainer(), roadie2());
   };
 
   public func testRoadieTrainerNoStationsSeesNone() : Bool {
-    OqlLib.roadieRow(accessGrants(), finalSignOffs(), trainerNoStations(), roadie1()) == null;
+    not OqlLib.canSeeRoadie(accessGrants(), demoOff(), trainerNoStations(), roadie1());
   };
 
   public func testRoadieRefusedRolesSeeNothing() : Bool {
-    OqlLib.roadieRow(accessGrants(), finalSignOffs(), kiosk(), roadie1()) == null
-      and OqlLib.roadieRow(accessGrants(), finalSignOffs(), integration(), roadie1()) == null
-      and OqlLib.roadieRow(accessGrants(), finalSignOffs(), expired(), roadie1()) == null
-      and OqlLib.roadieRow(accessGrants(), finalSignOffs(), unregistered(), roadie1()) == null
-      and OqlLib.roadieRow(accessGrants(), finalSignOffs(), anonymous(), roadie1()) == null;
+    not OqlLib.canSeeRoadie(accessGrants(), demoOff(), kiosk(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demoOff(), integration(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demoOff(), expired(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demoOff(), unregistered(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demoOff(), anonymous(), roadie1());
   };
 
   // --- Positions ---
 
   public func testPositionManagerRolesSee() : Bool {
-    let p = Fixtures.position(1, "Server");
-    OqlLib.positionRow(accessGrants(), roadieMap(), false, admin(), p) != null
-      and OqlLib.positionRow(accessGrants(), roadieMap(), false, managingPartner(), p) != null
-      and OqlLib.positionRow(accessGrants(), roadieMap(), false, storeManager(), p) != null
-      and OqlLib.positionRow(accessGrants(), roadieMap(), false, trainingManager(), p) != null
-      and OqlLib.positionRow(accessGrants(), roadieMap(), false, kitchenManager(), p) != null
-      and OqlLib.positionRow(accessGrants(), roadieMap(), false, serviceManager(), p) != null;
+    OqlLib.canSeeManager(accessGrants(), demoOff(), admin())
+      and OqlLib.canSeeManager(accessGrants(), demoOff(), managingPartner())
+      and OqlLib.canSeeManager(accessGrants(), demoOff(), storeManager())
+      and OqlLib.canSeeManager(accessGrants(), demoOff(), trainingManager())
+      and OqlLib.canSeeManager(accessGrants(), demoOff(), kitchenManager())
+      and OqlLib.canSeeManager(accessGrants(), demoOff(), serviceManager());
   };
 
   public func testPositionNonManagerRefused() : Bool {
-    let p = Fixtures.position(1, "Server");
-    OqlLib.positionRow(accessGrants(), roadieMap(), false, trainer(), p) == null
-      and OqlLib.positionRow(accessGrants(), roadieMap(), false, kiosk(), p) == null
-      and OqlLib.positionRow(accessGrants(), roadieMap(), false, integration(), p) == null
-      and OqlLib.positionRow(accessGrants(), roadieMap(), false, expired(), p) == null
-      and OqlLib.positionRow(accessGrants(), roadieMap(), false, anonymous(), p) == null;
+    not OqlLib.canSeeManager(accessGrants(), demoOff(), trainer())
+      and not OqlLib.canSeeManager(accessGrants(), demoOff(), kiosk())
+      and not OqlLib.canSeeManager(accessGrants(), demoOff(), integration())
+      and not OqlLib.canSeeManager(accessGrants(), demoOff(), expired())
+      and not OqlLib.canSeeManager(accessGrants(), demoOff(), anonymous());
   };
 
   public func testPositionOnHandCountsMainPositionOnly() : Bool {
     let p = Fixtures.position(1, "Server");
-    switch (OqlLib.positionRow(accessGrants(), roadieMap(), false, admin(), p)) {
-      case (?row) { row.onHand == 1 };
-      case null { false };
-    };
+    OqlLib.positionRow(roadieMap(), false, p).onHand == 1;
   };
 
   // --- Pending sign-ups ---
 
   public func testPendingSignupManagerSees() : Bool {
-    let s = Fixtures.signup(1, false);
-    OqlLib.pendingSignupRow(accessGrants(), admin(), s) != null
-      and OqlLib.pendingSignupRow(accessGrants(), storeManager(), s) != null
-      and OqlLib.pendingSignupRow(accessGrants(), kitchenManager(), s) != null
-      and OqlLib.pendingSignupRow(accessGrants(), serviceManager(), s) != null;
+    OqlLib.canSeeSignups(accessGrants(), demoOff(), admin())
+      and OqlLib.canSeeSignups(accessGrants(), demoOff(), storeManager())
+      and OqlLib.canSeeSignups(accessGrants(), demoOff(), kitchenManager())
+      and OqlLib.canSeeSignups(accessGrants(), demoOff(), serviceManager());
   };
 
   public func testPendingSignupRefusedRoles() : Bool {
-    let s = Fixtures.signup(1, false);
-    OqlLib.pendingSignupRow(accessGrants(), trainer(), s) == null
-      and OqlLib.pendingSignupRow(accessGrants(), kiosk(), s) == null
-      and OqlLib.pendingSignupRow(accessGrants(), integration(), s) == null
-      and OqlLib.pendingSignupRow(accessGrants(), expired(), s) == null
-      and OqlLib.pendingSignupRow(accessGrants(), anonymous(), s) == null;
+    not OqlLib.canSeeSignups(accessGrants(), demoOff(), trainer())
+      and not OqlLib.canSeeSignups(accessGrants(), demoOff(), kiosk())
+      and not OqlLib.canSeeSignups(accessGrants(), demoOff(), integration())
+      and not OqlLib.canSeeSignups(accessGrants(), demoOff(), expired())
+      and not OqlLib.canSeeSignups(accessGrants(), demoOff(), anonymous());
   };
 
   // --- Orientation sessions and attendance ---
 
   public func testOrientationSessionManagerSees() : Bool {
-    let e = Fixtures.orientationEvent(1);
-    OqlLib.orientationSessionRow(accessGrants(), admin(), e) != null
-      and OqlLib.orientationSessionRow(accessGrants(), trainingManager(), e) != null
-      and OqlLib.orientationSessionRow(accessGrants(), trainer(), e) == null
-      and OqlLib.orientationSessionRow(accessGrants(), kiosk(), e) == null
-      and OqlLib.orientationSessionRow(accessGrants(), anonymous(), e) == null;
+    OqlLib.canSeeOrientation(accessGrants(), demoOff(), admin())
+      and OqlLib.canSeeOrientation(accessGrants(), demoOff(), trainingManager())
+      and not OqlLib.canSeeOrientation(accessGrants(), demoOff(), trainer())
+      and not OqlLib.canSeeOrientation(accessGrants(), demoOff(), kiosk())
+      and not OqlLib.canSeeOrientation(accessGrants(), demoOff(), anonymous());
   };
 
   public func testAttendanceManagerSees() : Bool {
-    let a = Fixtures.attendance(1, 1, #present, false);
-    OqlLib.attendanceRow(accessGrants(), admin(), 1, a) != null
-      and OqlLib.attendanceRow(accessGrants(), storeManager(), 1, a) != null
-      and OqlLib.attendanceRow(accessGrants(), trainer(), 1, a) == null
-      and OqlLib.attendanceRow(accessGrants(), integration(), 1, a) == null
-      and OqlLib.attendanceRow(accessGrants(), expired(), 1, a) == null;
+    OqlLib.canSeeAttendance(accessGrants(), demoOff(), admin())
+      and OqlLib.canSeeAttendance(accessGrants(), demoOff(), storeManager())
+      and not OqlLib.canSeeAttendance(accessGrants(), demoOff(), trainer())
+      and not OqlLib.canSeeAttendance(accessGrants(), demoOff(), integration())
+      and not OqlLib.canSeeAttendance(accessGrants(), demoOff(), expired());
   };
 
   // --- Opening questions ---
 
   public func testOpeningQuestionReaders() : Bool {
-    let q = Fixtures.openingQuestion(1);
-    OqlLib.openingQuestionRow(accessGrants(), admin(), q) != null
-      and OqlLib.openingQuestionRow(accessGrants(), managingPartner(), q) != null
-      and OqlLib.openingQuestionRow(accessGrants(), storeManager(), q) != null
-      and OqlLib.openingQuestionRow(accessGrants(), trainingManager(), q) != null
-      and OqlLib.openingQuestionRow(accessGrants(), kitchenManager(), q) != null
-      and OqlLib.openingQuestionRow(accessGrants(), serviceManager(), q) != null;
+    OqlLib.canSeeOpeningQuestions(accessGrants(), demoOff(), admin())
+      and OqlLib.canSeeOpeningQuestions(accessGrants(), demoOff(), managingPartner())
+      and OqlLib.canSeeOpeningQuestions(accessGrants(), demoOff(), storeManager())
+      and OqlLib.canSeeOpeningQuestions(accessGrants(), demoOff(), trainingManager())
+      and OqlLib.canSeeOpeningQuestions(accessGrants(), demoOff(), kitchenManager())
+      and OqlLib.canSeeOpeningQuestions(accessGrants(), demoOff(), serviceManager());
   };
 
   public func testOpeningQuestionRefusedRoles() : Bool {
+    not OqlLib.canSeeOpeningQuestions(accessGrants(), demoOff(), trainer())
+      and not OqlLib.canSeeOpeningQuestions(accessGrants(), demoOff(), kiosk())
+      and not OqlLib.canSeeOpeningQuestions(accessGrants(), demoOff(), integration())
+      and not OqlLib.canSeeOpeningQuestions(accessGrants(), demoOff(), expired())
+      and not OqlLib.canSeeOpeningQuestions(accessGrants(), demoOff(), anonymous());
+  };
+
+  // A question with no approvals is never ready for final.
+  public func testOpeningQuestionReadyForFinalNeedsAllOwners() : Bool {
     let q = Fixtures.openingQuestion(1);
-    OqlLib.openingQuestionRow(accessGrants(), trainer(), q) == null
-      and OqlLib.openingQuestionRow(accessGrants(), kiosk(), q) == null
-      and OqlLib.openingQuestionRow(accessGrants(), integration(), q) == null
-      and OqlLib.openingQuestionRow(accessGrants(), expired(), q) == null
-      and OqlLib.openingQuestionRow(accessGrants(), anonymous(), q) == null;
+    not OqlLib.openingQuestionRow(accessGrants(), q).readyForFinal;
+  };
+
+  // A question whose only live owner (the Kitchen Manager) has approved is
+  // ready for final; the same question is not ready once it is Final.
+  public func testOpeningQuestionReadyForFinalWhenOwnerApproved() : Bool {
+    let q = Fixtures.openingQuestionApprovedBy(1, kitchenManager());
+    let ready = OqlLib.openingQuestionRow(accessGrants(), q).readyForFinal;
+    let finalQ = { q with finalizedBy = ?managingPartner(); finalizedAt = ?0 };
+    ready and not OqlLib.openingQuestionRow(accessGrants(), finalQ).readyForFinal;
   };
 
   // --- Crew events and answers ---
 
   public func testCrewEventRosterReaders() : Bool {
-    let e = Fixtures.crewEvent(1, false);
-    OqlLib.crewEventRow(accessGrants(), admin(), e) != null
-      and OqlLib.crewEventRow(accessGrants(), trainer(), e) != null
-      and OqlLib.crewEventRow(accessGrants(), crewLeader(), e) != null
-      and OqlLib.crewEventRow(accessGrants(), kiosk(), e) == null
-      and OqlLib.crewEventRow(accessGrants(), integration(), e) == null
-      and OqlLib.crewEventRow(accessGrants(), expired(), e) == null
-      and OqlLib.crewEventRow(accessGrants(), anonymous(), e) == null;
+    OqlLib.canSeeRoster(accessGrants(), demoOff(), admin())
+      and OqlLib.canSeeRoster(accessGrants(), demoOff(), trainer())
+      and OqlLib.canSeeRoster(accessGrants(), demoOff(), crewLeader())
+      and not OqlLib.canSeeRoster(accessGrants(), demoOff(), kiosk())
+      and not OqlLib.canSeeRoster(accessGrants(), demoOff(), integration())
+      and not OqlLib.canSeeRoster(accessGrants(), demoOff(), expired())
+      and not OqlLib.canSeeRoster(accessGrants(), demoOff(), anonymous());
+  };
+
+  // A crew leader sees a crew event only while their own crew has an active
+  // roadie; every other roster reader sees every event.
+  public func testCrewEventCrewLeaderLimit() : Bool {
+    let withCrew = OqlLib.canSeeCrewEvent(accessGrants(), demoOff(), crewMap(), crewRoadieMap(), crewLeader());
+    let noCrew = OqlLib.canSeeCrewEvent(accessGrants(), demoOff(), crewMap(), roadieMap(), crewLeader());
+    let adminSees = OqlLib.canSeeCrewEvent(accessGrants(), demoOff(), crewMap(), roadieMap(), admin());
+    withCrew and not noCrew and adminSees;
+  };
+
+  public func testCrewEventRefusedRoles() : Bool {
+    not OqlLib.canSeeCrewEvent(accessGrants(), demoOff(), crewMap(), crewRoadieMap(), kiosk())
+      and not OqlLib.canSeeCrewEvent(accessGrants(), demoOff(), crewMap(), crewRoadieMap(), integration())
+      and not OqlLib.canSeeCrewEvent(accessGrants(), demoOff(), crewMap(), crewRoadieMap(), expired())
+      and not OqlLib.canSeeCrewEvent(accessGrants(), demoOff(), crewMap(), crewRoadieMap(), anonymous());
   };
 
   public func testEventAnswerCrewLeaderLimit() : Bool {
-    let ownCrew = OqlLib.eventAnswerRow(accessGrants(), crewMap(), crewRoadieMap(), crewLeader(), "k1", Fixtures.invite(1, 1, false));
-    let otherCrew = OqlLib.eventAnswerRow(accessGrants(), crewMap(), crewRoadieMap(), crewLeader(), "k2", Fixtures.invite(1, 2, false));
-    ownCrew != null and otherCrew == null;
+    OqlLib.canSeeEventAnswer(accessGrants(), demoOff(), crewMap(), crewLeader(), crewRoadie1())
+      and not OqlLib.canSeeEventAnswer(accessGrants(), demoOff(), crewMap(), crewLeader(), crewRoadie2());
   };
 
   public func testEventAnswerNonLeaderSeesAll() : Bool {
-    let a = OqlLib.eventAnswerRow(accessGrants(), crewMap(), crewRoadieMap(), admin(), "k1", Fixtures.invite(1, 1, false));
-    let b = OqlLib.eventAnswerRow(accessGrants(), crewMap(), crewRoadieMap(), admin(), "k2", Fixtures.invite(1, 2, false));
-    a != null and b != null;
+    OqlLib.canSeeEventAnswer(accessGrants(), demoOff(), crewMap(), admin(), crewRoadie1())
+      and OqlLib.canSeeEventAnswer(accessGrants(), demoOff(), crewMap(), admin(), crewRoadie2());
   };
 
   public func testEventAnswerRefusedRoles() : Bool {
-    OqlLib.eventAnswerRow(accessGrants(), crewMap(), crewRoadieMap(), kiosk(), "k1", Fixtures.invite(1, 1, false)) == null
-      and OqlLib.eventAnswerRow(accessGrants(), crewMap(), crewRoadieMap(), integration(), "k1", Fixtures.invite(1, 1, false)) == null
-      and OqlLib.eventAnswerRow(accessGrants(), crewMap(), crewRoadieMap(), expired(), "k1", Fixtures.invite(1, 1, false)) == null
-      and OqlLib.eventAnswerRow(accessGrants(), crewMap(), crewRoadieMap(), anonymous(), "k1", Fixtures.invite(1, 1, false)) == null;
+    not OqlLib.canSeeEventAnswer(accessGrants(), demoOff(), crewMap(), kiosk(), crewRoadie1())
+      and not OqlLib.canSeeEventAnswer(accessGrants(), demoOff(), crewMap(), integration(), crewRoadie1())
+      and not OqlLib.canSeeEventAnswer(accessGrants(), demoOff(), crewMap(), expired(), crewRoadie1())
+      and not OqlLib.canSeeEventAnswer(accessGrants(), demoOff(), crewMap(), anonymous(), crewRoadie1());
   };
 
   // --- Trainer notes ---
 
   public func testTrainerNoteReaders() : Bool {
-    let n = Fixtures.trainerNote(1, 1, false);
-    OqlLib.trainerNoteRow(accessGrants(), roadieMap(), admin(), n) != null
-      and OqlLib.trainerNoteRow(accessGrants(), roadieMap(), trainer(), n) != null;
+    OqlLib.canSeeRoadie(accessGrants(), demoOff(), admin(), roadie1())
+      and OqlLib.canSeeRoadie(accessGrants(), demoOff(), trainer(), roadie1());
   };
 
   public func testTrainerNoteStationLimit() : Bool {
-    let inStation = Fixtures.trainerNote(1, 1, false);
-    let outOfStation = Fixtures.trainerNote(2, 2, false);
-    OqlLib.trainerNoteRow(accessGrants(), roadieMap(), trainer(), inStation) != null
-      and OqlLib.trainerNoteRow(accessGrants(), roadieMap(), trainer(), outOfStation) == null;
+    OqlLib.canSeeRoadie(accessGrants(), demoOff(), trainer(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demoOff(), trainer(), roadie2());
   };
 
   public func testTrainerNoteRefusedRoles() : Bool {
-    let n = Fixtures.trainerNote(1, 1, false);
-    OqlLib.trainerNoteRow(accessGrants(), roadieMap(), kiosk(), n) == null
-      and OqlLib.trainerNoteRow(accessGrants(), roadieMap(), integration(), n) == null
-      and OqlLib.trainerNoteRow(accessGrants(), roadieMap(), expired(), n) == null
-      and OqlLib.trainerNoteRow(accessGrants(), roadieMap(), anonymous(), n) == null;
+    not OqlLib.canSeeRoadie(accessGrants(), demoOff(), kiosk(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demoOff(), integration(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demoOff(), expired(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demoOff(), anonymous(), roadie1());
   };
 
   // --- Alerts ---
 
   public func testAlertManagerSees() : Bool {
-    let a = Fixtures.alert(1);
-    OqlLib.alertRow(accessGrants(), admin(), a) != null
-      and OqlLib.alertRow(accessGrants(), storeManager(), a) != null
-      and OqlLib.alertRow(accessGrants(), trainer(), a) == null
-      and OqlLib.alertRow(accessGrants(), kiosk(), a) == null
-      and OqlLib.alertRow(accessGrants(), integration(), a) == null
-      and OqlLib.alertRow(accessGrants(), expired(), a) == null
-      and OqlLib.alertRow(accessGrants(), anonymous(), a) == null;
+    OqlLib.canSeeAttendance(accessGrants(), demoOff(), admin())
+      and OqlLib.canSeeAttendance(accessGrants(), demoOff(), storeManager())
+      and not OqlLib.canSeeAttendance(accessGrants(), demoOff(), trainer())
+      and not OqlLib.canSeeAttendance(accessGrants(), demoOff(), kiosk())
+      and not OqlLib.canSeeAttendance(accessGrants(), demoOff(), integration())
+      and not OqlLib.canSeeAttendance(accessGrants(), demoOff(), expired())
+      and not OqlLib.canSeeAttendance(accessGrants(), demoOff(), anonymous());
   };
 
   // --- Demo partitioning ---
@@ -255,14 +307,8 @@ module {
     let demo = Fixtures.roadie(2, 1, #active, true);
     let mixed = Fixtures.roadies([real, demo]);
     let p = Fixtures.position(1, "Server");
-    let realCount = switch (OqlLib.positionRow(accessGrants(), mixed, false, admin(), p)) {
-      case (?row) { row.onHand };
-      case null { 99 };
-    };
-    let demoCount = switch (OqlLib.positionRow(accessGrants(), mixed, true, admin(), p)) {
-      case (?row) { row.onHand };
-      case null { 99 };
-    };
+    let realCount = OqlLib.positionRow(mixed, false, p).onHand;
+    let demoCount = OqlLib.positionRow(mixed, true, p).onHand;
     realCount == 1 and demoCount == 1;
   };
 
@@ -274,16 +320,50 @@ module {
     let demoAttendance = Fixtures.attendance(9, 9, #present, true);
     let demoInvite = Fixtures.invite(9, 9, true);
     let demoRoadieMap = Fixtures.roadies([demoRoadie]);
-    switch (OqlLib.roadieRow(accessGrants(), finalSignOffs(), admin(), demoRoadie)) {
-      case (?r) {
-        r.isDemo
-          and (switch (OqlLib.pendingSignupRow(accessGrants(), admin(), demoSignup)) { case (?s) s.isDemo; case null false })
-          and (switch (OqlLib.crewEventRow(accessGrants(), admin(), demoEvent)) { case (?e) e.isDemo; case null false })
-          and (switch (OqlLib.trainerNoteRow(accessGrants(), demoRoadieMap, admin(), demoNote)) { case (?n) n.isDemo; case null false })
-          and (switch (OqlLib.attendanceRow(accessGrants(), admin(), 9, demoAttendance)) { case (?a) a.isDemo; case null false })
-          and (switch (OqlLib.eventAnswerRow(accessGrants(), crewMap(), demoRoadieMap, admin(), "k9", demoInvite)) { case (?a) a.isDemo; case null false });
-      };
-      case null { false };
-    };
+    OqlLib.roadieRow(finalSignOffs(), demoRoadie).isDemo
+      and OqlLib.pendingSignupRow(demoSignup).isDemo
+      and OqlLib.crewEventRow(demoEvent).isDemo
+      and (switch (OqlLib.trainerNoteRow(accessGrants(), demoRoadieMap, demoNote)) { case (?n) n.isDemo; case null false })
+      and OqlLib.attendanceRow(9, demoAttendance).isDemo
+      and (switch (OqlLib.eventAnswerRow(demoRoadieMap, "k9", demoInvite)) { case (?a) a.isDemo; case null false });
+  };
+
+  // --- Demo mode: the chosen demo role is honoured, never a real role ---
+
+  // A signed-in caller with no real grant acts as the chosen demo role.
+  public func testDemoRoleGrantsManagerVisibility() : Bool {
+    let demo = demoOn(unregistered(), #admin);
+    OqlLib.canSeeManager(accessGrants(), demo, unregistered())
+      and OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie1())
+      and OqlLib.canSeeAttendance(accessGrants(), demo, unregistered());
+  };
+
+  // A demo Trainer sees only roadies in the chosen demo stations.
+  public func testDemoTrainerStationLimit() : Bool {
+    let demo = demoOnTrainer(unregistered(), [1]);
+    OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie2());
+  };
+
+  // A demo Trainer with no stations sees no roadies.
+  public func testDemoTrainerNoStationsSeesNone() : Bool {
+    let demo = demoOnTrainer(unregistered(), []);
+    not OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie2());
+  };
+
+  // Demo mode never widens a refused role: a demo Kiosk still sees nothing.
+  public func testDemoKioskSeesNothing() : Bool {
+    let demo = demoOn(unregistered(), #kiosk);
+    not OqlLib.canSeeManager(accessGrants(), demo, unregistered())
+      and not OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie1())
+      and not OqlLib.canSeeRoster(accessGrants(), demo, unregistered());
+  };
+
+  // An anonymous caller sees nothing even while demo mode is on.
+  public func testDemoAnonymousSeesNothing() : Bool {
+    let demo = demoOn(anonymous(), #admin);
+    not OqlLib.canSeeManager(accessGrants(), demo, anonymous())
+      and not OqlLib.canSeeRoadie(accessGrants(), demo, anonymous(), roadie1());
   };
 };

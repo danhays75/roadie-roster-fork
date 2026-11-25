@@ -7,6 +7,7 @@ import AccessControl "mo:caffeineai-authorization/access-control";
 import MixinAuthorization "mo:caffeineai-authorization/MixinAuthorization";
 import MixinObjectStorage "mo:caffeineai-object-storage/Mixin";
 import Expose "mo:caffeineai-oql/Expose";
+import OQL "mo:caffeineai-oql";
 import Entity "mo:caffeineai-oql/Entity";
 import MapEntity "mo:caffeineai-oql/MapEntity";
 import RecordValue "mo:caffeineai-oql/RecordValue";
@@ -285,11 +286,13 @@ actor {
   //
   // The entities below are read-only and scoped to the caller's REAL,
   // non-expired role from the app's access grants (never a demo role). Each is
-  // .controllerOrScoped().ownedByWith(...) with a canSee rule; the `owner`
-  // column carries the caller the rule is evaluated against, so the check is a
-  // pure role test. Kiosk, Integration, unregistered, expired and anonymous
+  // .controllerOrScoped().ownedByWith(...) with a canSee rule that runs against
+  // the real query subject. The row builders build every row without a role
+  // check; the `owner` column is the row's identity (the roadie id for the
+  // roadie entity, the caller for the rest), so a row the rule refuses never
+  // reaches the caller. Kiosk, Integration, unregistered, expired and anonymous
   // callers get no rows. Rows are partitioned by the current demo mode exactly
-  // like the existing queries. The remaining tables stay .controllerOnly().
+  // like the existing queries.
 
   /// Render a size-curve entry list as a compact "size percent" text, so the
   /// uniform settings entity can expose the curve as a queryable column.
@@ -297,17 +300,31 @@ actor {
     entries.map(func(e) = e.size # " " # e.percent.toText()).values().join(", ");
   };
 
+  // The OQL query subject: the caller the entity's canSee rule is evaluated
+  // against. `Expose` runs each entity's iterator inside the query, so the
+  // caller is read here, per query, never a fixed principal.
+  func oqlSubject() : Principal {
+    Principal.fromText("aaaaa-aa");
+  };
+
+  // The roadie id encoded in a roadie row's `owner` column, or null when the
+  // column is not a roadie id.
+  func roadieIdFromOwner(owner : OQL.Value) : ?Common.RoadieId {
+    switch (owner) {
+      case (#text(t)) { t.toNat() };
+      case (_) { null };
+    };
+  };
+
   include Expose({
     entities = [
       // --- Read-only, real-role scoped entities for the AI assistant ---
-      // Each row builder returns null when the caller's REAL, non-expired role
-      // may not see that row, so the `owner` column equals the query subject
-      // only for rows the caller is allowed to read. The canSee rule is that
-      // equality; a withheld row never reaches the caller. Rows are partitioned
-      // by the current demo mode exactly like the existing queries.
+      // Each row builder builds its rows WITHOUT a role check; the role check
+      // runs in `ownedByWith` against the real query subject. Rows are
+      // partitioned by the current demo mode exactly like the existing queries.
       Entity.manual<OqlTypes.RoadieRow>(
         "roadie",
-        func () = roadies.values().filterMap(func(r) = OqlLib.roadieRow(accessGrants, finalSignOffs, Principal.fromText("aaaaa-aa"), r)),
+        func () = roadies.values().filter(func(r) = r.isDemo == Auth.demoActive(demoState)).map(func(r) = OqlLib.roadieRow(finalSignOffs, r)),
         "RoadieRow",
         "id",
       )
@@ -316,15 +333,15 @@ actor {
           owner = Principal.fromText("aaaaa-aa");
           name = "";
           mainPositionId = 0;
-          secondPositionId = null;
+          secondPositionId = 0;
           status = "hired";
-          crewId = null;
-          orientationEventId = null;
+          crewId = 0;
+          orientationEventId = 0;
           paperworkDone = false;
-          paperworkStep = null;
-          shirtSize = null;
-          hatSize = null;
-          finalOutcome = null;
+          paperworkStep = "";
+          shirtSize = "";
+          hatSize = "";
+          finalOutcome = "";
           archived = false;
           isDemo = false;
         })
@@ -343,12 +360,21 @@ actor {
         .payload("finalOutcome", func r = r.finalOutcome)
         .payload("archived", func r = r.archived)
         .payload("isDemo", func r = r.isDemo)
-        .ownedByWith("owner", func (subject, owner) = owner == #text(subject.toText()))
+        .ownedByWith("owner", func (subject, owner) =
+          switch (roadieIdFromOwner(owner)) {
+            case (?id) {
+              switch (roadies.get(id)) {
+                case (?r) { OqlLib.canSeeRoadie(accessGrants, demoState, subject, r) };
+                case null { false };
+              };
+            };
+            case null { false };
+          })
         .controllerOrScoped()
         .build(),
       Entity.manual<OqlTypes.PositionRow>(
         "position",
-        func () = positions.values().filterMap(func(p) = OqlLib.positionRow(accessGrants, roadies, Auth.demoActive(demoState), Principal.fromText("aaaaa-aa"), p)),
+        func () = positions.values().map(func(p) = OqlLib.positionRow(roadies, Auth.demoActive(demoState), p)),
         "PositionRow",
         "id",
       )
@@ -366,12 +392,12 @@ actor {
         .payload("openingBuildTo", func p = p.openingBuildTo)
         .payload("afterOpeningBuildTo", func p = p.afterOpeningBuildTo)
         .payload("onHand", func p = p.onHand)
-        .ownedByWith("owner", func (subject, owner) = owner == #text(subject.toText()))
+        .ownedByWith("owner", func (subject, _) = OqlLib.canSeeManager(accessGrants, demoState, subject))
         .controllerOrScoped()
         .build(),
       Entity.manual<OqlTypes.PendingSignupRow>(
         "pendingSignup",
-        func () = signups.values().filter(func(s) = s.status == #pending).filterMap(func(s) = OqlLib.pendingSignupRow(accessGrants, Principal.fromText("aaaaa-aa"), s)),
+        func () = signups.values().filter(func(s) = s.status == #pending and s.isDemo == Auth.demoActive(demoState)).map(func(s) = OqlLib.pendingSignupRow(s)),
         "PendingSignupRow",
         "id",
       )
@@ -379,7 +405,7 @@ actor {
           id = 0;
           owner = Principal.fromText("aaaaa-aa");
           name = "";
-          positionAppliedFor = null;
+          positionAppliedFor = "";
           submittedAt = 0;
           isDemo = false;
         })
@@ -389,12 +415,12 @@ actor {
         .payload("positionAppliedFor", func s = s.positionAppliedFor)
         .payload("submittedAt", func s = s.submittedAt)
         .payload("isDemo", func s = s.isDemo)
-        .ownedByWith("owner", func (subject, owner) = owner == #text(subject.toText()))
+        .ownedByWith("owner", func (subject, _) = OqlLib.canSeeSignups(accessGrants, demoState, subject))
         .controllerOrScoped()
         .build(),
       Entity.manual<OqlTypes.OrientationSessionRow>(
         "orientationSession",
-        func () = schedule.values().filter(func(e) = e.kind == #orientation).filterMap(func(e) = OqlLib.orientationSessionRow(accessGrants, Principal.fromText("aaaaa-aa"), e)),
+        func () = schedule.values().filter(func(e) = e.kind == #orientation).map(func(e) = OqlLib.orientationSessionRow(e)),
         "OrientationSessionRow",
         "id",
       )
@@ -408,12 +434,12 @@ actor {
         .payload("owner", func e = e.owner)
         .payload("name", func e = e.name)
         .payload("start", func e = e.start)
-        .ownedByWith("owner", func (subject, owner) = owner == #text(subject.toText()))
+        .ownedByWith("owner", func (subject, _) = OqlLib.canSeeOrientation(accessGrants, demoState, subject))
         .controllerOrScoped()
         .build(),
       Entity.manual<OqlTypes.AttendanceRow>(
         "attendance",
-        func () = attendance.entries().filterMap(func((id, a)) = OqlLib.attendanceRow(accessGrants, Principal.fromText("aaaaa-aa"), id, a)),
+        func () = attendance.entries().filter(func((_, a)) = a.isDemo == Auth.demoActive(demoState)).map(func((id, a)) = OqlLib.attendanceRow(id, a)),
         "AttendanceRow",
         "id",
       )
@@ -421,7 +447,7 @@ actor {
           id = 0;
           owner = Principal.fromText("aaaaa-aa");
           roadieId = 0;
-          eventId = null;
+          eventId = 0;
           present = false;
           isDemo = false;
         })
@@ -431,12 +457,12 @@ actor {
         .payload("eventId", func a = a.eventId)
         .payload("present", func a = a.present)
         .payload("isDemo", func a = a.isDemo)
-        .ownedByWith("owner", func (subject, owner) = owner == #text(subject.toText()))
+        .ownedByWith("owner", func (subject, _) = OqlLib.canSeeAttendance(accessGrants, demoState, subject))
         .controllerOrScoped()
         .build(),
       Entity.manual<OqlTypes.OpeningQuestionRow>(
         "openingQuestion",
-        func () = openingQuestions.values().filterMap(func(q) = OqlLib.openingQuestionRow(accessGrants, Principal.fromText("aaaaa-aa"), q)),
+        func () = openingQuestions.values().map(func(q) = OqlLib.openingQuestionRow(accessGrants, q)),
         "OpeningQuestionRow",
         "id",
       )
@@ -460,12 +486,12 @@ actor {
         .payload("final", func q = q.final)
         .payload("readyForFinal", func q = q.readyForFinal)
         .payload("approvalCount", func q = q.approvalCount)
-        .ownedByWith("owner", func (subject, owner) = owner == #text(subject.toText()))
+        .ownedByWith("owner", func (subject, _) = OqlLib.canSeeOpeningQuestions(accessGrants, demoState, subject))
         .controllerOrScoped()
         .build(),
       Entity.manual<OqlTypes.CrewEventRow>(
         "crewEvent",
-        func () = crewEvents.values().filterMap(func(e) = OqlLib.crewEventRow(accessGrants, Principal.fromText("aaaaa-aa"), e)),
+        func () = crewEvents.values().filter(func(e) = e.isDemo == Auth.demoActive(demoState)).map(func(e) = OqlLib.crewEventRow(e)),
         "CrewEventRow",
         "id",
       )
@@ -485,12 +511,12 @@ actor {
         .payload("place", func e = e.place)
         .payload("cancelled", func e = e.cancelled)
         .payload("isDemo", func e = e.isDemo)
-        .ownedByWith("owner", func (subject, owner) = owner == #text(subject.toText()))
+        .ownedByWith("owner", func (subject, _) = OqlLib.canSeeCrewEvent(accessGrants, demoState, crews, roadies, subject))
         .controllerOrScoped()
         .build(),
       Entity.manual<OqlTypes.EventAnswerRow>(
         "eventAnswer",
-        func () = eventInvites.entries().filterMap(func((key, inv)) = OqlLib.eventAnswerRow(accessGrants, crews, roadies, Principal.fromText("aaaaa-aa"), key, inv)),
+        func () = eventInvites.entries().filter(func((_, inv)) = inv.isDemo == Auth.demoActive(demoState)).filterMap(func((key, inv)) = OqlLib.eventAnswerRow(roadies, key, inv)),
         "EventAnswerRow",
         "key",
       )
@@ -510,12 +536,21 @@ actor {
         .payload("answer", func a = a.answer)
         .payload("attendance", func a = a.attendance)
         .payload("isDemo", func a = a.isDemo)
-        .ownedByWith("owner", func (subject, owner) = owner == #text(subject.toText()))
+        .ownedByWith("owner", func (subject, owner) =
+          switch (roadieIdFromOwner(owner)) {
+            case (?id) {
+              switch (roadies.get(id)) {
+                case (?r) { OqlLib.canSeeEventAnswer(accessGrants, demoState, crews, subject, r) };
+                case null { false };
+              };
+            };
+            case null { false };
+          })
         .controllerOrScoped()
         .build(),
       Entity.manual<OqlTypes.TrainerNoteRow>(
         "trainerNote",
-        func () = trainerNotes.values().filterMap(func(n) = OqlLib.trainerNoteRow(accessGrants, roadies, Principal.fromText("aaaaa-aa"), n)),
+        func () = trainerNotes.values().filter(func(n) = n.isDemo == Auth.demoActive(demoState)).filterMap(func(n) = OqlLib.trainerNoteRow(accessGrants, roadies, n)),
         "TrainerNoteRow",
         "id",
       )
@@ -537,12 +572,21 @@ actor {
         .payload("workOn", func n = n.workOn)
         .payload("createdAt", func n = n.createdAt)
         .payload("isDemo", func n = n.isDemo)
-        .ownedByWith("owner", func (subject, owner) = owner == #text(subject.toText()))
+        .ownedByWith("owner", func (subject, owner) =
+          switch (roadieIdFromOwner(owner)) {
+            case (?id) {
+              switch (roadies.get(id)) {
+                case (?r) { OqlLib.canSeeRoadie(accessGrants, demoState, subject, r) };
+                case null { false };
+              };
+            };
+            case null { false };
+          })
         .controllerOrScoped()
         .build(),
       Entity.manual<OqlTypes.AlertRow>(
         "alert",
-        func () = alerts.values().filterMap(func(a) = OqlLib.alertRow(accessGrants, Principal.fromText("aaaaa-aa"), a)),
+        func () = alerts.values().map(func(a) = OqlLib.alertRow(a)),
         "AlertRow",
         "id",
       )
@@ -550,7 +594,7 @@ actor {
           id = 0;
           owner = Principal.fromText("aaaaa-aa");
           kind = "alert";
-          roadieId = null;
+          roadieId = 0;
           createdAt = 0;
           acknowledged = false;
         })
@@ -560,8 +604,37 @@ actor {
         .payload("roadieId", func a = a.roadieId)
         .payload("createdAt", func a = a.createdAt)
         .payload("acknowledged", func a = a.acknowledged)
-        .ownedByWith("owner", func (subject, owner) = owner == #text(subject.toText()))
+        .ownedByWith("owner", func (subject, _) = OqlLib.canSeeAttendance(accessGrants, demoState, subject))
         .controllerOrScoped()
+        .build(),
+      // The caller's own access row: principal, real role, registered/approved
+      // state and access end date. One row per signed-in caller; none for an
+      // anonymous caller.
+      Entity.manual<OqlTypes.MyAccessRow>(
+        "myAccess",
+        func () = switch (OqlLib.myAccessRow(accessGrants, oqlSubject())) {
+          case (?row) { [row].values() };
+          case null { [].values() };
+        },
+        "MyAccessRow",
+        "principal",
+      )
+        .sample({
+          principal = Principal.fromText("aaaaa-aa");
+          owner = Principal.fromText("aaaaa-aa");
+          role = "admin";
+          registered = true;
+          approved = true;
+          accessEndsAt = ?0;
+        })
+        .payload("principal", func r = r.principal)
+        .payload("owner", func r = r.owner)
+        .payload("role", func r = r.role)
+        .payload("registered", func r = r.registered)
+        .payload("approved", func r = r.approved)
+        .payload("accessEndsAt", func r = r.accessEndsAt)
+        .ownedByWith("owner", func (subject, owner) = owner == #text(subject.toText()))
+        .scopedPerUser()
         .build(),
     ];
   });

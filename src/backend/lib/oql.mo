@@ -10,17 +10,18 @@ import OpeningQuestions "../types/openingquestions";
 import CrewEvents "../types/crewevents";
 import OqlTypes "../types/oql";
 import Auth "auth";
+import OpeningQuestionsLib "openingquestions";
 
 /// Read-only OQL row builders and per-entity visibility rules. Every rule
 /// resolves the caller's REAL, non-expired role from the app's access grants
 /// (never a demo role), so a demo impersonation can never widen real data.
 /// Kiosk, Integration, unregistered, expired and anonymous callers get no rows.
 ///
-/// Each builder returns `?Row`: null when the caller may not see that row. The
-/// entity's `canSee` rule is then a plain equality between the row's `owner`
-/// column and the query subject, so a row the builder withheld (null) never
-/// reaches the caller. The `owner` column is always the caller the rule was
-/// evaluated against.
+/// Each entity builds its rows WITHOUT a caller (the `*Row` builders), and the
+/// role check runs in the entity's `ownedByWith` rule against the real query
+/// subject (the `canSee*` helpers). The `owner` column is the row's identity
+/// (the roadie id for the roadie entity, the caller for the rest), so a row the
+/// rule refuses never reaches the caller.
 module {
   /// The roles that may read the roster-wide manager tables: Admin, Managing
   /// Partner, Store Manager, Training Manager, Kitchen Manager, Service
@@ -48,68 +49,141 @@ module {
     Auth.realRole(accessGrants, caller);
   };
 
-  /// True when the caller's real role is one of the roster-wide manager roles.
-  public func canSeeManager(
+  /// The role the caller acts as for a read: their impersonated demo role while
+  /// demo mode is on, otherwise their real, non-expired role. Null when
+  /// unregistered, expired or anonymous. This mirrors the app's existing
+  /// queries, which consult the demo role while demo mode is on.
+  func actingRole(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
     caller : Principal,
-  ) : Bool {
-    switch (realRole(accessGrants, caller)) {
-      case (?role) { isManagerReader(role) };
-      case null { false };
-    };
+  ) : ?Common.Role {
+    Auth.effectiveRole(accessGrants, demoState, caller);
   };
 
-  /// True when the caller's real role may read the roster (not Kiosk or
-  /// Integration).
-  public func canSeeRoster(
-    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+  /// The principal a read acts as: the impersonated demo leader while demo mode
+  /// is on, otherwise the caller. Used for crew-leader matching.
+  func actingPrincipal(
+    demoState : Common.DemoState,
     caller : Principal,
-  ) : Bool {
-    switch (realRole(accessGrants, caller)) {
-      case (?role) { isRosterReader(role) };
-      case null { false };
-    };
+  ) : Principal {
+    Auth.actingPrincipal(demoState, caller);
   };
 
-  /// True when the caller's real role may read Opening Questions.
-  public func canSeeOpeningQuestions(
+  /// The trainer stations for the caller's acting grant (empty for every other
+  /// role). While demo mode is on, the chosen demo trainer's stations.
+  func actingTrainerStations(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
-    caller : Principal,
-  ) : Bool {
-    switch (realRole(accessGrants, caller)) {
-      case (?role) { Auth.roleCanReadOpeningQuestions(role) };
-      case null { false };
-    };
-  };
-
-  /// The trainer stations for a caller's real grant (empty for every other
-  /// role).
-  func realTrainerStations(
-    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
     caller : Principal,
   ) : [Common.PositionId] {
+    if (Auth.demoActive(demoState)) {
+      return Auth.demoTrainerStationsFor(demoState, caller);
+    };
     switch (accessGrants.get(caller)) {
       case (?grant) { grant.trainerPositionIds };
       case null { [] };
     };
   };
 
-  /// True when a roadie is visible to the caller's real role: a manager reader
-  /// sees every roadie; a Trainer sees only roadies whose main or second
+  /// True when the caller's acting role is one of the roster-wide manager roles.
+  public func canSeeManager(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : Bool {
+    switch (actingRole(accessGrants, demoState, caller)) {
+      case (?role) { isManagerReader(role) };
+      case null { false };
+    };
+  };
+
+  /// True when the caller's acting role may read the roster (not Kiosk or
+  /// Integration).
+  public func canSeeRoster(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : Bool {
+    switch (actingRole(accessGrants, demoState, caller)) {
+      case (?role) { isRosterReader(role) };
+      case null { false };
+    };
+  };
+
+  /// True when the caller's acting role may read Opening Questions.
+  public func canSeeOpeningQuestions(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : Bool {
+    switch (actingRole(accessGrants, demoState, caller)) {
+      case (?role) { Auth.roleCanReadOpeningQuestions(role) };
+      case null { false };
+    };
+  };
+
+  /// True when the caller's acting role may review sign-ups (Admin, Managing
+  /// Partner, Store Manager, Kitchen Manager, Service Manager).
+  public func canSeeSignups(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : Bool {
+    switch (actingRole(accessGrants, demoState, caller)) {
+      case (?role) { Auth.roleHasFourAreaAccess(role) };
+      case null { false };
+    };
+  };
+
+  /// True when the caller's acting role may read attendance and alerts (Admin,
+  /// Managing Partner, Store Manager).
+  public func canSeeAttendance(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : Bool {
+    switch (actingRole(accessGrants, demoState, caller)) {
+      case (?role) { Auth.roleHasAdminRights(role) or role == #storeManager };
+      case null { false };
+    };
+  };
+
+  /// True when the caller's acting role may read orientation sessions (Admin,
+  /// Managing Partner, Store Manager, Training Manager, Visiting Manager).
+  public func canSeeOrientation(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    caller : Principal,
+  ) : Bool {
+    switch (actingRole(accessGrants, demoState, caller)) {
+      case (?role) {
+        Auth.roleHasAdminRights(role)
+          or role == #storeManager
+          or role == #trainingManager
+          or role == #visitingManager;
+      };
+      case null { false };
+    };
+  };
+
+  /// True when a roadie is visible to the caller's acting role: a manager
+  /// reader sees every roadie; a Trainer sees only roadies whose main or second
   /// position is one of their stations (a Trainer with no stations sees none);
   /// every other roster reader sees every roadie.
   public func canSeeRoadie(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
     caller : Principal,
     roadie : Roadie.Roadie,
   ) : Bool {
-    switch (realRole(accessGrants, caller)) {
+    switch (actingRole(accessGrants, demoState, caller)) {
       case (?role) {
         if (isManagerReader(role)) {
           return true;
         };
         if (role == #trainer) {
-          let stations = realTrainerStations(accessGrants, caller);
+          let stations = actingTrainerStations(accessGrants, demoState, caller);
           return stations.any(func(pid) =
             pid == roadie.mainPositionId or roadie.secondPositionId == ?pid
           );
@@ -122,30 +196,65 @@ module {
 
   /// True when the caller may read one roadie's event answer: a crew leader
   /// sees only roadies in their own crew; every other roster reader sees every
-  /// crewed roadie.
+  /// crewed roadie. Crew leadership is matched on the acting principal, so a
+  /// demo crew leader sees their demo crew.
   public func canSeeEventAnswer(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
     crews : Map.Map<Common.CrewId, Roadie.Crew>,
     caller : Principal,
     roadie : Roadie.Roadie,
   ) : Bool {
-    switch (realRole(accessGrants, caller)) {
+    switch (actingRole(accessGrants, demoState, caller)) {
       case (?role) {
         if (not isRosterReader(role)) {
           return false;
         };
-        let leadsOwnCrew = crews.values().any(func(c) = c.leaderPrincipal == ?caller);
+        let acting = actingPrincipal(demoState, caller);
+        let leadsOwnCrew = crews.values().any(func(c) = c.leaderPrincipal == ?acting);
         if (not leadsOwnCrew) {
           return true;
         };
         switch (roadie.crewId) {
           case (?cid) {
             switch (crews.get(cid)) {
-              case (?c) { c.leaderPrincipal == ?caller };
+              case (?c) { c.leaderPrincipal == ?acting };
               case null { false };
             };
           };
           case null { false };
+        };
+      };
+      case null { false };
+    };
+  };
+
+  /// True when the caller may read one crew event: a crew leader sees only
+  /// events that have at least one active, non-archived roadie in their own
+  /// crew; every other roster reader sees every event. Crew leadership is
+  /// matched on the acting principal, so a demo crew leader sees their demo
+  /// crew. This mirrors the `listCrewEvents` rule.
+  public func canSeeCrewEvent(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    crews : Map.Map<Common.CrewId, Roadie.Crew>,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    caller : Principal,
+  ) : Bool {
+    switch (actingRole(accessGrants, demoState, caller)) {
+      case (?role) {
+        if (not isRosterReader(role)) {
+          return false;
+        };
+        let acting = actingPrincipal(demoState, caller);
+        let demo = Auth.demoActive(demoState);
+        switch (crews.values().find(func(c) = c.isDemo == demo and c.leaderPrincipal == ?acting)) {
+          case (?c) {
+            roadies.values().any(func(r) =
+              r.isDemo == demo and r.crewId == ?c.id and r.status != #archived
+            );
+          };
+          case null { true };
         };
       };
       case null { false };
@@ -211,54 +320,62 @@ module {
     };
   };
 
-  /// Build one roadie row for `caller`, or null when the caller may not see it.
-  public func roadieRow(
-    accessGrants : Map.Map<Principal, Access.AccessGrant>,
-    finalSignOffs : Map.Map<Common.RoadieId, Phase23.FinalSignOff>,
-    caller : Principal,
-    roadie : Roadie.Roadie,
-  ) : ?OqlTypes.RoadieRow {
-    if (not canSeeRoadie(accessGrants, caller, roadie)) {
-      return null;
+  /// The role label for a role.
+  func roleText(role : Common.Role) : Text {
+    switch (role) {
+      case (#admin) "admin";
+      case (#managingPartner) "managingPartner";
+      case (#kitchenManager) "kitchenManager";
+      case (#serviceManager) "serviceManager";
+      case (#storeManager) "storeManager";
+      case (#trainingManager) "trainingManager";
+      case (#leadership) "leadership";
+      case (#visitingManager) "visitingManager";
+      case (#trainer) "trainer";
+      case (#kiosk) "kiosk";
+      case (#integration) "integration";
     };
-    ?{
+  };
+
+  /// Build one roadie row without a role check. The `owner` column is the
+  /// roadie id, so the entity's rule can look the roadie up and check the
+  /// caller's real role against it.
+  public func roadieRow(
+    finalSignOffs : Map.Map<Common.RoadieId, Phase23.FinalSignOff>,
+    roadie : Roadie.Roadie,
+  ) : OqlTypes.RoadieRow {
+    {
       id = roadie.id;
-      owner = caller;
+      owner = Principal.fromText(roadie.id.toText());
       name = displayName(roadie);
       mainPositionId = roadie.mainPositionId;
-      secondPositionId = roadie.secondPositionId;
+      secondPositionId = roadie.secondPositionId ?? 0;
       status = statusText(roadie.status);
-      crewId = roadie.crewId;
-      orientationEventId = roadie.orientationEventId;
+      crewId = roadie.crewId ?? 0;
+      orientationEventId = roadie.orientationEventId ?? 0;
       paperworkDone = roadie.status != #hired and roadie.status != #archived;
-      paperworkStep = roadie.paperworkStep;
-      shirtSize = roadie.profile.shirtSize;
-      hatSize = roadie.profile.hatSize;
-      finalOutcome = finalOutcome(finalSignOffs, roadie.id);
+      paperworkStep = roadie.paperworkStep ?? "";
+      shirtSize = roadie.profile.shirtSize ?? "";
+      hatSize = roadie.profile.hatSize ?? "";
+      finalOutcome = finalOutcome(finalSignOffs, roadie.id) ?? "";
       archived = roadie.status == #archived;
       isDemo = roadie.isDemo;
     };
   };
 
   /// Build one position row with its on-hand count (pending + active roadies
-  /// whose main position is this one, archived excluded), or null when the
-  /// caller may not read it.
+  /// whose main position is this one, archived excluded), without a role check.
   public func positionRow(
-    accessGrants : Map.Map<Principal, Access.AccessGrant>,
     roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
     demo : Bool,
-    caller : Principal,
     position : Store.Position,
-  ) : ?OqlTypes.PositionRow {
-    if (not canSeeManager(accessGrants, caller)) {
-      return null;
-    };
+  ) : OqlTypes.PositionRow {
     let onHand = roadies.values()
       .filter(func(r) = r.isDemo == demo and r.status != #archived and r.mainPositionId == position.id)
       .size();
-    ?{
+    {
       id = position.id;
-      owner = caller;
+      owner = Principal.fromText(position.id.toText());
       name = position.name;
       openingBuildTo = position.openingBuildTo;
       afterOpeningBuildTo = position.afterOpeningBuildTo;
@@ -266,75 +383,49 @@ module {
     };
   };
 
-  /// Build one pending sign-up row, or null when the caller may not read it.
-  public func pendingSignupRow(
-    accessGrants : Map.Map<Principal, Access.AccessGrant>,
-    caller : Principal,
-    signup : Signup.SignupSubmission,
-  ) : ?OqlTypes.PendingSignupRow {
-    if (not canSeeManager(accessGrants, caller)) {
-      return null;
-    };
-    ?{
+  /// Build one pending sign-up row without a role check.
+  public func pendingSignupRow(signup : Signup.SignupSubmission) : OqlTypes.PendingSignupRow {
+    {
       id = signup.id;
-      owner = caller;
+      owner = Principal.fromText(signup.id.toText());
       name = signup.profile.name;
-      positionAppliedFor = signup.profile.positionAppliedFor;
+      positionAppliedFor = signup.profile.positionAppliedFor ?? "";
       submittedAt = signup.submittedAt;
       isDemo = signup.isDemo;
     };
   };
 
-  /// Build one orientation session row, or null when the caller may not read
-  /// it.
-  public func orientationSessionRow(
-    accessGrants : Map.Map<Principal, Access.AccessGrant>,
-    caller : Principal,
-    event : Store.ScheduleEvent,
-  ) : ?OqlTypes.OrientationSessionRow {
-    if (not canSeeManager(accessGrants, caller)) {
-      return null;
-    };
-    ?{
+  /// Build one orientation session row without a role check.
+  public func orientationSessionRow(event : Store.ScheduleEvent) : OqlTypes.OrientationSessionRow {
+    {
       id = event.id;
-      owner = caller;
+      owner = Principal.fromText(event.id.toText());
       name = event.name;
       start = event.start;
     };
   };
 
-  /// Build one attendance row, or null when the caller may not read it.
-  public func attendanceRow(
-    accessGrants : Map.Map<Principal, Access.AccessGrant>,
-    caller : Principal,
-    id : Nat,
-    record : Phase23.AttendanceRecord,
-  ) : ?OqlTypes.AttendanceRow {
-    if (not canSeeManager(accessGrants, caller)) {
-      return null;
-    };
-    ?{
+  /// Build one attendance row without a role check.
+  public func attendanceRow(id : Nat, record : Phase23.AttendanceRecord) : OqlTypes.AttendanceRow {
+    {
       id;
-      owner = caller;
+      owner = Principal.fromText(id.toText());
       roadieId = record.roadieId;
-      eventId = record.eventId;
+      eventId = record.eventId ?? 0;
       present = record.state == #present;
       isDemo = record.isDemo;
     };
   };
 
-  /// Build one opening question row, or null when the caller may not read it.
+  /// Build one opening question row without a role check. `readyForFinal` uses
+  /// the Opening Questions domain rule: not final and every live owner approved.
   public func openingQuestionRow(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
-    caller : Principal,
     question : OpeningQuestions.OpeningQuestion,
-  ) : ?OqlTypes.OpeningQuestionRow {
-    if (not canSeeOpeningQuestions(accessGrants, caller)) {
-      return null;
-    };
-    ?{
+  ) : OqlTypes.OpeningQuestionRow {
+    {
       id = question.id;
-      owner = caller;
+      owner = Principal.fromText(question.id.toText());
       sectionTitle = question.sectionTitle;
       area = switch (question.area) {
         case (#kitchen) "kitchen";
@@ -345,23 +436,16 @@ module {
       question = question.question;
       answer = question.answer;
       final = question.finalizedBy != null;
-      readyForFinal = question.finalizedBy == null and question.approvals.size() > 0;
+      readyForFinal = OpeningQuestionsLib.isReadyForFinal(accessGrants, question);
       approvalCount = question.approvals.size();
     };
   };
 
-  /// Build one crew event row, or null when the caller may not read it.
-  public func crewEventRow(
-    accessGrants : Map.Map<Principal, Access.AccessGrant>,
-    caller : Principal,
-    event : CrewEvents.CrewEvent,
-  ) : ?OqlTypes.CrewEventRow {
-    if (not canSeeRoster(accessGrants, caller)) {
-      return null;
-    };
-    ?{
+  /// Build one crew event row without a role check.
+  public func crewEventRow(event : CrewEvents.CrewEvent) : OqlTypes.CrewEventRow {
+    {
       id = event.id;
-      owner = caller;
+      owner = Principal.fromText(event.id.toText());
       name = event.name;
       start = event.start;
       place = event.place;
@@ -370,25 +454,20 @@ module {
     };
   };
 
-  /// Build one event answer row, or null when the caller may not read it.
+  /// Build one event answer row without a role check, or null when the invite's
+  /// roadie is not stored.
   public func eventAnswerRow(
-    accessGrants : Map.Map<Principal, Access.AccessGrant>,
-    crews : Map.Map<Common.CrewId, Roadie.Crew>,
     roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
-    caller : Principal,
     key : Text,
     invite : CrewEvents.EventInvite,
   ) : ?OqlTypes.EventAnswerRow {
-    let roadie = switch (roadies.get(invite.roadieId)) {
-      case (?r) { r };
+    switch (roadies.get(invite.roadieId)) {
+      case (?_) {};
       case null { return null };
-    };
-    if (not canSeeEventAnswer(accessGrants, crews, caller, roadie)) {
-      return null;
     };
     ?{
       key;
-      owner = caller;
+      owner = Principal.fromText(invite.roadieId.toText());
       eventId = invite.eventId;
       roadieId = invite.roadieId;
       answer = switch (invite.answer) {
@@ -405,23 +484,20 @@ module {
     };
   };
 
-  /// Build one trainer note row, or null when the caller may not read it.
+  /// Build one trainer note row without a role check, or null when the note's
+  /// roadie is not stored.
   public func trainerNoteRow(
     accessGrants : Map.Map<Principal, Access.AccessGrant>,
     roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
-    caller : Principal,
     note : Phase23.TrainerNote,
   ) : ?OqlTypes.TrainerNoteRow {
-    let roadie = switch (roadies.get(note.roadieId)) {
-      case (?r) { r };
+    switch (roadies.get(note.roadieId)) {
+      case (?_) {};
       case null { return null };
-    };
-    if (not canSeeRoadie(accessGrants, caller, roadie)) {
-      return null;
     };
     ?{
       id = note.id;
-      owner = caller;
+      owner = Principal.fromText(note.roadieId.toText());
       roadieId = note.roadieId;
       authorName = principalName(accessGrants, note.author);
       didWell = note.didWell;
@@ -431,22 +507,44 @@ module {
     };
   };
 
-  /// Build one alert row, or null when the caller may not read it.
-  public func alertRow(
-    accessGrants : Map.Map<Principal, Access.AccessGrant>,
-    caller : Principal,
-    alert : Phase23.Alert,
-  ) : ?OqlTypes.AlertRow {
-    if (not canSeeManager(accessGrants, caller)) {
-      return null;
-    };
-    ?{
+  /// Build one alert row without a role check.
+  public func alertRow(alert : Phase23.Alert) : OqlTypes.AlertRow {
+    {
       id = alert.id;
-      owner = caller;
+      owner = Principal.fromText(alert.id.toText());
       kind = "alert";
-      roadieId = null;
+      roadieId = 0;
       createdAt = alert.createdAt;
       acknowledged = alert.acknowledged;
+    };
+  };
+
+  /// Build the caller's own access row, or null for an anonymous caller. The
+  /// role is the caller's REAL, non-expired role from the access grants (never
+  /// a demo role); `registered` is true when a grant exists, `approved` when
+  /// that grant is still in force, and `accessEndsAt` is the grant's end date.
+  public func myAccessRow(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    caller : Principal,
+  ) : ?OqlTypes.MyAccessRow {
+    if (caller.isAnonymous()) {
+      return null;
+    };
+    let grant = accessGrants.get(caller);
+    let role = realRole(accessGrants, caller);
+    ?{
+      principal = caller;
+      owner = caller;
+      role = switch (role) {
+        case (?r) { roleText(r) };
+        case null { "none" };
+      };
+      registered = grant != null;
+      approved = role != null;
+      accessEndsAt = switch (grant) {
+        case (?g) { g.accessEndsAt };
+        case null { null };
+      };
     };
   };
 };

@@ -6,6 +6,10 @@ import Common "common";
 /// address, photos, signatures or birth date. The `owner` column carries the
 /// subject principal the entity's `canSee` rule is evaluated against; it is
 /// derived from the caller's real role, never stored on the record.
+///
+/// Columns that may be absent on a stored record are projected to a plain
+/// `Text`/`Nat` with an empty default (0 or ""), so the schema reports a real
+/// type instead of `Null` and a value can always be shown.
 module {
   /// One roadie row: identity, position, status, crew, orientation session,
   /// paperwork flags, uniform sizes, final sign-off outcome and archived state.
@@ -14,15 +18,15 @@ module {
     owner : Principal;
     name : Text;
     mainPositionId : Common.PositionId;
-    secondPositionId : ?Common.PositionId;
+    secondPositionId : Common.PositionId;
     status : Text;
-    crewId : ?Common.CrewId;
-    orientationEventId : ?Common.EventId;
+    crewId : Common.CrewId;
+    orientationEventId : Common.EventId;
     paperworkDone : Bool;
-    paperworkStep : ?Text;
-    shirtSize : ?Text;
-    hatSize : ?Text;
-    finalOutcome : ?Text;
+    paperworkStep : Text;
+    shirtSize : Text;
+    hatSize : Text;
+    finalOutcome : Text;
     archived : Bool;
     isDemo : Bool;
   };
@@ -44,7 +48,7 @@ module {
     id : Common.SignupId;
     owner : Principal;
     name : Text;
-    positionAppliedFor : ?Text;
+    positionAppliedFor : Text;
     submittedAt : Common.Timestamp;
     isDemo : Bool;
   };
@@ -62,7 +66,7 @@ module {
     id : Nat;
     owner : Principal;
     roadieId : Common.RoadieId;
-    eventId : ?Common.EventId;
+    eventId : Common.EventId;
     present : Bool;
     isDemo : Bool;
   };
@@ -121,8 +125,19 @@ module {
     id : Common.AlertId;
     owner : Principal;
     kind : Text;
-    roadieId : ?Common.RoadieId;
+    roadieId : Common.RoadieId;
     createdAt : Common.Timestamp;
     acknowledged : Bool;
+  };
+
+  /// The caller's own access row: their principal, real role, whether they are
+  /// registered and approved, and when their access ends. One row per caller.
+  public type MyAccessRow = {
+    principal : Principal;
+    owner : Principal;
+    role : Text;
+    registered : Bool;
+    approved : Bool;
+    accessEndsAt : ?Common.Timestamp;
   };
 };
