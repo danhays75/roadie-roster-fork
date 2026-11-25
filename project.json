@@ -1,20 +1,18 @@
 {
-  "overview": "A hiring and orientation roster for a restaurant opening team, with crew events, paperwork tracking, training groups and manager dashboards.",
+  "overview": "A store hiring and training roster for Roadie Roster, now readable by your own AI assistant through the Internet Computer MCP connector.",
   "features": [
-    "Create, edit, move, cancel and un-cancel crew events",
-    "Record each roadie's answer, reason, follow-up note and attendance per event",
-    "See going, can't go and no answer counts for every event",
-    "Flag roadies at risk of missing orientation on My crew and the Dashboard",
-    "See the next three upcoming events on Today",
-    "Fill a leader talk group while skipping roadies already in another group"
+    "Read roadies, positions, pending sign-ups, orientation sessions and attendance, opening questions, crew events and answers, trainer notes and alerts from your own AI assistant",
+    "Access follows each person's real, current role, with Trainers limited to their own stations and crew leaders to their own crew",
+    "Contact details, photos, signatures and birth dates are never shared",
+    "Demo data stays separate from real data"
   ],
-  "category": "team-management",
+  "category": "staff-management",
   "tags": [
     "roster",
     "hiring",
-    "events",
-    "restaurant",
-    "managers"
+    "training",
+    "data-access",
+    "assistant"
   ],
-  "last_updated": "2026-11-24T15:51:26.817Z"
+  "last_updated": "2026-11-25T10:12:31.605Z"
 }

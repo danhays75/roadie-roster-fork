@@ -125,6 +125,11 @@
 - Remove nothing; keep all migrations and stable variables
 - No new copy unless needed; if any, add it in both English and Spanish
 - Keep demo-mode partitioning on every read and write
+- Read-only data access: add no new write methods and change no existing ones
+- Keep every existing screen and method exactly as it is
+- Never use a public entity
+- Use the caller's real, non-expired role from the app's access grants, never a demo role
+- Respect demo mode the same way the existing queries do
 
 ## Accepted Requirements
 
@@ -490,6 +495,18 @@
 - A crew leader sees only their own crew's event counts; every other viewer sees counts across all active, non-archived roadies in any crew in the current demo partition
 - upcomingEvents added to the query keys every crew event write invalidates
 - Run the type check, build and existing tests and fix anything that fails
+- Declare OQL entities for roadies, positions, pending sign-ups, orientation sessions and attendance, opening questions, crew events and answers, trainer notes and alerts
+- Read-only: add no new write methods and change no existing ones
+- Use controllerOrScoped with ownedByWith and a canSee rule on the caller's real, non-expired role; never public
+- Kiosk, Integration, unregistered and anonymous callers see nothing
+- A Trainer sees only roadies in their stations
+- Crew events follow the listCrewEvents rule, so crew leaders see their own crew
+- Trainer notes follow the listTrainerNotes readers
+- Never expose phone, email, address, photos, signatures or birth date
+- Respect demo mode the same way the existing queries do
+- Add tests for the new entities
+- Keep every existing screen and method exactly as it is
+- Update getApiDoc to describe the OQL entities and who can read each one
 
 ## Verified Commands
 
@@ -499,11 +516,6 @@
 
 ## Learnings
 
-- The leader talks page is src/frontend/src/pages/LeaderTalks.tsx with its group dialog in src/frontend/src/components/leader-talks/LeaderTalkGroupDialog.tsx; role helpers LEADER_TALKS_ROLES, LEADER_TALK_EDITOR_ROLES, canLeaderTalks and canEditLeaderTalks live in hooks/useAccess.ts.
-- Leader talk hooks use query key ['leaderTalks'] and invalidate it plus ['changeLog'] after create, attendance and delete.
-- The roadie card talk line lives in components/roadie/RoadieTile.tsx fed by useLeaderTalkLineMap with copy key roadie.card.leaderTalk in both dictionaries; the FlipCard pop-up design stays unchanged.
-- useRecordFinalSignOff and useClearFinalSignOff also invalidate myGroup, myCrew, shiftBoard, shiftBoards, rosterSummary, today and changeLog so stage tags refresh.
-- rehireRoadie traps 'A rehire reason is required' and keeps the existing orientationEventId when no upcoming orientation session exists, while still clearing the final sign-off.
 - Int.compare and Nat.compare return Order.Order, so a sort comparator must test c != #equal, never c != 0.
 - useDemoAwareStoreInfo lives in hooks/useAccess.ts, not useQueries.ts; RosterState is a string enum, so compare roadie.rosterState === RosterState.active.
 - Leader talk Fill is pure dialog state: handleFill only calls setSelected, so New group and Edit group share one code path and Save is the sole mutation trigger; the page passes notYetMet and no longer calls setLeaderTalkAttendance on fill.
@@ -524,3 +536,8 @@
 - listCrewEvents and listUpcomingEvents fall back to all active, non-archived roadies in any crew in the active partition when the viewer leads no crew; a crew leader still sees only their own crew.
 - upcomingEvents now sits in CREW_EVENT_KEYS in hooks/useQueries.ts, so all five crew-event mutations refresh the Today Upcoming events card.
 - api-doc.mo is one long source line; grep for distinctive phrases such as 'counted once per event' confirms doc text even when reads truncate at 2,000 chars.
+- Read-only OQL entities live in src/backend/lib/oql.mo with row builders roadieRow, positionRow, pendingSignupRow, orientationSessionRow, attendanceRow, openingQuestionRow, crewEventRow, eventAnswerRow, trainerNoteRow and alertRow, plus canSee helpers canSeeManager, canSeeRoster, canSeeOpeningQuestions, canSeeRoadie and canSeeEventAnswer; main.mo includes them through the Expose mixin.
+- OQL ownedByWith canSee receives only (subject, ownerValue), not the row, so rows are withheld in the iterator via filterMap returning null and canSee is owner == subject text equality.
+- Entity.build() traps if a scoped level lacks an owner column or newScoped source, and traps if .ownedBy/.ownedByWith/.viewWith is combined with #public_.
+- mops test runs src/backend/test/*.test.mo in interpreter mode and needs no [test] section in mops.toml; a module-level let with a function call is M0014, so fixtures must be funcs.
+- mops test prints one PASS per file and did not fail on an inverted Bool assertion, so Bool-returning tests may not be enforced by the runner.

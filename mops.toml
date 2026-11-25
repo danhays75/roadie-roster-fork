@@ -29,7 +29,7 @@ extends = true
 args = [ "-E=M0254", "-W=M0235,M0223,M0236,M0237", "-A=M0241", "--implicit-package=core", "-no-check-ir" ]
 
 [dependencies]
-core = "2.7.0"
+core = "2.7.1"
 ic = "5.0.0"
 caffeineai-authorization = "1.0.2"
 caffeineai-lints = "0.1.1"
