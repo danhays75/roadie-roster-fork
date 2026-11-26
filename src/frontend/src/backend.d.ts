@@ -178,6 +178,25 @@ export interface ContactSet {
     phone: Phone;
     managerSignature?: SignatureRef;
 }
+export interface CoverageCell {
+    day: Weekday;
+    needed: bigint;
+    available: bigint;
+    shift: Shift;
+    short: boolean;
+    covered: bigint;
+}
+export interface CoverageTotals {
+    shiftsNeeded: bigint;
+    shortShifts: bigint;
+    shiftCapacity: bigint;
+    stillToHire: bigint;
+}
+export interface CoverageView {
+    boh: CoverageTotals;
+    foh: CoverageTotals;
+    positions: Array<PositionCoverage>;
+}
 export interface Crew {
     id: CrewId;
     name: string;
@@ -537,6 +556,7 @@ export interface MyCrewRoadieRow {
     paperworkStep?: string;
     paperworkTotal: bigint;
     absentToday: boolean;
+    checkIns: Array<WeeklyCheckIn>;
     photo?: PhotoRef;
 }
 export interface MyCrewView {
@@ -583,9 +603,12 @@ export interface OpeningQuestion {
 export interface OrientationCheckoff {
     hatsCount: bigint;
     roadieId: RoadieId;
+    paySetup: PaySetup;
     uniformCounts: Array<[bigint, bigint]>;
     paperworkItems: Array<string>;
     isDemo: boolean;
+    paperworkDates: Array<PaperworkItemDate>;
+    paidDates: Array<[string, DateOnly | null]>;
     updatedAt: Timestamp;
     uniformItems: Array<string>;
     shirtsCount: bigint;
@@ -631,6 +654,10 @@ export interface OwnerView {
     principal: Principal;
     displayName: string;
 }
+export interface PaperworkItemDate {
+    itemId: string;
+    date: DateOnly;
+}
 export interface PendingRequestSummary {
     hasProfile: boolean;
     requestedAt: Timestamp;
@@ -650,14 +677,28 @@ export interface Position {
     defaultShirts: bigint;
     house: House;
     afterOpeningBuildTo: bigint;
+    weekdayLunchPar: bigint;
     minimumAge: bigint;
     code: string;
     name: string;
     shirtQty: bigint;
     shirtType: string;
+    shiftsToCover: Array<bigint>;
     hatType: string;
     hatQty: bigint;
     needsAlcoholCert: boolean;
+}
+export interface PositionCoverage {
+    shiftsNeeded: bigint;
+    hasGrid: boolean;
+    shortShifts: bigint;
+    house: House;
+    cells: Array<CoverageCell>;
+    shortShiftList: Array<ShortShift>;
+    positionName: string;
+    positionId: PositionId;
+    shiftCapacity: bigint;
+    stillToHire: bigint;
 }
 export type PositionId = bigint;
 export interface PretendDate {
@@ -743,6 +784,7 @@ export interface Roadie {
     birthdayMonthDay?: string;
     paperworkStep?: string;
     isMinor: boolean;
+    checkIns: Array<WeeklyCheckIn>;
     archivedReason?: ArchiveReason;
     photo?: PhotoRef;
     hiredAt: Timestamp;
@@ -841,6 +883,11 @@ export interface ShiftCheckInSummary {
     absent: bigint;
 }
 export type ShirtSize = string;
+export interface ShortShift {
+    day: Weekday;
+    count: bigint;
+    shift: Shift;
+}
 export type SignOffOutcome = {
     __kind__: "certified";
     certified: null;
@@ -1111,6 +1158,9 @@ export type Value = {
     __kind__: "text";
     text: string;
 };
+export interface WeeklyCheckIn {
+    at: Timestamp;
+}
 export enum AttendanceState {
     present = "present",
     late = "late",
@@ -1168,6 +1218,11 @@ export enum House {
 export enum PaperworkStatus {
     incomplete = "incomplete",
     complete = "complete"
+}
+export enum PaySetup {
+    directDeposit = "directDeposit",
+    notSet = "notSet",
+    payCard = "payCard"
 }
 export enum QuestionArea {
     dan = "dan",
@@ -1338,6 +1393,12 @@ export interface backendInterface {
      */
     changePosition(id: RoadieId, mainPositionId: PositionId, secondPositionId: PositionId | null, crewId: CrewId | null): Promise<void>;
     /**
+     * / Check a roadie in for this week, saving the current store-local date and
+     * / time to their weekly check-in list (one entry per week). Managers may
+     * / check in any roadie; a crew leader only roadies in their own crew.
+     */
+    checkInRoadie(id: RoadieId): Promise<void>;
+    /**
      * / Check a candidate kiosk PIN. Returns true when it matches the stored hash.
      */
     checkKioskPin(pin: string): Promise<boolean>;
@@ -1457,6 +1518,14 @@ export interface backendInterface {
      * / set; every other read-capable role receives an empty array.
      */
     getContactSet(id: RoadieId): Promise<Array<ContactSet>>;
+    /**
+     * / Read the read-only shift coverage view: per position, the 14 shifts in
+     * / Wed AM … Tue PM order with Needed, Available and Covered counts, plus the
+     * / weekly totals, short shifts, still-to-hire and named short shifts, and the
+     * / FOH and BOH totals. Manager roles only (Admin, Managing Partner, Store
+     * / Manager, Training Manager, Kitchen Manager, Service Manager).
+     */
+    getCoverage(): Promise<CoverageView>;
     /**
      * / Dashboard summary tiles and per-position progress, including the
      * / pending/active breakdown and the Hired → Active funnel.
@@ -1953,10 +2022,27 @@ export interface backendInterface {
      */
     setOpeningQuestionFinishBy(finishBy: DateOnly | null): Promise<void>;
     /**
+     * / Set or clear the ticked date of one paperwork item (Admin or Store
+     * / Manager only, logged). The item must already be ticked; clearing the date
+     * / keeps the item ticked.
+     */
+    setPaperworkItemDate(roadieId: RoadieId, itemId: string, date: DateOnly | null): Promise<void>;
+    /**
      * / Set the paperwork items for a roadie (Admin or Store Manager only, logged).
      * / Updates only `paperworkItems` and keeps the uniform fields.
      */
     setPaperworkItems(roadieId: RoadieId, paperworkItems: Array<string>): Promise<void>;
+    /**
+     * / Set or clear the manager-only paid date for the Digital Paperwork
+     * / (onboarding), Policies & Procedures or Alcohol Certificate item (Admin or
+     * / Store Manager only, logged).
+     */
+    setPaperworkPaidDate(roadieId: RoadieId, itemId: string, date: DateOnly | null): Promise<void>;
+    /**
+     * / Set the pay setup choice to Direct deposit, Pay card or Not set (Admin or
+     * / Store Manager only, logged). Only the choice is stored.
+     */
+    setPaySetup(roadieId: RoadieId, paySetup: PaySetup): Promise<void>;
     /**
      * / Set or clear the pretend "now" used while demo mode is on. Null restores
      * / the real clock.

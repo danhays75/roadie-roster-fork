@@ -31,6 +31,11 @@ import {
   usePositions,
   useUpdatePosition,
 } from "@/hooks/useQueries";
+import {
+  COVERAGE_DAY_LABELS,
+  COVERAGE_SHIFTS,
+  COVERAGE_SHIFT_LABELS,
+} from "@/lib/coverage";
 import { Loader2, Minus, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -38,6 +43,21 @@ import { useEffect, useRef, useState } from "react";
    Per-position uniform defaults. The labels live in the admin copy dictionary
    (copy.ts) and are read through useAdminCopy().
 --------------------------------------------------------------------------- */
+
+/** The 14 shifts in Wed AM … Tue PM order, matching the backend grid. */
+const SHIFT_COUNT = COVERAGE_SHIFTS.length;
+
+/** A blank shifts-to-cover grid: one zero per shift. */
+function emptyGrid(): string[] {
+  return Array.from({ length: SHIFT_COUNT }, () => "0");
+}
+
+/** Pad or trim a saved grid to exactly 14 whole-number strings. */
+function toGrid(values: readonly bigint[]): string[] {
+  return Array.from({ length: SHIFT_COUNT }, (_, index) =>
+    (values[index] ?? 0n).toString(),
+  );
+}
 
 interface PositionDraft {
   id: bigint;
@@ -58,6 +78,8 @@ interface PositionDraft {
   shirtQty: string;
   hatType: string;
   hatQty: string;
+  weekdayLunchPar: string;
+  shiftsToCover: string[];
 }
 
 function emptyDraft(): PositionDraft {
@@ -75,6 +97,8 @@ function emptyDraft(): PositionDraft {
     shirtQty: "0",
     hatType: "",
     hatQty: "0",
+    weekdayLunchPar: "0",
+    shiftsToCover: emptyGrid(),
   };
 }
 
@@ -93,6 +117,8 @@ function toDraft(position: Position): PositionDraft {
     shirtQty: position.shirtQty.toString(),
     hatType: position.hatType,
     hatQty: position.hatQty.toString(),
+    weekdayLunchPar: position.weekdayLunchPar.toString(),
+    shiftsToCover: toGrid(position.shiftsToCover),
   };
 }
 
@@ -123,6 +149,10 @@ function toPosition(
     shirtQty: toCount(draft.shirtQty),
     hatType: draft.hatType.trim(),
     hatQty: toCount(draft.hatQty),
+    weekdayLunchPar: toCount(draft.weekdayLunchPar),
+    shiftsToCover: Array.from({ length: SHIFT_COUNT }, (_, index) =>
+      toCount(draft.shiftsToCover[index] ?? "0"),
+    ),
   };
 }
 
@@ -231,6 +261,213 @@ function BuildToStepper({
   );
 }
 
+/** Which shifts a fill shortcut writes to. */
+type FillTarget = "weekdayAm" | "weekdayPm" | "weekend";
+
+/** Weekday days (Wed–Fri) and weekend days (Sat–Tue) in the grid order. */
+const WEEKDAY_DAYS = new Set(["wed", "thu", "fri"]);
+const WEEKEND_DAYS = new Set(["sat", "sun", "mon", "tue"]);
+
+/**
+ * The lunch par and 14-shift coverage grid for one position. Every input is a
+ * whole number held as text so the manager can clear and retype it; the values
+ * are floored to non-negative integers when the position is saved. The copy
+ * and fill shortcuts only change this draft, never the saved position.
+ */
+function CoverageEditor({
+  draft,
+  positions,
+  onChange,
+}: {
+  draft: PositionDraft;
+  positions: Position[];
+  onChange: (patch: Partial<PositionDraft>) => void;
+}) {
+  const c = useAdminCopy();
+  const [copyFrom, setCopyFrom] = useState("");
+  const [fillValue, setFillValue] = useState("1");
+
+  const setShift = (index: number, value: string) => {
+    const next = [...draft.shiftsToCover];
+    next[index] = value;
+    onChange({ shiftsToCover: next });
+  };
+
+  const copyGrid = () => {
+    const source = positions.find(
+      (position) => position.id.toString() === copyFrom,
+    );
+    if (!source) return;
+    onChange({ shiftsToCover: toGrid(source.shiftsToCover) });
+  };
+
+  const applyFill = (target: FillTarget) => {
+    const value = fillValue.trim() === "" ? "0" : fillValue;
+    const next = draft.shiftsToCover.map((current, index) => {
+      const { day, shift } = COVERAGE_SHIFTS[index];
+      const matches =
+        target === "weekend"
+          ? WEEKEND_DAYS.has(day)
+          : WEEKDAY_DAYS.has(day) && shift === target.slice(-2).toLowerCase();
+      return matches ? value : current;
+    });
+    onChange({ shiftsToCover: next });
+  };
+  const copyOptions = positions.filter(
+    (position) => position.id !== draft.id || draft.isNew,
+  );
+
+  return (
+    <fieldset
+      className="rounded-md border border-border bg-muted/30 p-3"
+      data-ocid="admin.positions.coverage.panel"
+    >
+      <legend className="px-1 font-display text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        {c.positionsCoverageTitle}
+      </legend>
+      <p className="mb-3 text-xs text-muted-foreground">
+        {c.positionsCoverageHint}
+      </p>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField label={c.positionsWeekdayLunchPar} htmlFor="pos-lunch-par">
+          <Input
+            id="pos-lunch-par"
+            type="number"
+            min={0}
+            step={1}
+            inputMode="numeric"
+            data-ocid="admin.positions.weekday_lunch_par.input"
+            className="touch-target"
+            value={draft.weekdayLunchPar}
+            onChange={(event) =>
+              onChange({ weekdayLunchPar: event.target.value })
+            }
+          />
+        </FormField>
+        <FormField label={c.positionsFillValue} htmlFor="pos-fill-value">
+          <Input
+            id="pos-fill-value"
+            type="number"
+            min={0}
+            step={1}
+            inputMode="numeric"
+            data-ocid="admin.positions.fill_value.input"
+            className="touch-target"
+            value={fillValue}
+            onChange={(event) => setFillValue(event.target.value)}
+          />
+        </FormField>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="touch-target"
+          data-ocid="admin.positions.fill_weekday_am_button"
+          onClick={() => applyFill("weekdayAm")}
+        >
+          {c.positionsFillWeekdayAm}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="touch-target"
+          data-ocid="admin.positions.fill_weekday_pm_button"
+          onClick={() => applyFill("weekdayPm")}
+        >
+          {c.positionsFillWeekdayPm}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="touch-target"
+          data-ocid="admin.positions.fill_weekend_button"
+          onClick={() => applyFill("weekend")}
+        >
+          {c.positionsFillWeekend}
+        </Button>
+      </div>
+
+      <div className="mt-4">
+        <p className="mb-2 font-display text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          {c.positionsShiftsToCover}
+        </p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+          {COVERAGE_SHIFTS.map(({ day, shift }, index) => {
+            const label = fill(c.positionsShiftLabel, {
+              day: COVERAGE_DAY_LABELS[day],
+              shift: COVERAGE_SHIFT_LABELS[shift],
+            });
+            const inputId = `pos-shift-${day}-${shift}`;
+            return (
+              <div key={inputId} className="flex flex-col gap-1">
+                <label
+                  htmlFor={inputId}
+                  className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  {label}
+                </label>
+                <Input
+                  id={inputId}
+                  type="number"
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  aria-label={label}
+                  data-ocid={`admin.positions.shift.${index + 1}.input`}
+                  className="touch-target px-2 text-center tabular-nums"
+                  value={draft.shiftsToCover[index] ?? "0"}
+                  onChange={(event) => setShift(index, event.target.value)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 rounded-md border border-border bg-background p-3 sm:flex-row sm:items-end">
+        <FormField
+          label={c.positionsCopyFrom}
+          htmlFor="pos-copy-from"
+          className="min-w-0 flex-1"
+        >
+          <Select value={copyFrom} onValueChange={setCopyFrom}>
+            <SelectTrigger
+              id="pos-copy-from"
+              data-ocid="admin.positions.copy_from.select"
+              className="touch-target"
+            >
+              <SelectValue placeholder={c.positionsCopyFromPlaceholder} />
+            </SelectTrigger>
+            <SelectContent>
+              {copyOptions.map((position) => (
+                <SelectItem
+                  key={position.id.toString()}
+                  value={position.id.toString()}
+                >
+                  {position.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
+        <Button
+          type="button"
+          variant="outline"
+          className="touch-target shrink-0"
+          data-ocid="admin.positions.copy_grid_button"
+          disabled={copyFrom === ""}
+          onClick={copyGrid}
+        >
+          {c.positionsCopyButton}
+        </Button>
+      </div>
+    </fieldset>
+  );
+}
+
 function PositionRow({
   position,
   readOnly,
@@ -295,6 +532,15 @@ function PositionRow({
             shirtType: position.shirtType || c.positionsShirtType,
             hatQty: position.hatQty.toString(),
             hatType: position.hatType || c.positionsHatType,
+          })}
+        </p>
+        <p
+          className="mt-1 text-xs text-muted-foreground"
+          data-ocid="admin.positions.coverage_summary"
+        >
+          {fill(c.positionsCoverageSummary, {
+            par: position.weekdayLunchPar.toString(),
+            shifts: position.shiftsToCover.filter((value) => value > 0n).length,
           })}
         </p>
         {!readOnly && (
@@ -584,6 +830,16 @@ export function PositionsPanel() {
                   </div>
                 </fieldset>
               </div>
+
+              <CoverageEditor
+                draft={draft}
+                positions={positions.data ?? []}
+                onChange={(patch) =>
+                  setDraft((current) =>
+                    current ? { ...current, ...patch } : current,
+                  )
+                }
+              />
 
               <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                 {c.positionsDescription}

@@ -1,4 +1,6 @@
 import Char "mo:core/Char";
+import Int "mo:core/Int";
+import List "mo:core/List";
 import Map "mo:core/Map";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
@@ -57,6 +59,7 @@ module {
     checkIns : Map.Map<Text, Phase23.CheckInRecord>,
     schedule : Map.Map<Common.EventId, Store.ScheduleEvent>,
     demo : Bool,
+    weeklyCheckIns : Map.Map<Common.RoadieId, [Roadie.WeeklyCheckIn]>,
   ) : Roadie.Roadie {
     let refreshed = refreshDerived(roadie, now, defaultTimeZone);
     let stage = stageFor(refreshed, checklists, positions, checkoffs, checkIns, schedule, demo);
@@ -65,7 +68,7 @@ module {
       case null { null };
     };
     let paperworkStep = Phase23Lib.paperworkStepFor(checklists.value, positions, refreshed, stored, stage);
-    let withStage = { refreshed with stage; paperworkStep };
+    let withStage = { refreshed with stage; paperworkStep; checkIns = checkInsFor(weeklyCheckIns, refreshed.id) };
     if (canSee) {
       // Managers keep the contact set but never the full photo bytes.
       { withStage with photo = null };
@@ -108,6 +111,7 @@ module {
     checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
     checkIns : Map.Map<Text, Phase23.CheckInRecord>,
     schedule : Map.Map<Common.EventId, Store.ScheduleEvent>,
+    weeklyCheckIns : Map.Map<Common.RoadieId, [Roadie.WeeklyCheckIn]>,
     caller : Principal,
   ) : [Roadie.Roadie] {
     let role = Auth.requireReadable(accessGrants, demoState, caller);
@@ -116,7 +120,7 @@ module {
     let demo = Auth.demoActive(demoState);
     roadies.values()
       .filter(func(r) = r.isDemo == demo and visibleToRole(r, role, accessGrants, demoState, caller))
-      .map(func(r) = redact(r, canSee, now, checklists, positions, checkoffs, checkIns, schedule, demo))
+      .map(func(r) = redact(r, canSee, now, checklists, positions, checkoffs, checkIns, schedule, demo, weeklyCheckIns))
       .toArray();
   };
 
@@ -131,6 +135,7 @@ module {
     checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
     checkIns : Map.Map<Text, Phase23.CheckInRecord>,
     schedule : Map.Map<Common.EventId, Store.ScheduleEvent>,
+    weeklyCheckIns : Map.Map<Common.RoadieId, [Roadie.WeeklyCheckIn]>,
     caller : Principal,
     id : Common.RoadieId,
   ) : ?Roadie.Roadie {
@@ -143,7 +148,7 @@ module {
         if (r.isDemo != demo or not visibleToRole(r, role, accessGrants, demoState, caller)) {
           Runtime.trap("Access denied: roadie is not visible to this role");
         };
-        ?redact(r, canSee, now, checklists, positions, checkoffs, checkIns, schedule, demo);
+        ?redact(r, canSee, now, checklists, positions, checkoffs, checkIns, schedule, demo, weeklyCheckIns);
       };
       case null { null };
     };
@@ -181,6 +186,7 @@ module {
     checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
     checkIns : Map.Map<Text, Phase23.CheckInRecord>,
     schedule : Map.Map<Common.EventId, Store.ScheduleEvent>,
+    weeklyCheckIns : Map.Map<Common.RoadieId, [Roadie.WeeklyCheckIn]>,
     caller : Principal,
     positionId : Common.PositionId,
   ) : [Roadie.Roadie] {
@@ -190,7 +196,7 @@ module {
     let demo = Auth.demoActive(demoState);
     roadies.values()
       .filter(func(r) = r.isDemo == demo and r.mainPositionId == positionId and visibleToRole(r, role, accessGrants, demoState, caller))
-      .map(func(r) = redact(r, canSee, now, checklists, positions, checkoffs, checkIns, schedule, demo))
+      .map(func(r) = redact(r, canSee, now, checklists, positions, checkoffs, checkIns, schedule, demo, weeklyCheckIns))
       .toArray();
   };
 
@@ -387,6 +393,107 @@ module {
   /// Internal: `a - b`, clamped at zero, without a trapping Nat subtraction.
   func saturatingSub(a : Nat, b : Nat) : Nat {
     if (a <= b) { 0 } else { a - b };
+  };
+
+  // --- Weekly check-ins ---
+
+  /// Nanoseconds in one day.
+  let dayNs : Int = 86_400_000_000_000;
+
+  /// Internal: the UTC timestamp of the Wednesday that starts the store-local
+  /// week containing `ts`. Weeks run Wednesday through Tuesday, so the week
+  /// start is the most recent Wednesday at or before the local calendar date.
+  func weekStartOf(ts : Common.Timestamp, timeZone : Common.TimeZone) : Common.Timestamp {
+    let dayStart = Clock.localDayStart(ts, timeZone);
+    // 1970-01-01 was a Thursday, so days-since-epoch modulo 7 gives the weekday
+    // with 0 = Thursday. Wednesday is 6 in that rotation.
+    let days = dayStart / dayNs;
+    let rem = days % 7;
+    let r = if (rem < 0) { rem + 7 } else { rem };
+    let back = (r + 1) % 7;
+    dayStart - back * dayNs;
+  };
+
+  /// Internal: the roadie's weekly check-in list, newest week first.
+  func checkInsFor(
+    weeklyCheckIns : Map.Map<Common.RoadieId, [Roadie.WeeklyCheckIn]>,
+    roadieId : Common.RoadieId,
+  ) : [Roadie.WeeklyCheckIn] {
+    weeklyCheckIns.get(roadieId) ?? [];
+  };
+
+  /// Internal: the roadie's weekly check-in list with `at` recorded for its
+  /// week, replacing any earlier entry in that same week. Newest week first.
+  func withCheckIn(
+    existing : [Roadie.WeeklyCheckIn],
+    at : Common.Timestamp,
+    timeZone : Common.TimeZone,
+  ) : [Roadie.WeeklyCheckIn] {
+    let week = weekStartOf(at, timeZone);
+    let kept = existing.filter(func(e) = weekStartOf(e.at, timeZone) != week);
+    let merged = kept.concat([{ at }]);
+    merged.sort(func(a, b) = Int.compare(b.at, a.at));
+  };
+
+  /// Internal: whether a role may check a roadie in: Admin, Managing Partner,
+  /// Store Manager, Training Manager, Kitchen Manager or Service Manager.
+  func roleCanCheckIn(role : Common.Role) : Bool {
+    Auth.roleHasFourAreaAccess(role) or role == #trainingManager;
+  };
+
+  /// Internal: whether the caller leads the crew the roadie belongs to. While
+  /// demo mode is on the caller's impersonated demo leader is matched.
+  func leadsRoadieCrew(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    crews : Map.Map<Common.CrewId, Roadie.Crew>,
+    roadie : Roadie.Roadie,
+    caller : Principal,
+  ) : Bool {
+    let demo = Auth.demoActive(demoState);
+    let acting = Auth.actingPrincipal(demoState, caller);
+    switch (roadie.crewId) {
+      case (?cid) {
+        switch (crews.get(cid)) {
+          case (?c) { c.isDemo == demo and c.leaderPrincipal == ?acting };
+          case null { false };
+        };
+      };
+      case null { false };
+    };
+  };
+
+  /// Check a roadie in for this week, saving the current store-local date and
+  /// time to their weekly check-in list. One entry per week: a second check-in
+  /// in the same week replaces that week's entry. Admin, Managing Partner,
+  /// Store Manager, Training Manager, Kitchen Manager and Service Manager may
+  /// check in any roadie; a crew leader may check in only roadies in their own
+  /// crew. Archived roadies and the other demo partition are refused. Logged.
+  public func checkInRoadie(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    crews : Map.Map<Common.CrewId, Roadie.Crew>,
+    weeklyCheckIns : Map.Map<Common.RoadieId, [Roadie.WeeklyCheckIn]>,
+    storeInfo : Store.StoreInfo,
+    changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
+    counters : Counters,
+    caller : Principal,
+    id : Common.RoadieId,
+  ) : () {
+    let role = Auth.effectiveRole(accessGrants, demoState, caller)
+      ?? Runtime.trap("Access denied: caller is not registered or access has ended");
+    let roadie = requireVisibleRoadie(roadies, demoState, id);
+    if (roadie.status == #archived) {
+      Runtime.trap("Roadie is archived; rehire first");
+    };
+    if (not roleCanCheckIn(role) and not leadsRoadieCrew(accessGrants, demoState, crews, roadie, caller)) {
+      Runtime.trap("Access denied: only managers or this roadie's crew leader may check them in");
+    };
+    let now = Clock.effectiveNow(demoState, storeInfo);
+    let updated = withCheckIn(checkInsFor(weeklyCheckIns, id), now, storeInfo.timeZone);
+    weeklyCheckIns.add(id, updated);
+    logWrite(changeLog, counters, demoState, caller, "checkInRoadie", ?id, false, "Checked in roadie");
   };
 
   /// Update a roadie's contact set (Admin/Store Manager only).

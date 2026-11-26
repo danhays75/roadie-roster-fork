@@ -15,7 +15,7 @@ module {
   /// paperwork flags, uniform sizes, final sign-off outcome and archived state.
   public type RoadieRow = {
     id : Common.RoadieId;
-    owner : Principal;
+    owner : Text;
     name : Text;
     mainPositionId : Common.PositionId;
     secondPositionId : Common.PositionId;
@@ -31,22 +31,25 @@ module {
     isDemo : Bool;
   };
 
-  /// One position row: name, build-to opening, build-to after opening and the
-  /// on-hand count.
+  /// One position row: name, build-to opening, build-to after opening, the
+  /// on-hand count, the weekday lunch par and the 14 shifts-to-cover values
+  /// (Wed AM … Tue PM) rendered as a compact comma-separated text.
   public type PositionRow = {
     id : Common.PositionId;
-    owner : Principal;
+    owner : Text;
     name : Text;
     openingBuildTo : Nat;
     afterOpeningBuildTo : Nat;
     onHand : Nat;
+    weekdayLunchPar : Nat;
+    shiftsToCover : Text;
   };
 
   /// One pending sign-up row: id, name, position applied for and submitted
   /// time. No contact info or photos.
   public type PendingSignupRow = {
     id : Common.SignupId;
-    owner : Principal;
+    owner : Text;
     name : Text;
     positionAppliedFor : Text;
     submittedAt : Common.Timestamp;
@@ -56,7 +59,7 @@ module {
   /// One orientation session row: the session and its date.
   public type OrientationSessionRow = {
     id : Common.EventId;
-    owner : Principal;
+    owner : Text;
     name : Text;
     start : Common.DateTime;
   };
@@ -64,7 +67,7 @@ module {
   /// One attendance row: roadie, session and present or not.
   public type AttendanceRow = {
     id : Nat;
-    owner : Principal;
+    owner : Text;
     roadieId : Common.RoadieId;
     eventId : Common.EventId;
     present : Bool;
@@ -75,7 +78,7 @@ module {
   /// ready for final and approvals.
   public type OpeningQuestionRow = {
     id : Nat;
-    owner : Principal;
+    owner : Text;
     sectionTitle : Text;
     area : Text;
     question : Text;
@@ -88,7 +91,7 @@ module {
   /// One crew event row: event, start, place and cancelled.
   public type CrewEventRow = {
     id : Common.CrewEventId;
-    owner : Principal;
+    owner : Text;
     name : Text;
     start : Common.DateTime;
     place : Text;
@@ -99,7 +102,7 @@ module {
   /// One event answer row: roadie, answer and attendance.
   public type EventAnswerRow = {
     key : Text;
-    owner : Principal;
+    owner : Text;
     eventId : Common.CrewEventId;
     roadieId : Common.RoadieId;
     answer : Text;
@@ -111,7 +114,7 @@ module {
   /// time.
   public type TrainerNoteRow = {
     id : Nat;
-    owner : Principal;
+    owner : Text;
     roadieId : Common.RoadieId;
     authorName : Text;
     didWell : Text;
@@ -123,7 +126,7 @@ module {
   /// One alert row: type, roadie, created time and acknowledged.
   public type AlertRow = {
     id : Common.AlertId;
-    owner : Principal;
+    owner : Text;
     kind : Text;
     roadieId : Common.RoadieId;
     createdAt : Common.Timestamp;
@@ -134,10 +137,26 @@ module {
   /// registered and approved, and when their access ends. One row per caller.
   public type MyAccessRow = {
     principal : Principal;
-    owner : Principal;
+    owner : Text;
     role : Text;
     registered : Bool;
     approved : Bool;
     accessEndsAt : ?Common.Timestamp;
+  };
+
+  /// One shift-coverage row per position: the position, its house, whether a
+  /// shifts-to-cover grid is set, and the weekly totals (shifts needed, shift
+  /// capacity, short shifts and still to hire). Read-only; never changes pars
+  /// or build-to numbers.
+  public type CoverageRow = {
+    positionId : Common.PositionId;
+    owner : Text;
+    positionName : Text;
+    house : Text;
+    hasGrid : Bool;
+    shiftsNeeded : Nat;
+    shiftCapacity : Nat;
+    shortShifts : Nat;
+    stillToHire : Nat;
   };
 };

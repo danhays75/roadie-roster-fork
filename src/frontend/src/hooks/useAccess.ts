@@ -684,6 +684,24 @@ export function canEditUniforms(role: Role | undefined): boolean {
   return !!role && UNIFORM_EDITOR_ROLES.includes(role);
 }
 
+/**
+ * Roles allowed to see the Roster Coverage tab and the Dashboard coverage card:
+ * the six manager roles. The backend refuses `getCoverage` for every other role,
+ * so this list gates the read as well as the tab.
+ */
+export const COVERAGE_ROLES: Role[] = [
+  ...ADMIN_ROLES,
+  Role.storeManager,
+  Role.trainingManager,
+  Role.kitchenManager,
+  Role.serviceManager,
+];
+
+/** Whether the given role may see the shift coverage view. */
+export function canCoverage(role: Role | undefined): boolean {
+  return !!role && COVERAGE_ROLES.includes(role);
+}
+
 /** Whether the given role may record a check-in on the Today board. */
 export function canCheckIn(role: Role | undefined): boolean {
   return !!role && CHECK_IN_ROLES.includes(role);

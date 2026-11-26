@@ -25,6 +25,7 @@ mixin (
   finalSignOffs : Map.Map<Common.RoadieId, Phase23.FinalSignOff>,
   alerts : Map.Map<Common.AlertId, Phase23.Alert>,
   checkIns : Map.Map<Text, Phase23.CheckInRecord>,
+  weeklyCheckIns : Map.Map<Common.RoadieId, [Phase23.WeeklyCheckIn]>,
   absentAlerts : Map.Map<Common.AlertId, Phase23.AbsentAlert>,
   storeInfo : { var value : Store.StoreInfo },
   changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
@@ -127,6 +128,26 @@ mixin (
     Phase23Lib.setPaperworkItems(accessGrants, demoState, roadies, positions, checklists, orientationCheckoffs, changeLog, counters, storeInfo.value, caller, roadieId, paperworkItems);
   };
 
+  /// Set or clear the ticked date of one paperwork item (Admin or Store
+  /// Manager only, logged). The item must already be ticked; clearing the date
+  /// keeps the item ticked.
+  public shared ({ caller }) func setPaperworkItemDate(roadieId : Common.RoadieId, itemId : Text, date : ?Common.DateOnly) : async () {
+    Phase23Lib.setPaperworkItemDate(accessGrants, demoState, roadies, checklists, orientationCheckoffs, changeLog, counters, storeInfo.value, caller, roadieId, itemId, date);
+  };
+
+  /// Set or clear the manager-only paid date for the Digital Paperwork
+  /// (onboarding), Policies & Procedures or Alcohol Certificate item (Admin or
+  /// Store Manager only, logged).
+  public shared ({ caller }) func setPaperworkPaidDate(roadieId : Common.RoadieId, itemId : Text, date : ?Common.DateOnly) : async () {
+    Phase23Lib.setPaperworkPaidDate(accessGrants, demoState, roadies, checklists, orientationCheckoffs, changeLog, counters, storeInfo.value, caller, roadieId, itemId, date);
+  };
+
+  /// Set the pay setup choice to Direct deposit, Pay card or Not set (Admin or
+  /// Store Manager only, logged). Only the choice is stored.
+  public shared ({ caller }) func setPaySetup(roadieId : Common.RoadieId, paySetup : Phase23.PaySetup) : async () {
+    Phase23Lib.setPaySetup(accessGrants, demoState, roadies, orientationCheckoffs, changeLog, counters, storeInfo.value, caller, roadieId, paySetup);
+  };
+
   /// Read one shift board with its trainer columns, Unassigned tray and Off
   /// this shift tray (every read role except kiosk and integration).
   public query ({ caller }) func getShiftBoard(eventId : Common.EventId, shift : Common.Shift) : async ?Phase23.ShiftBoardView {
@@ -182,7 +203,7 @@ mixin (
   /// The caller's own crew for the Today screen: the crew they own and one row
   /// per roadie assigned to it. Null when the caller owns no crew.
   public query ({ caller }) func getMyCrew() : async ?Phase23.MyCrewView {
-    Phase23Lib.getMyCrew(accessGrants, demoState, crews, roadies, positions, checklists, orientationCheckoffs, schedule, checkIns, crewEvents, eventInvites, storeInfo.value, caller);
+    Phase23Lib.getMyCrew(accessGrants, demoState, crews, roadies, positions, checklists, orientationCheckoffs, schedule, checkIns, weeklyCheckIns, crewEvents, eventInvites, storeInfo.value, caller);
   };
 
   /// Add a trainer note (Trainer, Training Manager, Kitchen Manager, Service
@@ -328,6 +349,6 @@ mixin (
 
   /// The Today page payload, shaped by the caller's role.
   public query ({ caller }) func getToday() : async Phase23.TodayView {
-    Phase23Lib.getToday(accessGrants, demoState, shiftBoards, roadies, positions, crews, checklists, orientationCheckoffs, schedule, storeInfo.value, checkIns, absentAlerts, openingQuestions, openingQuestionEmailSettings, openingQuestionNudges, crewEvents, eventInvites, caller);
+    Phase23Lib.getToday(accessGrants, demoState, shiftBoards, roadies, positions, crews, checklists, orientationCheckoffs, schedule, storeInfo.value, checkIns, weeklyCheckIns, absentAlerts, openingQuestions, openingQuestionEmailSettings, openingQuestionNudges, crewEvents, eventInvites, caller);
   };
 };

@@ -4,19 +4,48 @@ import Roadie "roadie";
 import OpeningQuestions "openingquestions";
 
 module {
+  /// The pay setup choice for a roadie. Only the choice is stored, never any
+  /// account or card number. Defaults to `#notSet`.
+  public type PaySetup = {
+    #directDeposit;
+    #payCard;
+    #notSet;
+  };
+
+  /// One paperwork item's ticked date: the item id (as text, matching
+  /// `paperworkItems`) and the store-local date it was ticked. A manager may
+  /// edit or clear the date while the item stays ticked.
+  public type PaperworkItemDate = {
+    itemId : Text;
+    date : Common.DateOnly;
+  };
+
   /// Orientation check-off for one roadie. `uniformItems` holds the ids of
   /// checked checkbox items; `uniformCounts` holds (itemId, count) pairs for
-  /// count items. `isDemo` marks a demo check-off.
+  /// count items. `paperworkItems` holds the checked paperwork item ids as
+  /// text; `paperworkDates` holds the store-local date each ticked item was
+  /// ticked. `paidDates` holds the manager-only paid date for the Digital
+  /// Paperwork (onboarding), Policies & Procedures and Alcohol Certificate
+  /// items, keyed by item id, each optional and clearable. `paySetup` is the
+  /// pay setup choice. `isDemo` marks a demo check-off.
   public type OrientationCheckoff = {
     roadieId : Common.RoadieId;
     uniformItems : [Text];
     uniformCounts : [(Nat, Nat)];
     paperworkItems : [Text];
+    paperworkDates : [PaperworkItemDate];
+    paidDates : [(Text, ?Common.DateOnly)];
+    paySetup : PaySetup;
     shirtsCount : Nat;
     hatsCount : Nat;
     updatedAt : Common.Timestamp;
     isDemo : Bool;
   };
+
+  /// One weekly check-in entry for a roadie. Defined in `roadie.mo` (where the
+  /// roadie record uses it) and re-exported here so existing references keep
+  /// working without a circular import.
+  public type WeeklyCheckIn = Roadie.WeeklyCheckIn;
 
   /// Attendance state for one roadie at one event or shift.
   public type AttendanceState = {
@@ -156,6 +185,8 @@ module {
     /// more can't-go answers or attended-no marks. Non-zero flags the roadie
     /// "Orientation no-show risk" on My crew.
     atRiskEvents : Nat;
+    /// The roadie's weekly check-in list, newest week first.
+    checkIns : [WeeklyCheckIn];
   };
 
   /// A crew owner's "My crew" section on the Today screen: the crew name and

@@ -132,6 +132,14 @@
 - Respect demo mode the same way the existing queries do
 - Preview only; do not publish or go live
 - Change nothing outside the OQL data-access layer and its tests
+- Header logo sits on a small white rounded badge so the red logo reads on the navy header; the logo keeps its own colors and shape
+- Desktop menu tabs wrap onto a second row instead of scrolling sideways
+- Header logo sits directly on the navy header with no white badge, padding box, rounded corners or shadow; the logo keeps its own colors and shape
+- The header logo stays about as tall as the Roadie Roster title block with object-contain, and the phone menu button stays on screen at narrow widths
+- Keep every existing screen and method working
+- Keep every existing screen and method working when adding People Matrix data
+- Store only the pay setup choice, never any account or card number
+- The Coverage view is read-only and never changes pars or build-to numbers
 
 ## Accepted Requirements
 
@@ -532,37 +540,48 @@
 - Do not change field lists, types or sample values beyond what this needs
 - No new write methods; keep every screen and existing method as it is
 - Update the tests for these entities
+- Paperwork items store the date each is ticked, editable by managers
+- Manager-only paid dates for Digital Paperwork, Policies & Procedures and Alcohol Certificate
+- Pay setup choice of Direct deposit, Pay card or Not set, storing only the choice
+- Checked in button on the roadie card and in My crew saving today's date to a per-roadie weekly list
+- Whole-number weekday lunch par per position in Admin > Positions
+- 14-shift shifts-to-cover grid per position with copy and fill shortcuts
+- Coverage tab on Roster and a one-line Dashboard summary card, manager roles only
+- Fair, deterministic coverage estimate with a 5-shift-per-person cap
+- Full export onboarding, policies, alcohol and food-handler column fixes
+- People Matrix .xlsx download matching the brand file, including a Shift Coverage sheet
+- Tests added for the new features
 
 ## Verified Commands
 
-- **typecheck**: `cd src/frontend && pnpm typecheck`
-- **fix**: `cd src/frontend && pnpm fix`
-- **build**: `mops build && cd src/frontend && pnpm build`
+- **typecheck**: `pnpm typecheck`
+- **fix**: `pnpm fix`
+- **build**: `pnpm build`
 
 ## Learnings
 
-- Crew events live in src/backend/lib/crewevents.mo with mixins/crewevents-api.mo and types/crewevents.mo; the invite key is partition#eventId#roadieId text, matching the demo/real split.
-- Migration 00000034_000000.mo adds the crewEvents and eventInvites maps; adding a counter needs a distinct NewCounters type in the migration or M0170 fires.
-- MapEntity.toEntityManual takes two type args <K, V>; eventInvites is Map<Text, EventInvite> so pass <Text, CrewEvents.EventInvite>.
-- Crew event hooks use query keys crewEvents, eventCrew, upcomingEvents, atRiskRoadies; every mutation invalidates crewEvents, eventCrew, myCrew, today, dashboard, atRiskRoadies, changeLog.
-- EventAnswer and EventAttendance are generated enums; import as values and compare with EventAnswer.cantGo, not string literals.
-- EventCrewView.crewId is non-optional; pass crewId null to useEventCrew for the caller's own crew, a CrewId to pick another.
-- MyCrewRoadieRow.atRiskEvents is a bigint; the Orientation no-show risk flag shows when Number(atRiskEvents) >= 2.
-- The Dashboard at-risk row gates on canArchive (Admin, Managing Partner, Store Manager), matching the backend manager check; canEvents would wrongly exclude Store Manager.
-- The Events page classifies past and upcoming by pretendDateToInstant(demoState.pretendDate, store) to match the backend effective date.
-- handleFill now skips both selected ids and assignedElsewhere ids; it still only calls setSelected and keeps the fill-none message path.
-- atRiskEventCount in lib/crewevents.mo is the single shared helper for the Orientation no-show risk count; lib/phase23.mo getMyCrew calls it through CrewEventsLib and keeps no duplicate.
-- The at-risk count adds one per non-cancelled event when the answer is can't go OR attendance is no, and listAtRiskRoadies returns only roadies at 2 or more.
-- listCrewEvents and listUpcomingEvents fall back to all active, non-archived roadies in any crew in the active partition when the viewer leads no crew; a crew leader still sees only their own crew.
-- upcomingEvents now sits in CREW_EVENT_KEYS in hooks/useQueries.ts, so all five crew-event mutations refresh the Today Upcoming events card.
-- api-doc.mo is one long source line; grep for distinctive phrases such as 'counted once per event' confirms doc text even when reads truncate at 2,000 chars.
-- Read-only OQL entities live in src/backend/lib/oql.mo with row builders roadieRow, positionRow, pendingSignupRow, orientationSessionRow, attendanceRow, openingQuestionRow, crewEventRow, eventAnswerRow, trainerNoteRow and alertRow, plus canSee helpers canSeeManager, canSeeRoster, canSeeOpeningQuestions, canSeeRoadie and canSeeEventAnswer; main.mo includes them through the Expose mixin.
-- OQL ownedByWith canSee receives only (subject, ownerValue), not the row, so rows are withheld in the iterator via filterMap returning null and canSee is owner == subject text equality.
-- Entity.build() traps if a scoped level lacks an owner column or newScoped source, and traps if .ownedBy/.ownedByWith/.viewWith is combined with #public_.
-- mops test runs src/backend/test/*.test.mo in interpreter mode and needs no [test] section in mops.toml; a module-level let with a function call is M0014, so fixtures must be funcs.
-- mops test prints one PASS per file and did not fail on an inverted Bool assertion, so Bool-returning tests may not be enforced by the runner.
-- OQL Expose iterators take no caller, so per-row visibility must run in ownedByWith(subject, ownerValue) and the row source must be caller-free; the real query subject is the only caller available there.
-- A crew leader's crewEvent visibility needs the crews and roadies maps, so it lives in lib/oql.mo as canSeeCrewEvent rather than in the caller-free row builder.
 - Fixture grants must use a non-system approver; approvedBy = aaaaa-aa marks a grant as a demo leader and ownersOf skips it, so readiness tests silently pass with no owners.
 - Auth.effectiveRole honours the chosen demo role while demo mode is on, matching the app's existing queries; Auth.realRole ignores it.
 - api-doc.mo is one long source line; grep for distinctive phrases such as 'OQL' confirms doc text even when reads truncate at 2,000 chars.
+- OQL row owner columns are Text holding the plain record id (owner = position.id.toText()); Principal.fromText(<nat>) traps with 'blob_of_principal: principal too short' on every query.
+- MyAccessRow.owner is Text like the other 10 row types; myAccessRow(accessGrants, principal) builds one row per grant with owner = principal.toText() and .ownedBy("owner") compares #text(subject.toText()).
+- OQL canSee helpers use Auth.realRole (the caller's real, non-expired role), never Auth.effectiveRole, while rows still filter by the current demo partition.
+- main.mo no longer defines oqlSubject(); the myAccess entity builds one row per accessGrants entry instead of a fixed placeholder principal.
+- StoreLogo img appends 'w-auto max-w-[12rem]' after the caller className, so a caller max-w-* is overridden; the header wraps it in a sized span to cap width.
+- The header logo sits on a white rounded badge (bg-white, padding, rounded corners, subtle shadow) with object-contain and width auto, sized about as tall as the Roadie Roster title block; the badge is shrink-0 and the title block is min-w-0 so the app name truncates before the mobile menu button moves.
+- The desktop nav row in Layout.tsx wraps with lg:flex-wrap, lg:justify-start and a small row gap; there is no overflow-x-auto wrapper and no right-edge gradient fade on that row. The mobile dropdown below lg is unchanged.
+- The header logo in src/frontend/src/components/Layout.tsx renders directly on the navy header with no white badge; StoreLogo keeps h-12/md:h-16, object-contain and shrink-0 so the mobile menu button stays on screen.
+- The header logo uses the Admin-uploaded main logo from the backend getStoreLogo query (data URL) with its inline star fallback; no file under public/assets is wired into the header.
+- There is no npm test script in the root or frontend package.json; e2e specs live at tests/e2e/*.e2e.ts using @e2e-dev/web.
+- OrientationCheckoff carries paperworkDates (itemId, date), paidDates ([itemId, DateOnly|null]) and paySetup; paid-date items are matched by item text containing digital paperwork, policies or alcohol.
+- Weekly check-ins live in the stable map weeklyCheckIns keyed by roadie id; Roadie.checkIns is a read-only projection filled by redact/checkInsFor, and weeks run Wed-Tue so one entry per week replaces in place.
+- Position carries weekdayLunchPar : Nat and shiftsToCover : [Nat] (14 entries, Wed AM..Tue PM); COVERAGE_SHIFTS in lib/coverage.ts is the shared order source.
+- lib/coverage.mo holds the fair deterministic coverage fill with a 5-shift cap per person; getCoverage is manager-roles only and read-only.
+- lib/export.mo toRow now takes positions and checklists; onboardingComplete uses Phase23Lib.paperworkStatusWith, policies and alcohol match the roadie's own enabled item, and food handlers stays blank.
+- The People Matrix workbook is built frontend-side in lib/peopleMatrix.ts with ExcelJS; its test is lib/peopleMatrix.test.ts, run with node --experimental-transform-types plus a resolve hook mapping @/ to src and .did to declarations/backend.did.js.
+- MyCrewSection gates the row check-in on mayCheckIn || crew !== null, so a crew leader owning a crew gets the button without widening canManageCheckIns.
+- Roster tabFromSearch validates against ROSTER_VIEWS (stage tabs plus coverage), so the Dashboard ?tab=coverage deep link opens the Coverage tab.
+- Every Roadie literal in mocks/backend.ts needs checkIns: [] and every Position literal needs weekdayLunchPar and shiftsToCover.
+- useDashboardCopy() returns { t, locale }; a component using locale must destructure it or TS2304 fires.
+- exceljs getSheetValues() returns RowValues; a type predicate must narrow to CellValue[], not unknown[], to satisfy TS2677.
+- Migration 00000035 OldActor equals 00000034 NewActor; NewActor adds weeklyCheckIns and migrates Position and OrientationCheckoff defaults.

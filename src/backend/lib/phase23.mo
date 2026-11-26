@@ -557,6 +557,9 @@ module {
           uniformItems = [];
           uniformCounts = [];
           paperworkItems = [];
+          paperworkDates = [];
+          paidDates = [];
+          paySetup = #notSet;
           shirtsCount = 0;
           hatsCount = 0;
           updatedAt = 0;
@@ -610,6 +613,9 @@ module {
           uniformItems = [];
           uniformCounts = [];
           paperworkItems = [];
+          paperworkDates = [];
+          paidDates = [];
+          paySetup = #notSet;
           shirtsCount = 0;
           hatsCount = 0;
           updatedAt = 0;
@@ -658,11 +664,30 @@ module {
       };
     };
     let effectiveItems = effective.toArray();
-    // Update only the paperwork items; keep the roadie's uniform fields.
+    // Record the store-local date each newly ticked item was ticked, keep the
+    // date of an item that stays ticked, and drop the date of an item that is
+    // no longer ticked (including the cascade below an unchecked item).
+    let now = Clock.effectiveNow(demoState, storeInfo);
+    let today = Clock.localDayStart(now, storeInfo.timeZone);
+    let nextDates = List.empty<Phase23.PaperworkItemDate>();
+    for (item in applicable.values()) {
+      let id = item.id.toText();
+      if (effectiveItems.any(func(t) = t == id)) {
+        let kept = base.paperworkDates.find(func(d) = d.itemId == id);
+        let date = switch (kept) {
+          case (?d) { d.date };
+          case null { today };
+        };
+        nextDates.add({ itemId = id; date });
+      };
+    };
+    let nextPaperworkDates = nextDates.toArray();
+    // Update only the paperwork items and their dates; keep the uniform fields.
     checkoffs.add(roadieId, {
       base with
       paperworkItems = effectiveItems;
-      updatedAt = Clock.effectiveNow(demoState, storeInfo);
+      paperworkDates = nextPaperworkDates;
+      updatedAt = now;
     });
     // Record which items were checked or unchecked, by name, so the change log
     // can show the item-by-item detail instead of a bare action name.
@@ -683,6 +708,143 @@ module {
       ignore ChangeLog.recordDemoPaperwork(changeLog, counters, caller, "setPaperworkItems", ?roadieId, false, "Set paperwork items", paperworkDetail);
     } else {
       ignore ChangeLog.recordPaperwork(changeLog, counters, caller, "setPaperworkItems", ?roadieId, false, "Set paperwork items", paperworkDetail);
+    };
+  };
+
+  /// Set or clear the ticked date of one paperwork item (Admin or Store
+  /// Manager only, logged). The item must already be ticked; a date on an item
+  /// that is not ticked traps "Tick <item> first". Clearing the date removes it
+  /// while the item stays ticked. The change is recorded in the change log.
+  public func setPaperworkItemDate(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    checklists : { var value : Store.Checklists },
+    checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
+    changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
+    counters : Counters,
+    storeInfo : Store.StoreInfo,
+    caller : Principal,
+    roadieId : Common.RoadieId,
+    itemId : Text,
+    date : ?Common.DateOnly,
+  ) : () {
+    Auth.requireManager(accessGrants, demoState, caller);
+    ignore requireVisibleRoadie(roadies, demoState, roadieId);
+    let demo = Auth.demoActive(demoState);
+    let base = visibleCheckoff(checkoffs, demo, roadieId) ?? Runtime.trap("Paperwork not started");
+    if (not base.paperworkItems.any(func(t) = t == itemId)) {
+      let itemLabel = switch (checklists.value.paperwork.find(func(item) = item.id.toText() == itemId)) {
+        case (?item) { item.text };
+        case null { itemId };
+      };
+      Runtime.trap("Tick " # itemLabel # " first");
+    };
+    let kept = base.paperworkDates.filter(func(d) = d.itemId != itemId);
+    let nextDates = switch (date) {
+      case (?d) { kept.concat([{ itemId; date = d }]) };
+      case null { kept };
+    };
+    checkoffs.add(roadieId, {
+      base with
+      paperworkDates = nextDates;
+      updatedAt = Clock.effectiveNow(demoState, storeInfo);
+    });
+    let itemLabel = switch (checklists.value.paperwork.find(func(item) = item.id.toText() == itemId)) {
+      case (?item) { item.text };
+      case null { itemId };
+    };
+    let detail = switch (date) {
+      case (?_) { "Set " # itemLabel # " date" };
+      case null { "Cleared " # itemLabel # " date" };
+    };
+    logWrite(changeLog, counters, demoState, caller, "setPaperworkItemDate", ?roadieId, false, detail);
+  };
+
+  /// Set or clear the manager-only paid date for one of the Digital Paperwork
+  /// (onboarding), Policies & Procedures and Alcohol Certificate items (Admin
+  /// or Store Manager only, logged). Each date is optional and clearable; the
+  /// item id must be one of those three.
+  public func setPaperworkPaidDate(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    checklists : { var value : Store.Checklists },
+    checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
+    changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
+    counters : Counters,
+    storeInfo : Store.StoreInfo,
+    caller : Principal,
+    roadieId : Common.RoadieId,
+    itemId : Text,
+    date : ?Common.DateOnly,
+  ) : () {
+    Auth.requireManager(accessGrants, demoState, caller);
+    ignore requireVisibleRoadie(roadies, demoState, roadieId);
+    let itemLabel = paidDateLabel(checklists.value, itemId) ?? Runtime.trap("Not a paid-date item");
+    let demo = Auth.demoActive(demoState);
+    let base = visibleCheckoff(checkoffs, demo, roadieId) ?? Runtime.trap("Paperwork not started");
+    let kept = base.paidDates.filter(func(entry) = entry.0 != itemId);
+    let nextPaid = kept.concat([(itemId, date)]);
+    checkoffs.add(roadieId, {
+      base with
+      paidDates = nextPaid;
+      updatedAt = Clock.effectiveNow(demoState, storeInfo);
+    });
+    let detail = switch (date) {
+      case (?_) { "Set " # itemLabel # " paid date" };
+      case null { "Cleared " # itemLabel # " paid date" };
+    };
+    logWrite(changeLog, counters, demoState, caller, "setPaperworkPaidDate", ?roadieId, false, detail);
+  };
+
+  /// Set the pay setup choice to Direct deposit, Pay card or Not set (Admin or
+  /// Store Manager only, logged). Only the choice is stored, never any account
+  /// or card number.
+  public func setPaySetup(
+    accessGrants : Map.Map<Principal, Access.AccessGrant>,
+    demoState : Common.DemoState,
+    roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
+    checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
+    changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
+    counters : Counters,
+    storeInfo : Store.StoreInfo,
+    caller : Principal,
+    roadieId : Common.RoadieId,
+    paySetup : Phase23.PaySetup,
+  ) : () {
+    Auth.requireManager(accessGrants, demoState, caller);
+    ignore requireVisibleRoadie(roadies, demoState, roadieId);
+    let demo = Auth.demoActive(demoState);
+    let base = visibleCheckoff(checkoffs, demo, roadieId) ?? Runtime.trap("Paperwork not started");
+    checkoffs.add(roadieId, {
+      base with
+      paySetup;
+      updatedAt = Clock.effectiveNow(demoState, storeInfo);
+    });
+    let itemLabel = switch (paySetup) {
+      case (#directDeposit) { "Direct deposit" };
+      case (#payCard) { "Pay card" };
+      case (#notSet) { "Not set" };
+    };
+    logWrite(changeLog, counters, demoState, caller, "setPaySetup", ?roadieId, false, "Set pay setup: " # itemLabel);
+  };
+
+  /// Internal: the label of a paid-date item, or null when `itemId` is not one
+  /// of the three paid-date items (Digital Paperwork, Policies & Procedures,
+  /// Alcohol Certificate). Matched by the item's text so the ids stay stable
+  /// across checklist edits.
+  func paidDateLabel(checklists : Store.Checklists, itemId : Text) : ?Text {
+    switch (checklists.paperwork.find(func(item) = item.id.toText() == itemId)) {
+      case (?item) {
+        let lower = item.text.toLower();
+        if (lower.contains(#text "digital paperwork") or lower.contains(#text "policies") or lower.contains(#text "alcohol")) {
+          ?item.text;
+        } else {
+          null;
+        };
+      };
+      case null { null };
     };
   };
 
@@ -1677,6 +1839,7 @@ module {
     checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
     schedule : Map.Map<Common.EventId, Store.ScheduleEvent>,
     checkIns : Map.Map<Text, Phase23.CheckInRecord>,
+    weeklyCheckIns : Map.Map<Common.RoadieId, [Phase23.WeeklyCheckIn]>,
     crewEvents : Map.Map<Common.CrewEventId, CrewEvents.CrewEvent>,
     eventInvites : Map.Map<Text, CrewEvents.EventInvite>,
     storeInfo : Store.StoreInfo,
@@ -1729,6 +1892,7 @@ module {
               stage;
               paperworkStep = paperworkStepFor(checklists.value, positions, r, stored, stage);
               atRiskEvents = CrewEventsLib.atRiskEventCount(crewEvents, eventInvites, demo, r.id);
+              checkIns = weeklyCheckIns.get(r.id) ?? [];
             };
           })
           .toArray();
@@ -2779,6 +2943,7 @@ module {
     schedule : Map.Map<Common.EventId, Store.ScheduleEvent>,
     storeInfo : Store.StoreInfo,
     checkIns : Map.Map<Text, Phase23.CheckInRecord>,
+    weeklyCheckIns : Map.Map<Common.RoadieId, [Phase23.WeeklyCheckIn]>,
     absentAlerts : Map.Map<Common.AlertId, Phase23.AbsentAlert>,
     openingQuestions : Map.Map<Nat, OpeningQuestions.OpeningQuestion>,
     openingQuestionEmailSettings : { var value : OpeningQuestions.EmailSettings },
@@ -2807,7 +2972,7 @@ module {
     };
 
     // A crew owner gets their "My crew" section.
-    let myCrew = getMyCrew(accessGrants, demoState, crews, roadies, positions, checklists, checkoffs, schedule, checkIns, crewEvents, eventInvites, storeInfo, caller);
+    let myCrew = getMyCrew(accessGrants, demoState, crews, roadies, positions, checklists, checkoffs, schedule, checkIns, weeklyCheckIns, crewEvents, eventInvites, storeInfo, caller);
 
     // Admin, Store Manager and Training Manager get the absent alerts.
     let alerts = if (isManager) {

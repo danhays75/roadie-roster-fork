@@ -211,11 +211,13 @@ export const Position = IDL.Record({
   'defaultShirts' : IDL.Nat,
   'house' : House,
   'afterOpeningBuildTo' : IDL.Nat,
+  'weekdayLunchPar' : IDL.Nat,
   'minimumAge' : IDL.Nat,
   'code' : IDL.Text,
   'name' : IDL.Text,
   'shirtQty' : IDL.Nat,
   'shirtType' : IDL.Text,
+  'shiftsToCover' : IDL.Vec(IDL.Nat),
   'hatType' : IDL.Text,
   'hatQty' : IDL.Nat,
   'needsAlcoholCert' : IDL.Bool,
@@ -345,6 +347,42 @@ export const ContactSet = IDL.Record({
   'emergencyContactName' : IDL.Text,
   'phone' : Phone,
   'managerSignature' : IDL.Opt(SignatureRef),
+});
+export const CoverageTotals = IDL.Record({
+  'shiftsNeeded' : IDL.Nat,
+  'shortShifts' : IDL.Nat,
+  'shiftCapacity' : IDL.Nat,
+  'stillToHire' : IDL.Nat,
+});
+export const CoverageCell = IDL.Record({
+  'day' : Weekday,
+  'needed' : IDL.Nat,
+  'available' : IDL.Nat,
+  'shift' : Shift,
+  'short' : IDL.Bool,
+  'covered' : IDL.Nat,
+});
+export const ShortShift = IDL.Record({
+  'day' : Weekday,
+  'count' : IDL.Nat,
+  'shift' : Shift,
+});
+export const PositionCoverage = IDL.Record({
+  'shiftsNeeded' : IDL.Nat,
+  'hasGrid' : IDL.Bool,
+  'shortShifts' : IDL.Nat,
+  'house' : House,
+  'cells' : IDL.Vec(CoverageCell),
+  'shortShiftList' : IDL.Vec(ShortShift),
+  'positionName' : IDL.Text,
+  'positionId' : PositionId,
+  'shiftCapacity' : IDL.Nat,
+  'stillToHire' : IDL.Nat,
+});
+export const CoverageView = IDL.Record({
+  'boh' : CoverageTotals,
+  'foh' : CoverageTotals,
+  'positions' : IDL.Vec(PositionCoverage),
 });
 export const DashboardView = IDL.Record({
   'boh' : IDL.Vec(Position),
@@ -494,6 +532,7 @@ export const RosterState = IDL.Variant({
   'active' : IDL.Null,
   'pending' : IDL.Null,
 });
+export const WeeklyCheckIn = IDL.Record({ 'at' : Timestamp });
 export const MyCrewRoadieRow = IDL.Record({
   'demoPhotoUrl' : IDL.Opt(IDL.Text),
   'roadieId' : RoadieId,
@@ -508,6 +547,7 @@ export const MyCrewRoadieRow = IDL.Record({
   'paperworkStep' : IDL.Opt(IDL.Text),
   'paperworkTotal' : IDL.Nat,
   'absentToday' : IDL.Bool,
+  'checkIns' : IDL.Vec(WeeklyCheckIn),
   'photo' : IDL.Opt(PhotoRef),
 });
 export const MyCrewView = IDL.Record({
@@ -629,12 +669,24 @@ export const ProgressSummary = IDL.Record({
   'openSuggestions' : IDL.Nat,
   'sections' : IDL.Vec(SectionProgress),
 });
+export const PaySetup = IDL.Variant({
+  'directDeposit' : IDL.Null,
+  'notSet' : IDL.Null,
+  'payCard' : IDL.Null,
+});
+export const PaperworkItemDate = IDL.Record({
+  'itemId' : IDL.Text,
+  'date' : DateOnly,
+});
 export const OrientationCheckoff = IDL.Record({
   'hatsCount' : IDL.Nat,
   'roadieId' : RoadieId,
+  'paySetup' : PaySetup,
   'uniformCounts' : IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Nat)),
   'paperworkItems' : IDL.Vec(IDL.Text),
   'isDemo' : IDL.Bool,
+  'paperworkDates' : IDL.Vec(PaperworkItemDate),
+  'paidDates' : IDL.Vec(IDL.Tuple(IDL.Text, IDL.Opt(DateOnly))),
   'updatedAt' : Timestamp,
   'uniformItems' : IDL.Vec(IDL.Text),
   'shirtsCount' : IDL.Nat,
@@ -720,6 +772,7 @@ export const Roadie = IDL.Record({
   'birthdayMonthDay' : IDL.Opt(IDL.Text),
   'paperworkStep' : IDL.Opt(IDL.Text),
   'isMinor' : IDL.Bool,
+  'checkIns' : IDL.Vec(WeeklyCheckIn),
   'archivedReason' : IDL.Opt(ArchiveReason),
   'photo' : IDL.Opt(PhotoRef),
   'hiredAt' : Timestamp,
@@ -1231,6 +1284,7 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'checkInRoadie' : IDL.Func([RoadieId], [], []),
   'checkKioskPin' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
   'clearDemoData' : IDL.Func([], [DemoDataSummary], []),
   'clearFinalSignOff' : IDL.Func([RoadieId], [], []),
@@ -1270,6 +1324,7 @@ export const idlService = IDL.Service({
     ),
   'getChecklists' : IDL.Func([], [Checklists], ['query']),
   'getContactSet' : IDL.Func([RoadieId], [IDL.Vec(ContactSet)], ['query']),
+  'getCoverage' : IDL.Func([], [CoverageView], ['query']),
   'getDashboard' : IDL.Func([], [DashboardView], ['query']),
   'getDemoDataSummary' : IDL.Func([], [DemoDataSummary], ['query']),
   'getDemoState' : IDL.Func([], [DemoStateView], ['query']),
@@ -1496,7 +1551,18 @@ export const idlService = IDL.Service({
       [],
     ),
   'setOpeningQuestionFinishBy' : IDL.Func([IDL.Opt(DateOnly)], [], []),
+  'setPaperworkItemDate' : IDL.Func(
+      [RoadieId, IDL.Text, IDL.Opt(DateOnly)],
+      [],
+      [],
+    ),
   'setPaperworkItems' : IDL.Func([RoadieId, IDL.Vec(IDL.Text)], [], []),
+  'setPaperworkPaidDate' : IDL.Func(
+      [RoadieId, IDL.Text, IDL.Opt(DateOnly)],
+      [],
+      [],
+    ),
+  'setPaySetup' : IDL.Func([RoadieId, PaySetup], [], []),
   'setPretendDate' : IDL.Func([IDL.Opt(PretendDate)], [DemoActionResult], []),
   'submitSignup' : IDL.Func(
       [RoadieProfile, IDL.Opt(PhotoRef), IDL.Opt(SignatureRef), ContactSet],
@@ -1738,11 +1804,13 @@ export const idlFactory = ({ IDL }) => {
     'defaultShirts' : IDL.Nat,
     'house' : House,
     'afterOpeningBuildTo' : IDL.Nat,
+    'weekdayLunchPar' : IDL.Nat,
     'minimumAge' : IDL.Nat,
     'code' : IDL.Text,
     'name' : IDL.Text,
     'shirtQty' : IDL.Nat,
     'shirtType' : IDL.Text,
+    'shiftsToCover' : IDL.Vec(IDL.Nat),
     'hatType' : IDL.Text,
     'hatQty' : IDL.Nat,
     'needsAlcoholCert' : IDL.Bool,
@@ -1869,6 +1937,42 @@ export const idlFactory = ({ IDL }) => {
     'emergencyContactName' : IDL.Text,
     'phone' : Phone,
     'managerSignature' : IDL.Opt(SignatureRef),
+  });
+  const CoverageTotals = IDL.Record({
+    'shiftsNeeded' : IDL.Nat,
+    'shortShifts' : IDL.Nat,
+    'shiftCapacity' : IDL.Nat,
+    'stillToHire' : IDL.Nat,
+  });
+  const CoverageCell = IDL.Record({
+    'day' : Weekday,
+    'needed' : IDL.Nat,
+    'available' : IDL.Nat,
+    'shift' : Shift,
+    'short' : IDL.Bool,
+    'covered' : IDL.Nat,
+  });
+  const ShortShift = IDL.Record({
+    'day' : Weekday,
+    'count' : IDL.Nat,
+    'shift' : Shift,
+  });
+  const PositionCoverage = IDL.Record({
+    'shiftsNeeded' : IDL.Nat,
+    'hasGrid' : IDL.Bool,
+    'shortShifts' : IDL.Nat,
+    'house' : House,
+    'cells' : IDL.Vec(CoverageCell),
+    'shortShiftList' : IDL.Vec(ShortShift),
+    'positionName' : IDL.Text,
+    'positionId' : PositionId,
+    'shiftCapacity' : IDL.Nat,
+    'stillToHire' : IDL.Nat,
+  });
+  const CoverageView = IDL.Record({
+    'boh' : CoverageTotals,
+    'foh' : CoverageTotals,
+    'positions' : IDL.Vec(PositionCoverage),
   });
   const DashboardView = IDL.Record({
     'boh' : IDL.Vec(Position),
@@ -2015,6 +2119,7 @@ export const idlFactory = ({ IDL }) => {
     'active' : IDL.Null,
     'pending' : IDL.Null,
   });
+  const WeeklyCheckIn = IDL.Record({ 'at' : Timestamp });
   const MyCrewRoadieRow = IDL.Record({
     'demoPhotoUrl' : IDL.Opt(IDL.Text),
     'roadieId' : RoadieId,
@@ -2029,6 +2134,7 @@ export const idlFactory = ({ IDL }) => {
     'paperworkStep' : IDL.Opt(IDL.Text),
     'paperworkTotal' : IDL.Nat,
     'absentToday' : IDL.Bool,
+    'checkIns' : IDL.Vec(WeeklyCheckIn),
     'photo' : IDL.Opt(PhotoRef),
   });
   const MyCrewView = IDL.Record({
@@ -2150,12 +2256,24 @@ export const idlFactory = ({ IDL }) => {
     'openSuggestions' : IDL.Nat,
     'sections' : IDL.Vec(SectionProgress),
   });
+  const PaySetup = IDL.Variant({
+    'directDeposit' : IDL.Null,
+    'notSet' : IDL.Null,
+    'payCard' : IDL.Null,
+  });
+  const PaperworkItemDate = IDL.Record({
+    'itemId' : IDL.Text,
+    'date' : DateOnly,
+  });
   const OrientationCheckoff = IDL.Record({
     'hatsCount' : IDL.Nat,
     'roadieId' : RoadieId,
+    'paySetup' : PaySetup,
     'uniformCounts' : IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Nat)),
     'paperworkItems' : IDL.Vec(IDL.Text),
     'isDemo' : IDL.Bool,
+    'paperworkDates' : IDL.Vec(PaperworkItemDate),
+    'paidDates' : IDL.Vec(IDL.Tuple(IDL.Text, IDL.Opt(DateOnly))),
     'updatedAt' : Timestamp,
     'uniformItems' : IDL.Vec(IDL.Text),
     'shirtsCount' : IDL.Nat,
@@ -2241,6 +2359,7 @@ export const idlFactory = ({ IDL }) => {
     'birthdayMonthDay' : IDL.Opt(IDL.Text),
     'paperworkStep' : IDL.Opt(IDL.Text),
     'isMinor' : IDL.Bool,
+    'checkIns' : IDL.Vec(WeeklyCheckIn),
     'archivedReason' : IDL.Opt(ArchiveReason),
     'photo' : IDL.Opt(PhotoRef),
     'hiredAt' : Timestamp,
@@ -2749,6 +2868,7 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'checkInRoadie' : IDL.Func([RoadieId], [], []),
     'checkKioskPin' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
     'clearDemoData' : IDL.Func([], [DemoDataSummary], []),
     'clearFinalSignOff' : IDL.Func([RoadieId], [], []),
@@ -2792,6 +2912,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getChecklists' : IDL.Func([], [Checklists], ['query']),
     'getContactSet' : IDL.Func([RoadieId], [IDL.Vec(ContactSet)], ['query']),
+    'getCoverage' : IDL.Func([], [CoverageView], ['query']),
     'getDashboard' : IDL.Func([], [DashboardView], ['query']),
     'getDemoDataSummary' : IDL.Func([], [DemoDataSummary], ['query']),
     'getDemoState' : IDL.Func([], [DemoStateView], ['query']),
@@ -3034,7 +3155,18 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'setOpeningQuestionFinishBy' : IDL.Func([IDL.Opt(DateOnly)], [], []),
+    'setPaperworkItemDate' : IDL.Func(
+        [RoadieId, IDL.Text, IDL.Opt(DateOnly)],
+        [],
+        [],
+      ),
     'setPaperworkItems' : IDL.Func([RoadieId, IDL.Vec(IDL.Text)], [], []),
+    'setPaperworkPaidDate' : IDL.Func(
+        [RoadieId, IDL.Text, IDL.Opt(DateOnly)],
+        [],
+        [],
+      ),
+    'setPaySetup' : IDL.Func([RoadieId, PaySetup], [], []),
     'setPretendDate' : IDL.Func([IDL.Opt(PretendDate)], [DemoActionResult], []),
     'submitSignup' : IDL.Func(
         [RoadieProfile, IDL.Opt(PhotoRef), IDL.Opt(SignatureRef), ContactSet],

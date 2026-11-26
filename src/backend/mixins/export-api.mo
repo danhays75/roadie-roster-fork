@@ -12,6 +12,7 @@ mixin (
   accessGrants : Map.Map<Principal, Access.AccessGrant>,
   roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
   positions : Map.Map<Common.PositionId, Store.Position>,
+  checklists : { var value : Store.Checklists },
   checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
   changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
   counters : ExportLib.Counters,
@@ -19,11 +20,11 @@ mixin (
 ) {
   /// Build the Shareable export (no contact set).
   public query ({ caller }) func buildShareableExport() : async Export.ExportData {
-    ExportLib.buildShareableExport(accessGrants, demoState, roadies, positions, checkoffs, caller);
+    ExportLib.buildShareableExport(accessGrants, demoState, roadies, positions, checklists.value, checkoffs, caller);
   };
 
   /// Build the Full export including contact set (Admin/Store Manager only).
   public shared ({ caller }) func buildFullExport() : async Export.ExportData {
-    ExportLib.buildFullExport(accessGrants, demoState, roadies, positions, checkoffs, changeLog, counters, caller);
+    ExportLib.buildFullExport(accessGrants, demoState, roadies, positions, checklists.value, checkoffs, changeLog, counters, caller);
   };
 };

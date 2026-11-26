@@ -72,6 +72,19 @@ export interface AdminCopy {
   positionsDeleteTitle: string;
   positionsDeleteBody: string;
   positionsDeleteBlocked: string;
+  positionsCoverageTitle: string;
+  positionsCoverageHint: string;
+  positionsWeekdayLunchPar: string;
+  positionsShiftsToCover: string;
+  positionsShiftLabel: string;
+  positionsCopyFrom: string;
+  positionsCopyFromPlaceholder: string;
+  positionsCopyButton: string;
+  positionsFillValue: string;
+  positionsFillWeekdayAm: string;
+  positionsFillWeekdayPm: string;
+  positionsFillWeekend: string;
+  positionsCoverageSummary: string;
 
   scheduleTitle: string;
   scheduleDescription: string;
@@ -293,6 +306,20 @@ const en: AdminCopy = {
   positionsDeleteBody: "Delete {name}? This cannot be undone.",
   positionsDeleteBlocked:
     "This position has active roadies and cannot be deleted.",
+  positionsCoverageTitle: "Lunch par and shifts to cover",
+  positionsCoverageHint:
+    "How many people this position needs on the floor each shift. Enter 0 for shifts it does not cover.",
+  positionsWeekdayLunchPar: "Weekday lunch par",
+  positionsShiftsToCover: "Shifts to cover",
+  positionsShiftLabel: "{day} {shift}",
+  positionsCopyFrom: "Copy from another position",
+  positionsCopyFromPlaceholder: "Choose a position",
+  positionsCopyButton: "Copy grid",
+  positionsFillValue: "Value to fill",
+  positionsFillWeekdayAm: "Fill weekday AM",
+  positionsFillWeekdayPm: "Fill weekday PM",
+  positionsFillWeekend: "Fill weekend",
+  positionsCoverageSummary: "Lunch par {par} · {shifts} shifts covered",
 
   scheduleTitle: "Opening schedule",
   scheduleDescription:
@@ -536,6 +563,20 @@ const es: AdminCopy = {
   positionsDeleteBody: "¿Eliminar {name}? No se puede deshacer.",
   positionsDeleteBlocked:
     "Este puesto tiene roadies activos y no se puede eliminar.",
+  positionsCoverageTitle: "Par de almuerzo y turnos a cubrir",
+  positionsCoverageHint:
+    "Cuántas personas necesita este puesto en el piso en cada turno. Ingresa 0 en los turnos que no cubre.",
+  positionsWeekdayLunchPar: "Par de almuerzo entre semana",
+  positionsShiftsToCover: "Turnos a cubrir",
+  positionsShiftLabel: "{day} {shift}",
+  positionsCopyFrom: "Copiar de otro puesto",
+  positionsCopyFromPlaceholder: "Elige un puesto",
+  positionsCopyButton: "Copiar cuadrícula",
+  positionsFillValue: "Valor a rellenar",
+  positionsFillWeekdayAm: "Rellenar AM entre semana",
+  positionsFillWeekdayPm: "Rellenar PM entre semana",
+  positionsFillWeekend: "Rellenar fin de semana",
+  positionsCoverageSummary: "Par de almuerzo {par} · {shifts} turnos cubiertos",
 
   scheduleTitle: "Calendario de apertura",
   scheduleDescription:

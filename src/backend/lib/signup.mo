@@ -265,6 +265,7 @@ module {
       isDemo = submission.isDemo;
       stage = null;
       paperworkStep = null;
+      checkIns = [];
     });
     signups.add(id, { submission with status = #approved(roadieId) });
     logWrite(changeLog, counters, demoState, caller, "approveSignup", ?roadieId, true, "Approved signup");

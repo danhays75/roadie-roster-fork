@@ -103,6 +103,8 @@ const position = {
   hatType: "",
   hatQty: 0n,
   needsAlcoholCert: false,
+  weekdayLunchPar: 0n,
+  shiftsToCover: [],
 };
 
 export const mockBackend = {
@@ -198,6 +200,7 @@ export const mockBackend = {
       rosterState: "active" as never,
       isMinor: false,
       hiredAt: 0n,
+      checkIns: [],
       profile: { name: "Avery Brooks", preferredName: "Avery" },
     },
     {
@@ -208,6 +211,7 @@ export const mockBackend = {
       rosterState: "active" as never,
       isMinor: false,
       hiredAt: 0n,
+      checkIns: [],
       profile: { name: "Sam Okafor", preferredName: "Sam" },
     },
     {
@@ -218,6 +222,7 @@ export const mockBackend = {
       rosterState: "active" as never,
       isMinor: false,
       hiredAt: 0n,
+      checkIns: [],
       profile: { name: "Riley Chen", preferredName: "Riley" },
     },
     {
@@ -228,6 +233,7 @@ export const mockBackend = {
       rosterState: "active" as never,
       isMinor: false,
       hiredAt: 0n,
+      checkIns: [],
       profile: { name: "Jordan Rivera", preferredName: "Jordan" },
     },
     {
@@ -238,6 +244,7 @@ export const mockBackend = {
       rosterState: "active" as never,
       isMinor: false,
       hiredAt: 0n,
+      checkIns: [],
       profile: { name: "Casey Nguyen", preferredName: "Casey" },
     },
     {
@@ -248,6 +255,7 @@ export const mockBackend = {
       rosterState: "active" as never,
       isMinor: false,
       hiredAt: 0n,
+      checkIns: [],
       profile: { name: "Morgan Ellis", preferredName: "Morgan" },
     },
   ],

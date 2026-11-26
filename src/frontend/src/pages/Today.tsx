@@ -47,6 +47,7 @@ import {
   useRealAccessGrant,
 } from "@/hooks/useAccess";
 import {
+  useCheckInRoadie,
   useDemoState,
   useDismissGroupChangeNotice,
   useGroupChangeNotices,
@@ -324,33 +325,114 @@ function GroupRoadieCard({
 }
 
 /**
+ * The Checked in button for one My crew row: saves today's store-local date and
+ * time to that roadie's weekly check-in list and shows the most recent check-in
+ * date beside it. Rendered only for a role that may check this roadie in.
+ */
+function CrewCheckInControl({
+  roadieId,
+  checkIns,
+  index,
+  name,
+  timeZone,
+}: {
+  roadieId: MyCrewRoadieRow["roadieId"];
+  checkIns: MyCrewRoadieRow["checkIns"];
+  index: number;
+  name: string;
+  timeZone: string | undefined;
+}) {
+  const { t } = useDashboardCopy();
+  const checkIn = useCheckInRoadie();
+  const [error, setError] = useState<string | null>(null);
+  const latest = checkIns[0];
+
+  return (
+    <div className="flex flex-col gap-1 border-t border-border px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span
+          data-ocid={`today.myCrew.item.${index}.check_in_last`}
+          className="min-w-0 truncate text-xs text-muted-foreground"
+        >
+          {latest
+            ? t("today.checkIn.last", {
+                date: formatTimestamp(latest.at, timeZone),
+              })
+            : t("today.checkIn.none")}
+        </span>
+        <Button
+          type="button"
+          size="sm"
+          className="touch-target"
+          aria-label={t("today.checkIn.checkedInFor", { name })}
+          data-ocid={`today.myCrew.item.${index}.check_in_button`}
+          disabled={checkIn.isPending}
+          onClick={() => {
+            setError(null);
+            checkIn.mutate(roadieId, {
+              onError: (err) =>
+                setError(
+                  err instanceof Error ? err.message : t("today.checkIn.error"),
+                ),
+            });
+          }}
+        >
+          {checkIn.isPending ? (
+            <Loader2
+              className="mr-1.5 h-4 w-4 animate-spin"
+              aria-hidden="true"
+            />
+          ) : (
+            <CheckCircle2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
+          )}
+          {t("today.checkIn.checkedIn")}
+        </Button>
+      </div>
+      {error && (
+        <p className="text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
  * One roadie in the caller's crew: photo, name, position, Pending/Active
  * status and paperwork "x of y", with a red "Absent today" tag when the roadie
  * is absent today and a red "Paperwork overdue" tag when their paperwork is
  * incomplete after the due date. Tapping the row opens the shared card pop-up.
- * No contact information is shown here.
+ * A role that may check this roadie in also gets a Checked in button with the
+ * most recent check-in date. No contact information is shown here.
  */
 function MyCrewRow({
   row,
   index,
   onOpen,
+  mayCheckIn,
+  timeZone,
 }: {
   row: MyCrewRoadieRow;
   index: number;
   onOpen: () => void;
+  mayCheckIn: boolean;
+  timeZone: string | undefined;
 }) {
   const { t } = useDashboardCopy();
   const atRiskEvents = Number(row.atRiskEvents);
   const atRisk = atRiskEvents >= 2;
 
   return (
-    <li data-ocid={`today.myCrew.item.${index}`}>
+    <li
+      data-ocid={`today.myCrew.item.${index}`}
+      className="overflow-hidden rounded-lg border border-border bg-card shadow-subtle transition-smooth hover:border-primary/40 hover:shadow-elevated"
+    >
       <button
         type="button"
         data-ocid={`today.myCrew.item.${index}.link`}
         onClick={onOpen}
         aria-label={`Open ${row.name}'s card`}
-        className="group flex min-h-[44px] w-full items-center gap-3 rounded-lg border border-border bg-card p-3 text-left shadow-subtle transition-smooth hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="group flex min-h-[44px] w-full items-center gap-3 p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <RoadiePhoto
           id={row.roadieId}
@@ -431,6 +513,15 @@ function MyCrewRow({
           aria-hidden="true"
         />
       </button>
+      {mayCheckIn && (
+        <CrewCheckInControl
+          roadieId={row.roadieId}
+          checkIns={row.checkIns}
+          index={index}
+          name={row.name}
+          timeZone={timeZone}
+        />
+      )}
     </li>
   );
 }
@@ -443,10 +534,20 @@ function MyCrewRow({
  * section renders nothing when the caller owns no crew, so it is safe to mount
  * for any role.
  */
-function MyCrewSection() {
+function MyCrewSection({ mayCheckIn }: { mayCheckIn: boolean }) {
   const { data: crew, isLoading, isError, refetch } = useMyCrew();
   const { data: allRoadies } = useRoadies();
+  const { data: store } = useStoreInfo();
   const [cardIndex, setCardIndex] = useState<number | null>(null);
+
+  // The six manager roles may check in any roadie; a crew leader only roadies
+  // in their own crew. This section only lists the caller's own crew, so a
+  // crew leader's rows are always their own crew's roadies. The caller passes
+  // the role-derived flag so the section never re-derives it.
+
+  // A crew leader who is not one of the six manager roles still checks in their
+  // own crew's roadies, so the button shows whenever the caller owns a crew.
+  const mayCheckInRows = mayCheckIn || crew !== null;
 
   const roadieById = useMemo(() => {
     const map = new Map<string, Roadie>();
@@ -512,6 +613,8 @@ function MyCrewSection() {
               key={row.roadieId.toString()}
               row={row}
               index={index}
+              mayCheckIn={mayCheckInRows}
+              timeZone={store?.timeZone}
               onOpen={() =>
                 setCardIndex(
                   entryIndexById.get(row.roadieId.toString()) ?? null,
@@ -1498,7 +1601,7 @@ function ManagerToday({
       <NudgeAlertCard />
       <ReadyForFinalAlertCard />
 
-      <MyCrewSection />
+      <MyCrewSection mayCheckIn={mayCheckIn} />
 
       <UpcomingEventsCard />
 

@@ -11,6 +11,7 @@ type _ImmutableObjectStorageCreateCertificateResult =
    blob_hash: text;
    method: text;
  };
+type WeeklyCheckIn = record {at: Timestamp;};
 type Weekday = 
  variant {
    fri;
@@ -320,6 +321,12 @@ type SignOffOutcome =
    certified;
    needsMoreTime: text;
  };
+type ShortShift = 
+ record {
+   count: nat;
+   day: Weekday;
+   shift: Shift;
+ };
 type ShirtSize = text;
 type ShiftCheckInSummary = 
  record {
@@ -468,6 +475,7 @@ type Roadie =
    archivedAt: opt Timestamp;
    archivedReason: opt ArchiveReason;
    birthdayMonthDay: opt text;
+   checkIns: vec WeeklyCheckIn;
    contactSet: opt ContactSet;
    corporateEmployeeId: opt text;
    crewId: opt CrewId;
@@ -588,6 +596,19 @@ type PretendDate =
    shift: DemoShift;
  };
 type PositionId = nat;
+type PositionCoverage = 
+ record {
+   cells: vec CoverageCell;
+   hasGrid: bool;
+   house: House;
+   positionId: PositionId;
+   positionName: text;
+   shiftCapacity: nat;
+   shiftsNeeded: nat;
+   shortShiftList: vec ShortShift;
+   shortShifts: nat;
+   stillToHire: nat;
+ };
 type Position = 
  record {
    afterOpeningBuildTo: nat;
@@ -602,8 +623,10 @@ type Position =
    name: text;
    needsAlcoholCert: bool;
    openingBuildTo: nat;
+   shiftsToCover: vec nat;
    shirtQty: nat;
    shirtType: text;
+   weekdayLunchPar: nat;
  };
 type PhotoRef = blob;
 type Phone = text;
@@ -619,10 +642,21 @@ type PendingRequestSummary =
    hasProfile: bool;
    requestedAt: Timestamp;
  };
+type PaySetup = 
+ variant {
+   directDeposit;
+   notSet;
+   payCard;
+ };
 type PaperworkStatus = 
  variant {
    complete;
    incomplete;
+ };
+type PaperworkItemDate = 
+ record {
+   date: DateOnly;
+   itemId: text;
  };
 type OwnerView = 
  record {
@@ -674,7 +708,13 @@ type OrientationCheckoff =
  record {
    hatsCount: nat;
    isDemo: bool;
+   paidDates: vec record {
+                    text;
+                    opt DateOnly;
+                  };
+   paperworkDates: vec PaperworkItemDate;
    paperworkItems: vec text;
+   paySetup: PaySetup;
    roadieId: RoadieId;
    shirtsCount: nat;
    uniformCounts: vec record {
@@ -734,6 +774,7 @@ type MyCrewRoadieRow =
  record {
    absentToday: bool;
    atRiskEvents: nat;
+   checkIns: vec WeeklyCheckIn;
    demoPhotoUrl: opt text;
    name: text;
    paperworkDone: nat;
@@ -1142,6 +1183,28 @@ type Crew =
    leaderPrincipal: opt principal;
    name: text;
  };
+type CoverageView = 
+ record {
+   boh: CoverageTotals;
+   foh: CoverageTotals;
+   positions: vec PositionCoverage;
+ };
+type CoverageTotals = 
+ record {
+   shiftCapacity: nat;
+   shiftsNeeded: nat;
+   shortShifts: nat;
+   stillToHire: nat;
+ };
+type CoverageCell = 
+ record {
+   available: nat;
+   covered: nat;
+   day: Weekday;
+   needed: nat;
+   shift: Shift;
+   short: bool;
+ };
 type ContactSet = 
  record {
    availability: vec AvailabilitySlot;
@@ -1394,6 +1457,10 @@ service : {
   /// Change a roadie's position or crew (Admin/Store Manager only).
   changePosition: (id: RoadieId, mainPositionId: PositionId,
    secondPositionId: opt PositionId, crewId: opt CrewId) -> ();
+  /// Check a roadie in for this week, saving the current store-local date and
+  /// time to their weekly check-in list (one entry per week). Managers may
+  /// check in any roadie; a crew leader only roadies in their own crew.
+  checkInRoadie: (id: RoadieId) -> ();
   /// Check a candidate kiosk PIN. Returns true when it matches the stored hash.
   checkKioskPin: (pin: text) -> (bool) query;
   /// Remove every demo record (Admin, demo mode only). Real records are never
@@ -1468,6 +1535,12 @@ service : {
   /// Read a roadie's contact set. Admin and Store Manager receive the contact
   /// set; every other read-capable role receives an empty array.
   getContactSet: (id: RoadieId) -> (vec ContactSet) query;
+  /// Read the read-only shift coverage view: per position, the 14 shifts in
+  /// Wed AM … Tue PM order with Needed, Available and Covered counts, plus the
+  /// weekly totals, short shifts, still-to-hire and named short shifts, and the
+  /// FOH and BOH totals. Manager roles only (Admin, Managing Partner, Store
+  /// Manager, Training Manager, Kitchen Manager, Service Manager).
+  getCoverage: () -> (CoverageView) query;
   /// Dashboard summary tiles and per-position progress, including the
   /// pending/active breakdown and the Hired → Active funnel.
   getDashboard: () -> (DashboardView) query;
@@ -1785,9 +1858,22 @@ service : {
    vec RoadieId) -> ();
   /// Set or clear the Finish-by date (Managing Partner and Admins only).
   setOpeningQuestionFinishBy: (finishBy: opt DateOnly) -> ();
+  /// Set or clear the ticked date of one paperwork item (Admin or Store
+  /// Manager only, logged). The item must already be ticked; clearing the date
+  /// keeps the item ticked.
+  setPaperworkItemDate: (roadieId: RoadieId, itemId: text, date:
+   opt DateOnly) -> ();
   /// Set the paperwork items for a roadie (Admin or Store Manager only, logged).
   /// Updates only `paperworkItems` and keeps the uniform fields.
   setPaperworkItems: (roadieId: RoadieId, paperworkItems: vec text) -> ();
+  /// Set or clear the manager-only paid date for the Digital Paperwork
+  /// (onboarding), Policies & Procedures or Alcohol Certificate item (Admin or
+  /// Store Manager only, logged).
+  setPaperworkPaidDate: (roadieId: RoadieId, itemId: text, date:
+   opt DateOnly) -> ();
+  /// Set the pay setup choice to Direct deposit, Pay card or Not set (Admin or
+  /// Store Manager only, logged). Only the choice is stored.
+  setPaySetup: (roadieId: RoadieId, paySetup: PaySetup) -> ();
   /// Set or clear the pretend "now" used while demo mode is on. Null restores
   /// the real clock.
   setPretendDate: (pretendDate: opt PretendDate) -> (DemoActionResult);

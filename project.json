@@ -1,20 +1,19 @@
 {
-  "overview": "A hiring and onboarding roster for a store's roadie crew, with sign-ups, paperwork, orientation, training groups, crews, events and manager reporting.",
+  "overview": "A hiring and orientation roster for a restaurant, now with People Matrix data, a shift coverage estimate and a matching Excel download.",
   "features": [
-    "Track roadies from sign-up through paperwork, orientation and certification",
-    "Approve new hires and manage roles and access",
-    "Build training groups and shift boards",
-    "Organize crews, crew events and RSVP answers",
-    "Opening Questions review with approvals and history",
-    "Read-only data access for an AI assistant, scoped to each person's real role"
+    "Record the date each paperwork item is ticked, plus paid dates and a pay setup choice",
+    "Check a roadie in from their card or from My crew",
+    "Set a weekday lunch par and a 14-shift coverage grid per position",
+    "See a Coverage tab and Dashboard summary of shifts needed, capacity and still to hire",
+    "Download a People Matrix workbook laid out like the brand form"
   ],
-  "category": "team-management",
+  "category": "staffing-roster",
   "tags": [
-    "roster",
+    "restaurant",
     "hiring",
-    "onboarding",
-    "staffing",
-    "retail"
+    "roster",
+    "coverage",
+    "excel"
   ],
-  "last_updated": "2026-11-25T10:34:08.025Z"
+  "last_updated": "2026-11-25T19:40:09.257Z"
 }

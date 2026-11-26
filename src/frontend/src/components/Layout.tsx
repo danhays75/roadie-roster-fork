@@ -107,7 +107,7 @@ function NavLinks({
 
   return (
     <nav aria-label="Primary" className={className}>
-      <ul className="flex flex-col gap-1 lg:w-full lg:flex-row lg:flex-nowrap lg:items-center lg:justify-between lg:gap-1">
+      <ul className="flex flex-col gap-1 lg:w-full lg:flex-row lg:flex-wrap lg:items-center lg:justify-start lg:gap-x-1 lg:gap-y-1">
         {NAV_ITEMS.filter((item) => canSeeNavItem(item, role))
           .slice()
           .sort((a, b) => navRank(a.to) - navRank(b.to))
@@ -181,7 +181,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               data-ocid="header.home_link"
               className="flex min-w-0 items-center gap-3"
             >
-              <StoreLogo className="h-14 w-14 md:h-[72px] md:w-[72px]" />
+              <StoreLogo className="h-12 w-auto max-w-[7rem] shrink-0 object-contain md:h-16 md:max-w-[9rem]" />
               <span className="min-w-0">
                 <span className="block font-display text-xl font-bold uppercase leading-none tracking-wide md:text-2xl">
                   {t("app.name")}
@@ -218,17 +218,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Row 2: the desktop navigation on its own full-width row. It stays
-              on one line and scrolls horizontally with a subtle edge fade when
-              the links do not fit. */}
-          <div className="relative mt-3 hidden lg:block">
-            <div className="overflow-x-auto">
-              <NavLinks className="w-full" />
-            </div>
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-secondary to-transparent"
-            />
+          {/* Row 2: the desktop navigation on its own full-width row. The links
+              wrap onto a second row, start-aligned, when they do not fit. */}
+          <div className="mt-3 hidden lg:block">
+            <NavLinks className="w-full" />
           </div>
         </div>
 

@@ -1,6 +1,13 @@
 import Common "common";
 
 module {
+  /// One weekly check-in entry for a roadie: the store-local date and time of
+  /// the check-in. One entry per week; a later check-in in the same week
+  /// replaces that week's entry.
+  public type WeeklyCheckIn = {
+    at : Common.Timestamp;
+  };
+
   /// The lifecycle status of a roadie card.
   public type RoadieStatus = {
     #hired;
@@ -135,6 +142,9 @@ module {
     /// stage and for an archived roadie. Drives the in-between stage tag; the
     /// frontend appends the check mark.
     paperworkStep : ?Text;
+    /// The roadie's weekly check-in list, newest week first. One entry per
+    /// week; a later check-in in the same week replaces that week's entry.
+    checkIns : [WeeklyCheckIn];
   };
 
   /// A crew. `leaderPrincipal` is the approved manager who owns the crew, or

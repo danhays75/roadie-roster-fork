@@ -737,6 +737,7 @@ module {
         isDemo = true;
         stage = null;
         paperworkStep = null;
+        checkIns = [];
       });
       // Paperwork check-off for every non-archived roadie. No uniform
       // check-offs, no orientation attendance and no check-ins are seeded.
@@ -746,6 +747,9 @@ module {
           uniformItems = [];
           uniformCounts = [];
           paperworkItems;
+          paperworkDates = [];
+          paidDates = [];
+          paySetup = #notSet;
           shirtsCount = 0;
           hatsCount = 0;
           updatedAt = now;

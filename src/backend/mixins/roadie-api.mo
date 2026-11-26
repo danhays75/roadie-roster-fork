@@ -23,15 +23,16 @@ mixin (
   groupChangeNotices : Map.Map<Nat, Phase23.GroupChangeNotice>,
   storeInfo : { var value : Store.StoreInfo },
   finalSignOffs : Map.Map<Common.RoadieId, Phase23.FinalSignOff>,
+  weeklyCheckIns : Map.Map<Common.RoadieId, [Phase23.WeeklyCheckIn]>,
 ) {
   /// List roadie cards visible to the caller.
   public query ({ caller }) func listRoadies() : async [Roadie.Roadie] {
-    RoadieLib.listRoadies(accessGrants, demoState, roadies, storeInfo.value, checklists, positions, orientationCheckoffs, checkIns, schedule, caller);
+    RoadieLib.listRoadies(accessGrants, demoState, roadies, storeInfo.value, checklists, positions, orientationCheckoffs, checkIns, schedule, weeklyCheckIns, caller);
   };
 
   /// Read one roadie card.
   public query ({ caller }) func getRoadie(id : Common.RoadieId) : async ?Roadie.Roadie {
-    RoadieLib.getRoadie(accessGrants, demoState, roadies, storeInfo.value, checklists, positions, orientationCheckoffs, checkIns, schedule, caller, id);
+    RoadieLib.getRoadie(accessGrants, demoState, roadies, storeInfo.value, checklists, positions, orientationCheckoffs, checkIns, schedule, weeklyCheckIns, caller, id);
   };
 
   /// Read a roadie's photo bytes by id, for a caller allowed to see the roadie.
@@ -42,7 +43,14 @@ mixin (
 
   /// List the roster for one position.
   public query ({ caller }) func listRosterForPosition(positionId : Common.PositionId) : async [Roadie.Roadie] {
-    RoadieLib.listRosterForPosition(accessGrants, demoState, roadies, storeInfo.value, checklists, positions, orientationCheckoffs, checkIns, schedule, caller, positionId);
+    RoadieLib.listRosterForPosition(accessGrants, demoState, roadies, storeInfo.value, checklists, positions, orientationCheckoffs, checkIns, schedule, weeklyCheckIns, caller, positionId);
+  };
+
+  /// Check a roadie in for this week, saving the current store-local date and
+  /// time to their weekly check-in list (one entry per week). Managers may
+  /// check in any roadie; a crew leader only roadies in their own crew.
+  public shared ({ caller }) func checkInRoadie(id : Common.RoadieId) : async () {
+    RoadieLib.checkInRoadie(accessGrants, demoState, roadies, crews, weeklyCheckIns, storeInfo.value, changeLog, counters, caller, id);
   };
 
   /// Edit a roadie's non-contact details (Admin/Store Manager only).

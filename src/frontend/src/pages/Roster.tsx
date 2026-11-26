@@ -1,5 +1,5 @@
 import type { Roadie } from "@/backend";
-import { RoadieStage, RoadieStatus } from "@/backend";
+import { House, RoadieStage, RoadieStatus } from "@/backend";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useDashboardCopy } from "@/components/dashboard/copy";
@@ -23,17 +23,27 @@ import {
 } from "@/components/ui/select";
 import {
   canArchive,
+  canCoverage,
   canLeaderTalks,
   canOpenFullProfile,
   useAccessState,
 } from "@/hooks/useAccess";
 import { useI18n } from "@/hooks/useI18n";
 import {
+  useCoverage,
   useCrews,
   useMyCrew,
   usePositions,
   useRoadies,
 } from "@/hooks/useQueries";
+import {
+  COVERAGE_DAY_LABELS,
+  COVERAGE_SHIFTS,
+  COVERAGE_SHIFT_LABELS,
+  type CoverageSummary,
+  coverageCellKey,
+  formatCoverage,
+} from "@/lib/coverage";
 import { cn } from "@/lib/utils";
 import { useSearch } from "@tanstack/react-router";
 import { ChevronDown, ChevronUp, Users } from "lucide-react";
@@ -41,6 +51,9 @@ import { useMemo, useState } from "react";
 
 /** Which list the card pop-up is navigating within. */
 type CardList = RosterTab | "former";
+
+/** The Roster view selection: a stage tab, or the manager-only Coverage tab. */
+type RosterView = RosterTab | "coverage";
 
 /** The stage tab selection on the roster. */
 type RosterTab =
@@ -66,10 +79,13 @@ const ROSTER_TABS: RosterTab[] = [
   "certified",
 ];
 
-/** Narrow an arbitrary search value to a known stage tab, defaulting to all. */
-function tabFromSearch(value: unknown): RosterTab {
-  return typeof value === "string" && (ROSTER_TABS as string[]).includes(value)
-    ? (value as RosterTab)
+/** Every roster view a `tab` search param may name, including Coverage. */
+const ROSTER_VIEWS: RosterView[] = [...ROSTER_TABS, "coverage"];
+
+/** Narrow an arbitrary search value to a known roster view, defaulting to all. */
+function tabFromSearch(value: unknown): RosterView {
+  return typeof value === "string" && (ROSTER_VIEWS as string[]).includes(value)
+    ? (value as RosterView)
     : "all";
 }
 
@@ -91,12 +107,200 @@ function stageForTab(tab: RosterTab): RoadieStage | undefined {
   }
 }
 
+/**
+ * The manager-only Coverage tab: the per-position grid, the FOH and BOH totals,
+ * the named short-shift list and the still-to-hire number, all read from the
+ * shared coverage helper so the Dashboard card shows the same numbers.
+ */
+function CoveragePanel({
+  summary,
+  isLoading,
+  isError,
+  onRetry,
+}: {
+  summary: CoverageSummary;
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+}) {
+  const { t } = useI18n();
+
+  if (isLoading) {
+    return (
+      <LoadingState
+        label={t("roster.coverage.loading")}
+        ocid="roster.coverage.loading_state"
+      />
+    );
+  }
+  if (isError) {
+    return (
+      <ErrorState
+        message={t("roster.coverage.error")}
+        onRetry={onRetry}
+        ocid="roster.coverage.error_state"
+      />
+    );
+  }
+  if (summary.rows.length === 0) {
+    return (
+      <EmptyState
+        title={t("roster.coverage.empty")}
+        ocid="roster.coverage.empty_state"
+      />
+    );
+  }
+
+  const totals: Array<{ key: string; label: string; value: number }> = [
+    {
+      key: "foh",
+      label: t("roster.coverage.foh"),
+      value: summary.foh.stillToHire,
+    },
+    {
+      key: "boh",
+      label: t("roster.coverage.boh"),
+      value: summary.boh.stillToHire,
+    },
+    {
+      key: "all",
+      label: t("roster.coverage.stillToHireTotal"),
+      value: summary.stillToHire,
+    },
+  ];
+
+  return (
+    <div className="space-y-6" data-ocid="roster.coverage.section">
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {totals.map((entry) => (
+          <div
+            key={entry.key}
+            className="rounded-lg border border-border bg-card p-4 shadow-subtle"
+            data-ocid={`roster.coverage.total.${entry.key}`}
+          >
+            <dt className="font-display text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              {entry.label}
+            </dt>
+            <dd className="mt-1 font-display text-3xl font-bold tabular-nums">
+              {entry.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-subtle">
+        <table className="w-full min-w-[52rem] border-collapse text-sm">
+          <caption className="sr-only">{t("roster.coverage.title")}</caption>
+          <thead>
+            <tr className="border-b border-border bg-muted/50">
+              <th
+                scope="col"
+                className="sticky left-0 z-10 bg-muted/50 px-3 py-2 text-left font-display text-xs font-bold uppercase tracking-widest text-muted-foreground"
+              >
+                {t("roster.coverage.position")}
+              </th>
+              {COVERAGE_SHIFTS.map((entry) => (
+                <th
+                  key={coverageCellKey(entry.day, entry.shift)}
+                  scope="col"
+                  className="px-2 py-2 text-center font-display text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                >
+                  {COVERAGE_DAY_LABELS[entry.day]}
+                  <span className="block text-[10px] font-semibold text-muted-foreground/80">
+                    {COVERAGE_SHIFT_LABELS[entry.shift]}
+                  </span>
+                </th>
+              ))}
+              <th
+                scope="col"
+                className="px-3 py-2 text-right font-display text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+              >
+                {t("roster.coverage.stillToHire")}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {summary.rows.map((row) => (
+              <tr
+                key={row.positionId}
+                className="border-b border-border last:border-b-0"
+                data-ocid="roster.coverage.row"
+              >
+                <th
+                  scope="row"
+                  className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-semibold"
+                >
+                  {row.positionName}
+                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {row.house === House.foh
+                      ? t("roster.coverage.foh")
+                      : t("roster.coverage.boh")}
+                  </span>
+                </th>
+                {row.cells.map((cell) => (
+                  <td
+                    key={cell.key}
+                    className={cn(
+                      "px-2 py-2 text-center tabular-nums",
+                      cell.short
+                        ? "bg-destructive/10 font-semibold text-destructive"
+                        : "text-foreground",
+                    )}
+                    title={`${cell.dayLabel} ${cell.shiftLabel}: ${t(
+                      "roster.coverage.needed",
+                    )} ${cell.needed} · ${t(
+                      "roster.coverage.available",
+                    )} ${cell.available} · ${t(
+                      "roster.coverage.covered",
+                    )} ${cell.covered}`}
+                  >
+                    {cell.covered}/{cell.needed}
+                  </td>
+                ))}
+                <td className="px-3 py-2 text-right font-display font-bold tabular-nums">
+                  {row.stillToHire}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <section className="space-y-3" data-ocid="roster.coverage.short_shifts">
+        <h2 className="font-display text-sm font-bold uppercase tracking-widest text-muted-foreground">
+          {t("roster.coverage.shortShiftList")}
+        </h2>
+        {summary.shortShifts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {t("roster.coverage.noShortShifts")}
+          </p>
+        ) : (
+          <ul className="flex flex-wrap gap-2">
+            {summary.shortShifts.map((short) => (
+              <li
+                key={short.key}
+                className="inline-flex items-center gap-2 rounded-full border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-sm font-semibold text-destructive"
+                data-ocid="roster.coverage.short_shift.item"
+              >
+                {short.label}
+                <span className="rounded-full bg-destructive px-2 py-0.5 text-[11px] font-bold tabular-nums text-destructive-foreground">
+                  {t("roster.coverage.shortBy")} {short.count}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
+
 export default function RosterPage() {
   const { t } = useDashboardCopy();
   const { locale } = useI18n();
   const search = useSearch({ from: "/roster" });
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<RosterTab>(() => tabFromSearch(search.tab));
+  const [tab, setTab] = useState<RosterView>(() => tabFromSearch(search.tab));
   const [crewFilter, setCrewFilter] = useState<CrewFilter>("all");
   const [showFormer, setShowFormer] = useState(false);
   const [card, setCard] = useState<{ list: CardList; index: number } | null>(
@@ -109,6 +313,12 @@ export default function RosterPage() {
   const access = useAccessState();
   const role = access.kind === "granted" ? access.grant.role : undefined;
   const mayOpenFullProfile = canOpenFullProfile(role);
+  const maySeeCoverage = canCoverage(role);
+  const coverage = useCoverage(maySeeCoverage);
+  const coverageSummary = useMemo(
+    () => formatCoverage(coverage.data),
+    [coverage.data],
+  );
 
   const positionMap = useMemo(() => {
     const map = new Map<string, { name: string; code: string }>();
@@ -206,7 +416,7 @@ export default function RosterPage() {
   const leaderTalkLines = useLeaderTalkLineMap(canLeaderTalks(role));
 
   const shown =
-    tab === "all"
+    tab === "all" || tab === "coverage"
       ? live
       : live.filter((roadie) => roadie.stage === stageForTab(tab));
 
@@ -229,7 +439,7 @@ export default function RosterPage() {
 
   const hasAny = live.length > 0 || archived.length > 0;
 
-  const tabs: { key: RosterTab; label: string; count: number }[] = [
+  const tabs: { key: RosterView; label: string; count: number }[] = [
     { key: "all", label: t("roster.filter.all"), count: stageCounts.all },
     { key: "hired", label: t("roster.filter.hired"), count: stageCounts.hired },
     {
@@ -253,6 +463,13 @@ export default function RosterPage() {
       count: stageCounts.certified,
     },
   ];
+  if (maySeeCoverage) {
+    tabs.push({
+      key: "coverage",
+      label: t("roster.tab.coverage"),
+      count: coverageSummary.stillToHire,
+    });
+  }
 
   const crewLabel = locale === "es" ? "Cuadrilla" : "Crew";
   const allCrewsLabel = locale === "es" ? "Todas las cuadrillas" : "All crews";
@@ -374,37 +591,52 @@ export default function RosterPage() {
         })}
       </div>
 
-      {isLoading && <LoadingState label={t("roster.loading")} />}
-      {isError && (
+      {tab === "coverage" && maySeeCoverage && (
+        <CoveragePanel
+          summary={coverageSummary}
+          isLoading={coverage.isLoading}
+          isError={coverage.isError}
+          onRetry={() => void coverage.refetch()}
+        />
+      )}
+
+      {tab !== "coverage" && isLoading && (
+        <LoadingState label={t("roster.loading")} />
+      )}
+      {tab !== "coverage" && isError && (
         <ErrorState
           message={t("roster.error")}
           onRetry={() => void refetch()}
         />
       )}
 
-      {!isLoading && !isError && !hasAny && (
+      {tab !== "coverage" && !isLoading && !isError && !hasAny && (
         <EmptyState title={query ? t("roster.empty") : t("roster.emptyAll")} />
       )}
 
-      {!isLoading && !isError && hasAny && shown.length === 0 && (
-        <EmptyState
-          title={
-            tab === "hired"
-              ? t("roster.emptyHired")
-              : tab === "paperworkDone"
-                ? t("roster.emptyPaperworkDone")
-                : tab === "oriented"
-                  ? t("roster.emptyOriented")
-                  : tab === "inTraining"
-                    ? t("roster.emptyInTraining")
-                    : tab === "certified"
-                      ? t("roster.emptyCertified")
-                      : t("roster.emptyAll")
-          }
-        />
-      )}
+      {tab !== "coverage" &&
+        !isLoading &&
+        !isError &&
+        hasAny &&
+        shown.length === 0 && (
+          <EmptyState
+            title={
+              tab === "hired"
+                ? t("roster.emptyHired")
+                : tab === "paperworkDone"
+                  ? t("roster.emptyPaperworkDone")
+                  : tab === "oriented"
+                    ? t("roster.emptyOriented")
+                    : tab === "inTraining"
+                      ? t("roster.emptyInTraining")
+                      : tab === "certified"
+                        ? t("roster.emptyCertified")
+                        : t("roster.emptyAll")
+            }
+          />
+        )}
 
-      {shown.length > 0 && (
+      {tab !== "coverage" && shown.length > 0 && (
         <ul
           className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
           data-ocid="roster.list"
@@ -427,7 +659,7 @@ export default function RosterPage() {
         </ul>
       )}
 
-      {archived.length > 0 && (
+      {tab !== "coverage" && archived.length > 0 && (
         <section className="space-y-3" data-ocid="roster.former.section">
           <button
             type="button"

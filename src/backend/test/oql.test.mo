@@ -18,6 +18,10 @@ import Fixtures "fixtures";
 /// directly with fixture grants and records, so they cover every role's visible
 /// rows, the Trainer station limit, the crew-leader limit, demo partitioning,
 /// and that Kiosk, Integration, expired and anonymous callers get nothing.
+///
+/// The `owner` column of every row type is plain text (the record id as text),
+/// and every `canSee*` rule resolves the caller's REAL, non-expired role, so a
+/// demo impersonation never widens real data.
 module {
   func admin() : Principal = Principal.fromText("aaaaa-aa");
   func managingPartner() : Principal = Principal.fromText("2vxsx-fae");
@@ -109,9 +113,10 @@ module {
       and OqlLib.canSeeRoadie(accessGrants(), demoOff(), managingPartner(), roadie2());
   };
 
+  // The owner column is the roadie id as plain text, never a principal.
   public func testRoadieRowBuiltWithoutCaller() : Bool {
     let row = OqlLib.roadieRow(finalSignOffs(), roadie1());
-    row.id == 1 and row.name == "Roadie 1" and not row.isDemo;
+    row.id == 1 and row.owner == "1" and row.name == "Roadie 1" and not row.isDemo;
   };
 
   public func testRoadieTrainerStationLimit() : Bool {
@@ -152,7 +157,8 @@ module {
 
   public func testPositionOnHandCountsMainPositionOnly() : Bool {
     let p = Fixtures.position(1, "Server");
-    OqlLib.positionRow(roadieMap(), false, p).onHand == 1;
+    let row = OqlLib.positionRow(roadieMap(), false, p);
+    row.onHand == 1 and row.owner == "1";
   };
 
   // --- Pending sign-ups ---
@@ -212,7 +218,8 @@ module {
   // A question with no approvals is never ready for final.
   public func testOpeningQuestionReadyForFinalNeedsAllOwners() : Bool {
     let q = Fixtures.openingQuestion(1);
-    not OqlLib.openingQuestionRow(accessGrants(), q).readyForFinal;
+    let row = OqlLib.openingQuestionRow(accessGrants(), q);
+    not row.readyForFinal and row.owner == "1";
   };
 
   // A question whose only live owner (the Kitchen Manager) has approved is
@@ -328,28 +335,36 @@ module {
       and (switch (OqlLib.eventAnswerRow(demoRoadieMap, "k9", demoInvite)) { case (?a) a.isDemo; case null false });
   };
 
-  // --- Demo mode: the chosen demo role is honoured, never a real role ---
+  // --- Demo mode: the real role decides visibility, never the demo role ---
 
-  // A signed-in caller with no real grant acts as the chosen demo role.
-  public func testDemoRoleGrantsManagerVisibility() : Bool {
+  // A caller with no real grant sees nothing even while demo mode impersonates
+  // an Admin: the rules use the caller's real, non-expired role.
+  public func testDemoRoleDoesNotWidenVisibility() : Bool {
     let demo = demoOn(unregistered(), #admin);
-    OqlLib.canSeeManager(accessGrants(), demo, unregistered())
-      and OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie1())
-      and OqlLib.canSeeAttendance(accessGrants(), demo, unregistered());
+    not OqlLib.canSeeManager(accessGrants(), demo, unregistered())
+      and not OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie1())
+      and not OqlLib.canSeeAttendance(accessGrants(), demo, unregistered());
   };
 
-  // A demo Trainer sees only roadies in the chosen demo stations.
+  // A real Admin keeps manager visibility while demo mode impersonates a Kiosk.
+  public func testDemoRoleDoesNotNarrowRealRole() : Bool {
+    let demo = demoOn(admin(), #kiosk);
+    OqlLib.canSeeManager(accessGrants(), demo, admin())
+      and OqlLib.canSeeRoadie(accessGrants(), demo, admin(), roadie1());
+  };
+
+  // A demo Trainer's chosen stations never widen a real Trainer's station limit.
   public func testDemoTrainerStationLimit() : Bool {
-    let demo = demoOnTrainer(unregistered(), [1]);
-    OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie1())
-      and not OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie2());
+    let demo = demoOnTrainer(trainer(), [1, 2]);
+    OqlLib.canSeeRoadie(accessGrants(), demo, trainer(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demo, trainer(), roadie2());
   };
 
-  // A demo Trainer with no stations sees no roadies.
+  // A demo Trainer with no stations still sees only their real stations.
   public func testDemoTrainerNoStationsSeesNone() : Bool {
-    let demo = demoOnTrainer(unregistered(), []);
-    not OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie1())
-      and not OqlLib.canSeeRoadie(accessGrants(), demo, unregistered(), roadie2());
+    let demo = demoOnTrainer(trainerNoStations(), [1]);
+    not OqlLib.canSeeRoadie(accessGrants(), demo, trainerNoStations(), roadie1())
+      and not OqlLib.canSeeRoadie(accessGrants(), demo, trainerNoStations(), roadie2());
   };
 
   // Demo mode never widens a refused role: a demo Kiosk still sees nothing.
@@ -365,5 +380,50 @@ module {
     let demo = demoOn(anonymous(), #admin);
     not OqlLib.canSeeManager(accessGrants(), demo, anonymous())
       and not OqlLib.canSeeRoadie(accessGrants(), demo, anonymous(), roadie1());
+  };
+
+  // --- myAccess ---
+
+  // A caller with a grant gets exactly one row for their own principal, with
+  // their real role, registered, approved and access end date.
+  public func testMyAccessRowForGrantedCaller() : Bool {
+    let row = OqlLib.myAccessRow(accessGrants(), storeManager());
+    row.principal == storeManager()
+      and row.owner == storeManager().toText()
+      and row.role == "storeManager"
+      and row.registered
+      and row.approved
+      and row.accessEndsAt == null;
+  };
+
+  // A caller with no grant is unregistered and unapproved.
+  public func testMyAccessRowForUngrantedCaller() : Bool {
+    let row = OqlLib.myAccessRow(accessGrants(), unregistered());
+    row.principal == unregistered()
+      and row.owner == unregistered().toText()
+      and row.role == "none"
+      and not row.registered
+      and not row.approved;
+  };
+
+  // An expired grant is registered but not approved, and keeps its end date.
+  public func testMyAccessRowForExpiredCaller() : Bool {
+    let row = OqlLib.myAccessRow(accessGrants(), expired());
+    row.registered and not row.approved and row.role == "none" and row.accessEndsAt != null;
+  };
+
+  // A live grant with an end date carries that end date on the caller's row.
+  public func testMyAccessRowCarriesAccessEndDate() : Bool {
+    let grants = Fixtures.grants([Fixtures.grantEndingAt(storeManager(), #storeManager, 9_999)]);
+    let row = OqlLib.myAccessRow(grants, storeManager());
+    row.registered and row.approved and row.accessEndsAt == ?9_999;
+  };
+
+  // One caller never sees another caller's row: the owner column is that
+  // caller's own principal, so the scoped rule matches only their own row.
+  public func testMyAccessRowScopedToOwnPrincipal() : Bool {
+    let mine = OqlLib.myAccessRow(accessGrants(), admin());
+    let theirs = OqlLib.myAccessRow(accessGrants(), storeManager());
+    mine.owner == admin().toText() and theirs.owner == storeManager().toText() and mine.owner != theirs.owner;
   };
 };

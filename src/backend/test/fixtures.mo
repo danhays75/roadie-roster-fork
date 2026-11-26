@@ -52,6 +52,20 @@ module {
     };
   };
 
+  /// A grant for `p` with `role` that ends at `endsAt`.
+  public func grantEndingAt(p : Principal, role : Common.Role, endsAt : Common.Timestamp) : Access.AccessGrant {
+    {
+      principal = p;
+      role;
+      approvedAt = 0;
+      approvedBy = approver();
+      accessEndsAt = ?endsAt;
+      trainerPositionIds = [];
+      linkedRoadieId = null;
+      staffProfile = null;
+    };
+  };
+
   /// A grant for a Trainer with the given stations.
   public func trainerGrant(p : Principal, stations : [Common.PositionId]) : Access.AccessGrant {
     {
@@ -145,6 +159,7 @@ module {
       isDemo;
       stage = null;
       paperworkStep = null;
+      checkIns = [];
     };
   };
 
@@ -199,6 +214,8 @@ module {
       shirtQty = 2;
       hatType = "Cap";
       hatQty = 1;
+      weekdayLunchPar = 0;
+      shiftsToCover = [];
     };
   };
 

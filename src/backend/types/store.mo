@@ -41,6 +41,14 @@ module {
   };
 
   /// A position (station) with its build-to targets and requirements.
+  ///
+  /// `weekdayLunchPar` is the whole-number weekday lunch par for this position
+  /// (default 0). `shiftsToCover` is exactly 14 whole numbers, one per shift in
+  /// Wed AM, Wed PM, Thu AM, Thu PM, Fri AM, Fri PM, Sat AM, Sat PM, Sun AM,
+  /// Sun PM, Mon AM, Mon PM, Tue AM, Tue PM order, meaning how many people of
+  /// this position must work that shift (default all 0). Both are edited on
+  /// Admin > Positions and drive the read-only Coverage view; they never change
+  /// the build-to numbers.
   public type Position = {
     id : Common.PositionId;
     name : Text;
@@ -62,6 +70,11 @@ module {
     shirtQty : Nat;
     hatType : Text;
     hatQty : Nat;
+    /// Whole-number weekday lunch par (default 0).
+    weekdayLunchPar : Nat;
+    /// Exactly 14 whole numbers, one per shift in Wed AM … Tue PM order
+    /// (default all 0).
+    shiftsToCover : [Nat];
   };
 
   /// A single build-to adjustment recorded as a +1/−1 delta.

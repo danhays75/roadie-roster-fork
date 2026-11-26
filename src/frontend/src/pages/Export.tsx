@@ -1,12 +1,25 @@
-import type { ExportData } from "@/backend";
+import type { ExportData, OrientationCheckoff } from "@/backend";
+import { createActor } from "@/backend";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { Button } from "@/components/ui/button";
 import { canDownloadFullExport, useAccessState } from "@/hooks/useAccess";
 import { useI18n } from "@/hooks/useI18n";
-import { useFullExport, useShareableExport } from "@/hooks/useQueries";
+import {
+  useChecklists,
+  useCoverage,
+  useFullExport,
+  usePositions,
+  useRoadies,
+  useShareableExport,
+} from "@/hooks/useQueries";
 import { type ExportVariant, downloadExport } from "@/lib/export";
-import { Download, FileSpreadsheet, Lock } from "lucide-react";
+import {
+  type PeopleMatrixExtras,
+  downloadPeopleMatrix,
+} from "@/lib/peopleMatrix";
+import { useActor } from "@caffeineai/core-infrastructure";
+import { Download, FileSpreadsheet, Lock, Table2 } from "lucide-react";
 import { useState } from "react";
 
 /**
@@ -172,6 +185,126 @@ function ExportCard({
   );
 }
 
+/**
+ * The People Matrix card: the Full export data plus the coverage result, built
+ * into the store's multi-sheet workbook. Gated exactly like the Full export, so
+ * only the roles that may download contact details see it unlocked.
+ */
+function PeopleMatrixCard({ locked }: { locked: boolean }) {
+  const { t } = useI18n();
+  const { actor } = useActor(createActor);
+  const full = useFullExport();
+  const coverage = useCoverage(!locked);
+  const roadies = useRoadies();
+  const positions = usePositions();
+  const checklists = useChecklists();
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState(false);
+
+  async function handleDownload() {
+    setIsDownloading(true);
+    setDownloadError(false);
+    try {
+      const data = await full.mutateAsync();
+      const roadieList = roadies.data ?? [];
+      const checkoffs = new Map<string, OrientationCheckoff>();
+      if (actor) {
+        const results = await Promise.all(
+          roadieList.map(async (roadie) => {
+            const checkoff = await actor.getOrientationCheckoff(roadie.id);
+            return [roadie.id.toString(), checkoff] as const;
+          }),
+        );
+        for (const [id, checkoff] of results) {
+          if (checkoff) checkoffs.set(id, checkoff);
+        }
+      }
+      const paperwork = checklists.data?.paperwork ?? [];
+      const findItem = (needle: string) =>
+        paperwork
+          .find((item) => item.text.toLowerCase().includes(needle))
+          ?.id.toString() ?? "";
+      const extras: PeopleMatrixExtras = {
+        roadies: roadieList,
+        positions: positions.data ?? [],
+        checkoffs,
+        paidItemIds: {
+          onboarding: findItem("digital paperwork"),
+          policies: findItem("policies"),
+          alcohol: findItem("alcohol"),
+        },
+      };
+      await downloadPeopleMatrix(
+        data,
+        coverage.data ?? null,
+        extras,
+        "roadie-people-matrix.xlsx",
+      );
+    } catch {
+      setDownloadError(true);
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
+  return (
+    <section
+      data-ocid="export.people_matrix.section"
+      className="flex flex-col rounded-lg border border-border bg-card p-5 shadow-subtle"
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground"
+          aria-hidden="true"
+        >
+          <Table2 className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-display text-lg font-bold uppercase tracking-wide">
+            {t("export.peopleMatrix")}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("export.peopleMatrix.hint")}
+          </p>
+        </div>
+      </div>
+
+      {locked ? (
+        <div
+          data-ocid="export.people_matrix.locked_state"
+          className="mt-4 flex items-center gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-3 text-sm text-muted-foreground"
+        >
+          <Lock className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{t("export.peopleMatrix.locked")}</span>
+        </div>
+      ) : (
+        <>
+          {downloadError && (
+            <p
+              data-ocid="export.people_matrix.download_error"
+              className="mt-3 text-sm text-destructive"
+            >
+              {t("export.peopleMatrix.error")}
+            </p>
+          )}
+          <Button
+            type="button"
+            className="touch-target mt-4 w-full sm:w-auto"
+            data-ocid="export.people_matrix.download_button"
+            disabled={isDownloading}
+            onClick={() => void handleDownload()}
+          >
+            <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+            {isDownloading
+              ? t("export.peopleMatrix.building")
+              : t("export.peopleMatrix.download")}
+          </Button>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function ExportPage() {
   const { t } = useI18n();
   const canFull = useCanDownloadFull();
@@ -215,6 +348,7 @@ export default function ExportPage() {
           locked={!canFull}
           lockedHint={t("export.full.locked")}
         />
+        <PeopleMatrixCard locked={!canFull} />
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import Export "../types/export";
 import Access "../types/access";
 import Auth "auth";
 import ChangeLog "changelog";
+import Phase23Lib "phase23";
 import Runtime "mo:core/Runtime";
 
 module {
@@ -23,6 +24,7 @@ module {
     demoState : Common.DemoState,
     roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
     positions : Map.Map<Common.PositionId, Store.Position>,
+    checklists : Store.Checklists,
     checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
     caller : Principal,
   ) : Export.ExportData {
@@ -30,7 +32,7 @@ module {
     if (role == #kiosk) {
       Runtime.trap("Access denied: Kiosk logins may only submit a sign-up");
     };
-    build(roadies, positions, checkoffs, false, Auth.demoActive(demoState));
+    build(roadies, positions, checklists, checkoffs, false, Auth.demoActive(demoState));
   };
 
   /// Build the Full export including contact set (Admin/Store Manager only).
@@ -39,6 +41,7 @@ module {
     demoState : Common.DemoState,
     roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
     positions : Map.Map<Common.PositionId, Store.Position>,
+    checklists : Store.Checklists,
     checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
     changeLog : Map.Map<Common.ChangeLogId, Roadie.ChangeLogEntry>,
     counters : Counters,
@@ -50,7 +53,7 @@ module {
     } else {
       ignore ChangeLog.record(changeLog, counters, caller, "buildFullExport", null, true, "Built the Full export");
     };
-    build(roadies, positions, checkoffs, true, Auth.demoActive(demoState));
+    build(roadies, positions, checklists, checkoffs, true, Auth.demoActive(demoState));
   };
 
   /// Internal: assemble the export payload. Availability (by shift and by day)
@@ -59,6 +62,7 @@ module {
   func build(
     roadies : Map.Map<Common.RoadieId, Roadie.Roadie>,
     positions : Map.Map<Common.PositionId, Store.Position>,
+    checklists : Store.Checklists,
     checkoffs : Map.Map<Common.RoadieId, Phase23.OrientationCheckoff>,
     includeContactSet : Bool,
     demoActive : Bool,
@@ -90,7 +94,7 @@ module {
     // Group rows by position name, in position-id order.
     let groups = sortedPositions.map(func(p) {
       let rows = active.filter(func(r) = r.mainPositionId == p.id).map(func(r) {
-        toRow(r, p, checkoffs.get(r.id), includeContactSet);
+        toRow(r, positions, checklists, checkoffs.get(r.id), includeContactSet);
       });
       (p.name, rows);
     });
@@ -114,7 +118,8 @@ module {
   /// when `includeContactSet` is true.
   func toRow(
     roadie : Roadie.Roadie,
-    position : Store.Position,
+    positions : Map.Map<Common.PositionId, Store.Position>,
+    checklists : Store.Checklists,
     checkoff : ?Phase23.OrientationCheckoff,
     includeContactSet : Bool,
   ) : Export.ExportRow {
@@ -135,10 +140,24 @@ module {
     } else {
       [];
     };
-    let onboardingComplete = switch (checkoff) {
-      case (?c) { c.paperworkItems.size() > 0 };
-      case null { false };
+    let checked : [Text] = switch (checkoff) {
+      case (?c) { c.paperworkItems };
+      case null { [] };
     };
+    let isChecked = func(item : Store.ChecklistItem) : Bool {
+      checked.any(func(t) = t == item.id.toText());
+    };
+    // Onboarding is complete only when every enabled, applicable paperwork item
+    // is ticked (not merely any one of them).
+    let onboardingComplete = Phase23Lib.paperworkStatusWith(checklists, positions, roadie, checkoff) == #complete;
+    // Policies & Procedures reflects that roadie's own item, not onboarding.
+    let policiesComplete = checklists.paperwork.any(func(item) =
+      item.enabled and item.text.toLower().contains(#text "policies") and isChecked(item)
+    );
+    // Alcohol Certificate reflects that roadie's own item, not the position flag.
+    let alcoholCert = checklists.paperwork.any(func(item) =
+      item.enabled and item.text.toLower().contains(#text "alcohol") and isChecked(item)
+    );
     {
       dateHired = roadie.startDate;
       shirtSize = roadie.profile.shirtSize;
@@ -155,8 +174,8 @@ module {
       dateOfBirth = if (includeContactSet) { switch (contact) { case (?cs) { ?cs.dateOfBirth }; case null { null } } } else { null };
       availabilityByDay;
       onboardingComplete;
-      policiesComplete = onboardingComplete;
-      alcoholCert = position.needsAlcoholCert;
+      policiesComplete;
+      alcoholCert;
       foodHandlers = false;
       availability;
     };

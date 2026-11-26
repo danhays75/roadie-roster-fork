@@ -1,3 +1,4 @@
+import { RoadieStatus } from "@/backend";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { FlipCard } from "@/components/roadie/FlipCard";
@@ -14,20 +15,24 @@ import {
   canArchive,
   canEditRoadie,
   canLeaderTalks,
+  canManageCheckIns,
   canReadTrainerNotes,
   canSeeContactInfo,
   useAccessState,
 } from "@/hooks/useAccess";
 import { useI18n } from "@/hooks/useI18n";
 import {
+  useCheckInRoadie,
   useCrews,
   useFinalSignOff,
   usePositions,
   useRoadie,
+  useStoreInfo,
 } from "@/hooks/useQueries";
+import { formatTimestamp } from "@/lib/format";
 import { Link, useParams } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
-import { Component, type ReactNode } from "react";
+import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import { Component, type ReactNode, useState } from "react";
 
 /**
  * Parse a route param into a roadie id. Only a non-empty run of digits is a
@@ -63,6 +68,70 @@ class RoadieCardErrorBoundary extends Component<
   }
 }
 
+/**
+ * The Checked in button for one roadie: saves today's store-local date and time
+ * to the roadie's weekly check-in list and shows the most recent check-in date
+ * beside it. Rendered only for a role that may check this roadie in, so the
+ * backend never rejects the write.
+ */
+function CheckInControl({
+  roadieId,
+  checkIns,
+  timeZone,
+}: {
+  roadieId: bigint;
+  checkIns: Array<{ at: bigint }>;
+  timeZone: string | undefined;
+}) {
+  const { t } = useI18n();
+  const checkIn = useCheckInRoadie();
+  const [error, setError] = useState<string | null>(null);
+  const latest = checkIns[0];
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-2"
+      data-ocid="roadie.checkIn.panel"
+    >
+      <Button
+        type="button"
+        className="touch-target"
+        data-ocid="roadie.checkIn.button"
+        disabled={checkIn.isPending}
+        onClick={() => {
+          setError(null);
+          checkIn.mutate(roadieId, {
+            onError: (err) =>
+              setError(err instanceof Error ? err.message : t("common.error")),
+          });
+        }}
+      >
+        {checkIn.isPending ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+        ) : (
+          <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
+        )}
+        {t("today.checkIn.checkedIn")}
+      </Button>
+      <span
+        data-ocid="roadie.checkIn.last"
+        className="text-sm text-muted-foreground"
+      >
+        {latest
+          ? t("today.checkIn.last", {
+              date: formatTimestamp(latest.at, timeZone),
+            })
+          : t("today.checkIn.none")}
+      </span>
+      {error && (
+        <p className="w-full text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function RoadieCardContent() {
   const { t } = useI18n();
   const { roadieId } = useParams({ from: "/roster/$roadieId" });
@@ -70,6 +139,7 @@ function RoadieCardContent() {
   const { data: roadie, isLoading, isError, refetch } = useRoadie(id);
   const { data: positions } = usePositions();
   const { data: crews } = useCrews();
+  const { data: store } = useStoreInfo();
   const access = useAccessState();
   const role = access.kind === "granted" ? access.grant.role : undefined;
 
@@ -79,6 +149,20 @@ function RoadieCardContent() {
   const canReadNotes = canReadTrainerNotes(role);
   const { data: signOff } = useFinalSignOff(id, canReadNotes);
   const leaderTalkLines = useLeaderTalkLineMap(canLeaderTalks(role));
+
+  // The six manager roles may check in any roadie; a crew leader only roadies
+  // in their own crew. The backend enforces the same rule, so the button is
+  // shown only when the write would succeed.
+  const callerPrincipal =
+    access.kind === "granted" ? access.grant.principal.toText() : undefined;
+  const leadsRoadieCrew =
+    roadie?.crewId !== undefined &&
+    crews?.some(
+      (crew) =>
+        crew.id === roadie.crewId &&
+        crew.leaderPrincipal?.toText() === callerPrincipal,
+    ) === true;
+  const mayCheckIn = canManageCheckIns(role) || leadsRoadieCrew;
 
   const positionList = positions ?? [];
   const positionById = (positionId: bigint | undefined) =>
@@ -137,11 +221,20 @@ function RoadieCardContent() {
             title={roadie.profile.preferredName || roadie.profile.name}
             subtitle={positionById(roadie.mainPositionId)?.name}
             action={
-              <RoadieStageBadge
-                stage={roadie.stage}
-                paperworkStep={roadie.paperworkStep}
-                ocid="roadie.status"
-              />
+              <div className="flex flex-wrap items-center gap-3">
+                {mayCheckIn && roadie.status !== RoadieStatus.archived && (
+                  <CheckInControl
+                    roadieId={roadie.id}
+                    checkIns={roadie.checkIns}
+                    timeZone={store?.timeZone}
+                  />
+                )}
+                <RoadieStageBadge
+                  stage={roadie.stage}
+                  paperworkStep={roadie.paperworkStep}
+                  ocid="roadie.status"
+                />
+              </div>
             }
           />
 

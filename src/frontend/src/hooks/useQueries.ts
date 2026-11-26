@@ -9,6 +9,7 @@ import {
   type CheckInBoardView,
   type CheckInState,
   type Checklists,
+  type CoverageView,
   type CrewEventId,
   type CrewEventSummary,
   type CrewId,
@@ -42,6 +43,7 @@ import {
   type NudgeAlert,
   type OrientationSessionOption,
   type OrientationSessionView,
+  type PaySetup,
   type PhotoRef,
   type Position,
   type PositionId,
@@ -82,7 +84,12 @@ import {
 } from "@/backend";
 import { useActor } from "@caffeineai/core-infrastructure";
 import type { Principal } from "@icp-sdk/core/principal";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 /* ---------------------------------------------------------------------------
    Access & approval
@@ -1511,6 +1518,148 @@ export function useSetPaperworkItems() {
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       void queryClient.invalidateQueries({ queryKey: ["rosterSummary"] });
       void queryClient.invalidateQueries({ queryKey: ["alerts"] });
+      void queryClient.invalidateQueries({ queryKey: ["changeLog"] });
+    },
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   Paperwork dates, paid dates, pay setup & check-in
+--------------------------------------------------------------------------- */
+
+/**
+ * Invalidate every surface that shows a roadie's paperwork, pay or check-in
+ * state: the check-off read, the roster tiles, the orientation list, My crew,
+ * the dashboard, the roster summary, the alerts and the change log.
+ */
+function invalidateRoadieWrites(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: ["orientationCheckoff"] });
+  void queryClient.invalidateQueries({ queryKey: ["orientationSession"] });
+  void queryClient.invalidateQueries({ queryKey: ["roadies"] });
+  void queryClient.invalidateQueries({ queryKey: ["roadie"] });
+  void queryClient.invalidateQueries({ queryKey: ["myCrew"] });
+  void queryClient.invalidateQueries({ queryKey: ["today"] });
+  void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  void queryClient.invalidateQueries({ queryKey: ["rosterSummary"] });
+  void queryClient.invalidateQueries({ queryKey: ["alerts"] });
+  void queryClient.invalidateQueries({ queryKey: ["changeLog"] });
+}
+
+/**
+ * Set or clear the ticked date of one paperwork item (Admin/Store Manager
+ * only). The item must already be ticked; clearing the date keeps it ticked.
+ */
+export function useSetPaperworkItemDate() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      roadieId: RoadieId;
+      itemId: string;
+      date: DateOnly | null;
+    }) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.setPaperworkItemDate(args.roadieId, args.itemId, args.date);
+    },
+    onSuccess: () => invalidateRoadieWrites(queryClient),
+  });
+}
+
+/**
+ * Set or clear the manager-only paid date for the Digital Paperwork, Policies &
+ * Procedures or Alcohol Certificate item (Admin/Store Manager only).
+ */
+export function useSetPaperworkPaidDate() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      roadieId: RoadieId;
+      itemId: string;
+      date: DateOnly | null;
+    }) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.setPaperworkPaidDate(args.roadieId, args.itemId, args.date);
+    },
+    onSuccess: () => invalidateRoadieWrites(queryClient),
+  });
+}
+
+/**
+ * Set the pay setup choice to Direct deposit, Pay card or Not set (Admin/Store
+ * Manager only). Only the choice is stored.
+ */
+export function useSetPaySetup() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { roadieId: RoadieId; paySetup: PaySetup }) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.setPaySetup(args.roadieId, args.paySetup);
+    },
+    onSuccess: () => invalidateRoadieWrites(queryClient),
+  });
+}
+
+/**
+ * Check a roadie in for this week, saving the current store-local date and time
+ * to their weekly check-in list. Managers may check in any roadie; a crew
+ * leader only roadies in their own crew.
+ */
+export function useCheckInRoadie() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (roadieId: RoadieId) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.checkInRoadie(roadieId);
+    },
+    onSuccess: () => invalidateRoadieWrites(queryClient),
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   Coverage
+--------------------------------------------------------------------------- */
+
+/**
+ * The read-only shift coverage view: per position, the 14 shifts in Wed AM …
+ * Tue PM order with Needed, Available and Covered counts, plus the weekly
+ * totals, short shifts, still-to-hire and the FOH and BOH totals. Manager roles
+ * only, so callers pass `enabled` (typically `canCoverage(role)`) to avoid a
+ * trapping read for other roles.
+ */
+export function useCoverage(enabled = true) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery({
+    queryKey: ["coverage"],
+    queryFn: async (): Promise<CoverageView | null> => {
+      if (!actor) return null;
+      return actor.getCoverage();
+    },
+    enabled: enabled && !!actor && !isFetching,
+  });
+}
+
+/**
+ * Save a position's weekday lunch par and shifts-to-cover grid (Admin only).
+ * The whole position is written through `updatePosition`, so the caller passes
+ * the position it edited. Invalidates the positions, the coverage view and the
+ * dashboard so the Coverage tab and the Dashboard card refresh.
+ */
+export function useSavePositionCoverage() {
+  const { actor } = useActor(createActor);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (position: Position) => {
+      if (!actor) throw new Error("Backend is not ready");
+      return actor.updatePosition(position);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["positions"] });
+      void queryClient.invalidateQueries({ queryKey: ["coverage"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["rosterSummary"] });
       void queryClient.invalidateQueries({ queryKey: ["changeLog"] });
     },
   });

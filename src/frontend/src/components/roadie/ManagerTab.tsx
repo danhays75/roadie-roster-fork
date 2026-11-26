@@ -1,4 +1,11 @@
-import type { ChecklistItem, ContactSet, Roadie, RoadieId } from "@/backend";
+import {
+  type ChecklistItem,
+  type ContactSet,
+  type DateOnly,
+  PaySetup,
+  type Roadie,
+  type RoadieId,
+} from "@/backend";
 import { EmptyState, LoadingState } from "@/components/States";
 import { StatusBadge } from "@/components/StatusBadge";
 import { hatSizeLabel } from "@/components/kiosk/copy";
@@ -37,9 +44,18 @@ import { useI18n } from "@/hooks/useI18n";
 import {
   useOrientationCheckoff,
   usePositions,
+  useSetPaperworkItemDate,
   useSetPaperworkItems,
+  useSetPaperworkPaidDate,
+  useSetPaySetup,
 } from "@/hooks/useQueries";
-import { formatDateOnly, formatTimestamp, refToDataUrl } from "@/lib/format";
+import {
+  dateOnlyToInputValue,
+  formatDateOnly,
+  formatTimestamp,
+  inputValueToDateOnly,
+  refToDataUrl,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Check, Eraser, PenLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -509,6 +525,216 @@ function AvailabilityPanel({
 }
 
 /**
+ * One editable date field for a paperwork item. The manager picks a day with
+ * the native date input and saves it, or clears it with the Clear button. The
+ * value is a `DateOnly` (UTC midnight nanoseconds) so the calendar day never
+ * shifts with the device time zone. Clearing keeps the item ticked.
+ */
+function PaperworkDateField({
+  id,
+  label,
+  value,
+  disabled,
+  ocid,
+  onSave,
+  onClear,
+}: {
+  id: string;
+  label: string;
+  value: DateOnly | null;
+  disabled: boolean;
+  ocid: string;
+  onSave: (date: DateOnly) => void;
+  onClear: () => void;
+}) {
+  const { t } = useI18n();
+  const [draft, setDraft] = useState(() =>
+    value !== null ? dateOnlyToInputValue(value) : "",
+  );
+  const parsed = inputValueToDateOnly(draft);
+
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <Label htmlFor={id} className="text-xs text-muted-foreground">
+          {label}
+        </Label>
+        <Input
+          id={id}
+          type="date"
+          value={draft}
+          disabled={disabled}
+          data-ocid={`${ocid}.input`}
+          className="touch-target"
+          onChange={(event) => setDraft(event.target.value)}
+        />
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="touch-target"
+        disabled={disabled || parsed === null}
+        data-ocid={`${ocid}.save_button`}
+        onClick={() => {
+          if (parsed !== null) onSave(parsed);
+        }}
+      >
+        {t("common.save")}
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        className="touch-target"
+        disabled={disabled || value === null}
+        data-ocid={`${ocid}.clear_button`}
+        onClick={() => {
+          setDraft("");
+          onClear();
+        }}
+      >
+        <Eraser className="mr-2 h-4 w-4" aria-hidden="true" />
+        {t("roadie.paperwork.clearDate")}
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * The manager-only paid dates and pay setup. Paid dates are offered for the
+ * Digital Paperwork (onboarding), Policies & Procedures and Alcohol Certificate
+ * items, matched by the item text the backend uses. The pay setup choice is
+ * Direct deposit, Pay card or Not set and stores only the choice, never an
+ * account or card number. Rendered only for Admin and Store Manager.
+ */
+function PaidDatesPanel({
+  roadie,
+  applicable,
+  paidDates,
+  paySetup,
+}: {
+  roadie: Roadie;
+  applicable: ChecklistItem[];
+  paidDates: Array<[string, DateOnly | null]>;
+  paySetup: PaySetup;
+}) {
+  const { t } = useI18n();
+  const savePaid = useSetPaperworkPaidDate();
+  const savePaySetup = useSetPaySetup();
+  const paidById = new Map(paidDates);
+  const paidItems = applicable.filter((item) => {
+    const lower = item.text.toLowerCase();
+    return (
+      lower.includes("digital paperwork") ||
+      lower.includes("policies") ||
+      lower.includes("alcohol")
+    );
+  });
+  const busy = savePaid.isPending || savePaySetup.isPending;
+
+  return (
+    <div className="space-y-5 rounded-md border border-border bg-background p-4">
+      <div className="space-y-3">
+        <div>
+          <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-foreground">
+            {t("roadie.paperwork.paidTitle")}
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {t("roadie.paperwork.paidHint")}
+          </p>
+        </div>
+        {paidItems.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {t("roadie.paperwork.empty")}
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {paidItems.map((item) => {
+              const key = item.id.toString();
+              return (
+                <li key={key} className="space-y-1.5">
+                  <p className="text-sm font-medium text-foreground">
+                    {item.text}
+                  </p>
+                  <PaperworkDateField
+                    id={`paid-${key}`}
+                    label={t("roadie.paperwork.paidLabel")}
+                    value={paidById.get(key) ?? null}
+                    disabled={busy}
+                    ocid="roadie.paperwork.paid_date"
+                    onSave={(date) =>
+                      savePaid.mutate({
+                        roadieId: roadie.id,
+                        itemId: key,
+                        date,
+                      })
+                    }
+                    onClear={() =>
+                      savePaid.mutate({
+                        roadieId: roadie.id,
+                        itemId: key,
+                        date: null,
+                      })
+                    }
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="pay-setup" className="text-xs text-muted-foreground">
+          {t("roadie.paperwork.paySetupLabel")}
+        </Label>
+        <Select
+          value={paySetup}
+          disabled={busy}
+          onValueChange={(next) =>
+            savePaySetup.mutate({
+              roadieId: roadie.id,
+              paySetup: next as PaySetup,
+            })
+          }
+        >
+          <SelectTrigger
+            id="pay-setup"
+            data-ocid="roadie.paperwork.pay_setup.select"
+            className="touch-target w-full"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={PaySetup.directDeposit}>
+              {t("roadie.paperwork.paySetup.directDeposit")}
+            </SelectItem>
+            <SelectItem value={PaySetup.payCard}>
+              {t("roadie.paperwork.paySetup.payCard")}
+            </SelectItem>
+            <SelectItem value={PaySetup.notSet}>
+              {t("roadie.paperwork.paySetup.notSet")}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          {t("roadie.paperwork.paySetupHint")}
+        </p>
+      </div>
+
+      {savePaid.isError || savePaySetup.isError ? (
+        <p
+          role="alert"
+          data-ocid="roadie.paperwork.paid_error_state"
+          className="text-sm text-destructive"
+        >
+          {t("roadie.paperwork.saveError")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * The paperwork checklist for one roadie. Shows only the items that apply to
  * them (respecting "Only alcohol positions" and "Only under 18"), each with its
  * stored checked state. Items are checked in order: an item can only be checked
@@ -529,6 +755,7 @@ function PaperworkChecklist({ roadie }: { roadie: Roadie }) {
   const { data: positions } = usePositions();
   const { data: checkoff, isLoading } = useOrientationCheckoff(id, true);
   const save = useSetPaperworkItems();
+  const saveDate = useSetPaperworkItemDate();
 
   const position = (positions ?? []).find(
     (entry) => entry.id === roadie.mainPositionId,
@@ -541,6 +768,9 @@ function PaperworkChecklist({ roadie }: { roadie: Roadie }) {
       (!item.minorOnly || roadie.isMinor),
   );
   const checked = new Set(checkoff?.paperworkItems ?? []);
+  const tickedById = new Map(
+    (checkoff?.paperworkDates ?? []).map((entry) => [entry.itemId, entry.date]),
+  );
   const done = applicable.filter((item) => checked.has(item.id.toString()));
   const complete = applicable.length > 0 && done.length === applicable.length;
 
@@ -630,11 +860,55 @@ function PaperworkChecklist({ roadie }: { roadie: Roadie }) {
                     })}
                   </p>
                 )}
+                {isChecked && (
+                  <div className="mt-2 space-y-1.5">
+                    <p
+                      data-ocid="roadie.paperwork.ticked_on"
+                      className="text-xs text-muted-foreground"
+                    >
+                      {tickedById.has(key)
+                        ? t("roadie.paperwork.tickedOn", {
+                            date: formatDateOnly(
+                              tickedById.get(key) as DateOnly,
+                            ),
+                          })
+                        : t("roadie.paperwork.noDate")}
+                    </p>
+                    {mayEdit && (
+                      <PaperworkDateField
+                        id={`paperwork-date-${key}`}
+                        label={t("roadie.paperwork.dateLabel")}
+                        value={tickedById.get(key) ?? null}
+                        disabled={saveDate.isPending}
+                        ocid="roadie.paperwork.item_date"
+                        onSave={(date) =>
+                          saveDate.mutate({ roadieId: id, itemId: key, date })
+                        }
+                        onClear={() =>
+                          saveDate.mutate({
+                            roadieId: id,
+                            itemId: key,
+                            date: null,
+                          })
+                        }
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             </li>
           );
         })}
       </ul>
+
+      {mayEdit && checkoff && (
+        <PaidDatesPanel
+          roadie={roadie}
+          applicable={applicable}
+          paidDates={checkoff.paidDates}
+          paySetup={checkoff.paySetup}
+        />
+      )}
 
       {save.isError && (
         <p

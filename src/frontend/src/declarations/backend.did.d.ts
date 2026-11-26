@@ -163,6 +163,25 @@ export interface ContactSet {
   'phone' : Phone,
   'managerSignature' : [] | [SignatureRef],
 }
+export interface CoverageCell {
+  'day' : Weekday,
+  'needed' : bigint,
+  'available' : bigint,
+  'shift' : Shift,
+  'short' : boolean,
+  'covered' : bigint,
+}
+export interface CoverageTotals {
+  'shiftsNeeded' : bigint,
+  'shortShifts' : bigint,
+  'shiftCapacity' : bigint,
+  'stillToHire' : bigint,
+}
+export interface CoverageView {
+  'boh' : CoverageTotals,
+  'foh' : CoverageTotals,
+  'positions' : Array<PositionCoverage>,
+}
 export interface Crew {
   'id' : CrewId,
   'name' : string,
@@ -495,6 +514,7 @@ export interface MyCrewRoadieRow {
   'paperworkStep' : [] | [string],
   'paperworkTotal' : bigint,
   'absentToday' : boolean,
+  'checkIns' : Array<WeeklyCheckIn>,
   'photo' : [] | [PhotoRef],
 }
 export interface MyCrewView {
@@ -541,9 +561,12 @@ export interface OpeningQuestion {
 export interface OrientationCheckoff {
   'hatsCount' : bigint,
   'roadieId' : RoadieId,
+  'paySetup' : PaySetup,
   'uniformCounts' : Array<[bigint, bigint]>,
   'paperworkItems' : Array<string>,
   'isDemo' : boolean,
+  'paperworkDates' : Array<PaperworkItemDate>,
+  'paidDates' : Array<[string, [] | [DateOnly]]>,
   'updatedAt' : Timestamp,
   'uniformItems' : Array<string>,
   'shirtsCount' : bigint,
@@ -586,8 +609,12 @@ export interface OverviewRow {
   'totalPar' : bigint,
 }
 export interface OwnerView { 'principal' : Principal, 'displayName' : string }
+export interface PaperworkItemDate { 'itemId' : string, 'date' : DateOnly }
 export type PaperworkStatus = { 'incomplete' : null } |
   { 'complete' : null };
+export type PaySetup = { 'directDeposit' : null } |
+  { 'notSet' : null } |
+  { 'payCard' : null };
 export interface PendingRequestSummary {
   'hasProfile' : boolean,
   'requestedAt' : Timestamp,
@@ -607,14 +634,28 @@ export interface Position {
   'defaultShirts' : bigint,
   'house' : House,
   'afterOpeningBuildTo' : bigint,
+  'weekdayLunchPar' : bigint,
   'minimumAge' : bigint,
   'code' : string,
   'name' : string,
   'shirtQty' : bigint,
   'shirtType' : string,
+  'shiftsToCover' : Array<bigint>,
   'hatType' : string,
   'hatQty' : bigint,
   'needsAlcoholCert' : boolean,
+}
+export interface PositionCoverage {
+  'shiftsNeeded' : bigint,
+  'hasGrid' : boolean,
+  'shortShifts' : bigint,
+  'house' : House,
+  'cells' : Array<CoverageCell>,
+  'shortShiftList' : Array<ShortShift>,
+  'positionName' : string,
+  'positionId' : PositionId,
+  'shiftCapacity' : bigint,
+  'stillToHire' : bigint,
 }
 export type PositionId = bigint;
 export interface PretendDate { 'day' : DateOnly, 'shift' : DemoShift }
@@ -706,6 +747,7 @@ export interface Roadie {
   'birthdayMonthDay' : [] | [string],
   'paperworkStep' : [] | [string],
   'isMinor' : boolean,
+  'checkIns' : Array<WeeklyCheckIn>,
   'archivedReason' : [] | [ArchiveReason],
   'photo' : [] | [PhotoRef],
   'hiredAt' : Timestamp,
@@ -832,6 +874,11 @@ export interface ShiftCheckInSummary {
   'absent' : bigint,
 }
 export type ShirtSize = string;
+export interface ShortShift {
+  'day' : Weekday,
+  'count' : bigint,
+  'shift' : Shift,
+}
 export type SignOffOutcome = { 'certified' : null } |
   { 'needsMoreTime' : string };
 export type SignatureRef = Uint8Array;
@@ -1087,6 +1134,7 @@ export type Weekday = { 'fri' : null } |
   { 'thu' : null } |
   { 'tue' : null } |
   { 'wed' : null };
+export interface WeeklyCheckIn { 'at' : Timestamp }
 export interface _ImmutableObjectStorageCreateCertificateResult {
   'method' : string,
   'blob_hash' : string,
@@ -1204,6 +1252,12 @@ export interface _SERVICE {
     [RoadieId, PositionId, [] | [PositionId], [] | [CrewId]],
     undefined
   >,
+  /**
+   * / Check a roadie in for this week, saving the current store-local date and
+   * / time to their weekly check-in list (one entry per week). Managers may
+   * / check in any roadie; a crew leader only roadies in their own crew.
+   */
+  'checkInRoadie' : ActorMethod<[RoadieId], undefined>,
   /**
    * / Check a candidate kiosk PIN. Returns true when it matches the stored hash.
    */
@@ -1330,6 +1384,14 @@ export interface _SERVICE {
    * / set; every other read-capable role receives an empty array.
    */
   'getContactSet' : ActorMethod<[RoadieId], Array<ContactSet>>,
+  /**
+   * / Read the read-only shift coverage view: per position, the 14 shifts in
+   * / Wed AM … Tue PM order with Needed, Available and Covered counts, plus the
+   * / weekly totals, short shifts, still-to-hire and named short shifts, and the
+   * / FOH and BOH totals. Manager roles only (Admin, Managing Partner, Store
+   * / Manager, Training Manager, Kitchen Manager, Service Manager).
+   */
+  'getCoverage' : ActorMethod<[], CoverageView>,
   /**
    * / Dashboard summary tiles and per-position progress, including the
    * / pending/active breakdown and the Hired → Active funnel.
@@ -1871,10 +1933,33 @@ export interface _SERVICE {
    */
   'setOpeningQuestionFinishBy' : ActorMethod<[[] | [DateOnly]], undefined>,
   /**
+   * / Set or clear the ticked date of one paperwork item (Admin or Store
+   * / Manager only, logged). The item must already be ticked; clearing the date
+   * / keeps the item ticked.
+   */
+  'setPaperworkItemDate' : ActorMethod<
+    [RoadieId, string, [] | [DateOnly]],
+    undefined
+  >,
+  /**
    * / Set the paperwork items for a roadie (Admin or Store Manager only, logged).
    * / Updates only `paperworkItems` and keeps the uniform fields.
    */
   'setPaperworkItems' : ActorMethod<[RoadieId, Array<string>], undefined>,
+  /**
+   * / Set or clear the manager-only paid date for the Digital Paperwork
+   * / (onboarding), Policies & Procedures or Alcohol Certificate item (Admin or
+   * / Store Manager only, logged).
+   */
+  'setPaperworkPaidDate' : ActorMethod<
+    [RoadieId, string, [] | [DateOnly]],
+    undefined
+  >,
+  /**
+   * / Set the pay setup choice to Direct deposit, Pay card or Not set (Admin or
+   * / Store Manager only, logged). Only the choice is stored.
+   */
+  'setPaySetup' : ActorMethod<[RoadieId, PaySetup], undefined>,
   /**
    * / Set or clear the pretend "now" used while demo mode is on. Null restores
    * / the real clock.

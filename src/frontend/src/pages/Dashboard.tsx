@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import {
   canApproveSignups,
   canArchive,
+  canCoverage,
   canEvents,
   canFinalizeOpeningQuestions,
   canOpeningQuestions,
@@ -28,10 +29,12 @@ import {
   useDemoAwareStoreInfo,
   useRealAccessGrant,
 } from "@/hooks/useAccess";
+import { useI18n } from "@/hooks/useI18n";
 import {
   useAbsentAlerts,
   useAcknowledgeAlert,
   useAtRiskRoadies,
+  useCoverage,
   useDashboard,
   useDemoState,
   useOpeningQuestionAlerts,
@@ -41,6 +44,7 @@ import {
   useSchedule,
 } from "@/hooks/useQueries";
 import { useSeedWhenEmpty } from "@/hooks/useSeeding";
+import { formatCoverage } from "@/lib/coverage";
 import {
   formatDateOnly,
   pretendDateToInstant,
@@ -50,7 +54,12 @@ import { paperworkDueEvent } from "@/lib/schedule";
 import { useActor } from "@caffeineai/core-infrastructure";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, ChevronRight, SlidersHorizontal } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronRight,
+  Layers,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 
 // The two heaviest dashboard sections load on demand so the page shell paints
@@ -473,6 +482,93 @@ function DashboardAlerts({
   );
 }
 
+/**
+ * The one-line coverage summary card: the same FOH + BOH totals the Roster
+ * Coverage tab shows, as a single row of figures. Shown only to the six manager
+ * roles that may read coverage, and read-only — it never changes pars or
+ * build-to numbers. Links to the Coverage tab on the Roster.
+ */
+function CoverageSummaryCard() {
+  const { t } = useDashboardCopy();
+  const { locale } = useI18n();
+  const access = useAccessState();
+  const role = access.kind === "granted" ? access.grant.role : undefined;
+  const maySeeCoverage = canCoverage(role);
+  const { data, isLoading } = useCoverage(maySeeCoverage);
+  const summary = useMemo(() => formatCoverage(data), [data]);
+
+  if (!maySeeCoverage) return null;
+
+  const figures: Array<{ key: string; label: string; value: number }> = [
+    {
+      key: "shiftsNeeded",
+      label: t("roster.coverage.shiftsNeeded"),
+      value: summary.foh.shiftsNeeded + summary.boh.shiftsNeeded,
+    },
+    {
+      key: "shiftCapacity",
+      label: t("roster.coverage.shiftCapacity"),
+      value: summary.foh.shiftCapacity + summary.boh.shiftCapacity,
+    },
+    {
+      key: "shortShifts",
+      label: t("roster.coverage.shortShifts"),
+      value: summary.foh.shortShifts + summary.boh.shortShifts,
+    },
+    {
+      key: "stillToHire",
+      label: t("roster.coverage.stillToHire"),
+      value: summary.stillToHire,
+    },
+  ];
+
+  return (
+    <Link
+      to="/roster"
+      search={{ tab: "coverage" }}
+      data-ocid="dashboard.coverage.card"
+      className="block rounded-lg border border-border bg-card p-4 shadow-subtle transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 font-display text-sm font-bold uppercase tracking-widest text-muted-foreground">
+          <Layers className="h-4 w-4" aria-hidden="true" />
+          {t("roster.coverage.title")}
+        </h2>
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
+          {locale === "es" ? "Ver cobertura" : "View coverage"}
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </span>
+      </div>
+      {isLoading ? (
+        <div
+          aria-hidden="true"
+          data-ocid="dashboard.coverage.loading_state"
+          className="mt-3 h-10 animate-pulse rounded-md bg-muted"
+        />
+      ) : (
+        <dl className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-2">
+          {figures.map((figure) => (
+            <div key={figure.key} className="flex items-baseline gap-2">
+              <dt className="font-display text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {figure.label}
+              </dt>
+              <dd
+                className={
+                  figure.key === "shortShifts" && figure.value > 0
+                    ? "font-display text-xl font-bold tabular-nums text-destructive"
+                    : "font-display text-xl font-bold tabular-nums text-foreground"
+                }
+              >
+                {figure.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </Link>
+  );
+}
+
 export default function DashboardPage() {
   return (
     <DashboardErrorBoundary>
@@ -610,6 +706,8 @@ function DashboardContent() {
             paperworkNames={paperworkNames}
             alerts={alerts ?? []}
           />
+
+          <CoverageSummaryCard />
 
           <Suspense fallback={<KpiTilesSkeleton />}>
             <KpiTiles

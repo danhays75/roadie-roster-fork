@@ -5,6 +5,9 @@ import type {
   AtRiskRoadie,
   CheckInBoardView,
   CheckInRow,
+  CoverageCell,
+  CoverageTotals,
+  CoverageView,
   CrewEventId,
   CrewEventSummary,
   DemoDataSummary,
@@ -20,7 +23,10 @@ import type {
   OrientationCheckoff,
   OrientationRoadieRow,
   OrientationSessionView,
+  PaperworkItemDate,
+  PaySetup,
   Position,
+  PositionCoverage,
   PositionId,
   PretendDate,
   Roadie,
@@ -36,19 +42,29 @@ import type {
   ShiftBoardRoadie,
   ShiftBoardView,
   ShiftCheckInSummary,
+  ShortShift,
   StoreInfo,
   Timestamp,
   TodayView,
   UniformCheckoffItem,
   UniformCheckoffView,
   UpcomingEventView,
+  Weekday,
 } from "@/backend";
 import type { Principal } from "@icp-sdk/core/principal";
 
-// `CheckInState`, `EventAnswer` and `EventAttendance` are generated enums
-// (runtime values), so they are re-exported as values rather than type-only
-// exports.
-export { CheckInState, EventAnswer, EventAttendance } from "@/backend";
+// `CheckInState`, `EventAnswer`, `EventAttendance`, `House`, `PaySetup`,
+// `Shift` and `Weekday` are generated enums (runtime values), so they are
+// re-exported as values rather than type-only exports.
+export {
+  CheckInState,
+  EventAnswer,
+  EventAttendance,
+  House,
+  PaySetup,
+  Shift,
+  Weekday,
+} from "@/backend";
 
 export type {
   AbsentAlertView,
@@ -57,6 +73,9 @@ export type {
   AtRiskRoadie,
   CheckInBoardView,
   CheckInRow,
+  CoverageCell,
+  CoverageTotals,
+  CoverageView,
   CrewEventId,
   CrewEventSummary,
   DemoDataSummary,
@@ -72,7 +91,9 @@ export type {
   OrientationCheckoff,
   OrientationRoadieRow,
   OrientationSessionView,
+  PaperworkItemDate,
   Position,
+  PositionCoverage,
   PositionId,
   PretendDate,
   Roadie,
@@ -88,6 +109,7 @@ export type {
   ShiftBoardRoadie,
   ShiftBoardView,
   ShiftCheckInSummary,
+  ShortShift,
   StoreInfo,
   TodayView,
   UniformCheckoffItem,

@@ -119,6 +119,7 @@ module {
     position : Store.Position,
   ) : Common.PositionId {
     Auth.requireRealSettingsAdmin(accessGrants, demoState, caller);
+    validatePositionCoverage(position);
     let id = counters.nextPositionId;
     counters.nextPositionId := id + 1;
     positions.add(id, { position with id });
@@ -140,6 +141,7 @@ module {
     if (not positions.containsKey(position.id)) {
       Runtime.trap("Position not found");
     };
+    validatePositionCoverage(position);
     positions.add(position.id, position);
     ignore ChangeLog.record(changeLog, counters, caller, "updatePosition", null, false, "Updated position " # position.name);
   };
@@ -470,6 +472,8 @@ module {
         shirtQty = p.shirtQty;
         hatType = p.hatType;
         hatQty = p.hatQty;
+        weekdayLunchPar = 0;
+        shiftsToCover = [];
       });
       nextPositionId += 1;
     };
@@ -803,5 +807,18 @@ module {
   /// Internal: `a - b`, clamped at zero, without a trapping Nat subtraction.
   func saturatingSub(a : Nat, b : Nat) : Nat {
     if (a <= b) { 0 } else { a - b };
+  };
+
+  /// Internal: the number of shifts in the Wed AM … Tue PM coverage grid.
+  let shiftCount : Nat = 14;
+
+  /// Internal: validate a position's coverage fields before saving. The weekday
+  /// lunch par is a whole number (a `Nat`, so never negative or fractional) and
+  /// the shifts-to-cover list must hold exactly 14 whole numbers (again `Nat`s,
+  /// so never negative). Traps with a clear message otherwise.
+  func validatePositionCoverage(position : Store.Position) : () {
+    if (position.shiftsToCover.size() != shiftCount) {
+      Runtime.trap("Shifts to cover must have exactly 14 entries");
+    };
   };
 };

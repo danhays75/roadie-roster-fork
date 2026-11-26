@@ -38,6 +38,7 @@ import SeedApi "mixins/seed-api";
 import DemoApi "mixins/demo-api";
 import OpeningQuestionsApi "mixins/openingquestions-api";
 import CrewEventsApi "mixins/crewevents-api";
+import CoverageApi "mixins/coverage-api";
 import ApiDocMixin "mixins/api-doc";
 import OpeningQuestionsLib "lib/openingquestions";
 import Clock "lib/clock";
@@ -88,6 +89,11 @@ actor {
   let alerts : Map.Map<Common.AlertId, Phase23.Alert>;
   let checkIns : Map.Map<Text, Phase23.CheckInRecord>;
   let absentAlerts : Map.Map<Common.AlertId, Phase23.AbsentAlert>;
+
+  // Weekly check-in storage: one entry list per roadie id, newest week first.
+  // One entry per week; a later check-in in the same week replaces that week's
+  // entry. Initialized empty by the migration chain.
+  let weeklyCheckIns : Map.Map<Common.RoadieId, [Phase23.WeeklyCheckIn]>;
 
   // Opening Questions state: the imported questions and the daily-email
   // setting. Questions are real records and never appear in demo data.
@@ -143,7 +149,7 @@ actor {
     counters,
     demoState,
   );
-  include RoadieApi(accessGrants, roadies, crews, positions, schedule, checklists, orientationCheckoffs, checkIns, changeLog, counters, demoState, shiftBoards, groupChangeNotices, storeInfo, finalSignOffs);
+  include RoadieApi(accessGrants, roadies, crews, positions, schedule, checklists, orientationCheckoffs, checkIns, changeLog, counters, demoState, shiftBoards, groupChangeNotices, storeInfo, finalSignOffs, weeklyCheckIns);
   include SignupApi(accessGrants, signups, roadies, positions, schedule, storeInfo, changeLog, counters, demoState);
   include AccessApi(accessGrants, pendingUsers, accessControlState, demoState, changeLog, counters);
   include Phase23Api(
@@ -162,6 +168,7 @@ actor {
     finalSignOffs,
     alerts,
     checkIns,
+    weeklyCheckIns,
     absentAlerts,
     storeInfo,
     changeLog,
@@ -184,7 +191,9 @@ actor {
     changeLog,
     counters,
   );
-  include ExportApi(accessGrants, roadies, positions, orientationCheckoffs, changeLog, counters, demoState);  include GiftBagsApi(accessGrants, roadies, positions, demoState);
+  include ExportApi(accessGrants, roadies, positions, checklists, orientationCheckoffs, changeLog, counters, demoState);
+  include GiftBagsApi(accessGrants, roadies, positions, demoState);
+  include CoverageApi(accessGrants, demoState, roadies, positions);
   include KioskApi(accessGrants, kioskPin, demoState);
 
   // --- Demo mode ---
@@ -300,13 +309,6 @@ actor {
     entries.map(func(e) = e.size # " " # e.percent.toText()).values().join(", ");
   };
 
-  // The OQL query subject: the caller the entity's canSee rule is evaluated
-  // against. `Expose` runs each entity's iterator inside the query, so the
-  // caller is read here, per query, never a fixed principal.
-  func oqlSubject() : Principal {
-    Principal.fromText("aaaaa-aa");
-  };
-
   // The roadie id encoded in a roadie row's `owner` column, or null when the
   // column is not a roadie id.
   func roadieIdFromOwner(owner : OQL.Value) : ?Common.RoadieId {
@@ -330,7 +332,7 @@ actor {
       )
         .sample({
           id = 0;
-          owner = Principal.fromText("aaaaa-aa");
+          owner = "";
           name = "";
           mainPositionId = 0;
           secondPositionId = 0;
@@ -380,11 +382,13 @@ actor {
       )
         .sample({
           id = 0;
-          owner = Principal.fromText("aaaaa-aa");
+          owner = "";
           name = "";
           openingBuildTo = 0;
           afterOpeningBuildTo = 0;
           onHand = 0;
+          weekdayLunchPar = 0;
+          shiftsToCover = "";
         })
         .payload("id", func p = p.id)
         .payload("owner", func p = p.owner)
@@ -392,6 +396,37 @@ actor {
         .payload("openingBuildTo", func p = p.openingBuildTo)
         .payload("afterOpeningBuildTo", func p = p.afterOpeningBuildTo)
         .payload("onHand", func p = p.onHand)
+        .payload("weekdayLunchPar", func p = p.weekdayLunchPar)
+        .payload("shiftsToCover", func p = p.shiftsToCover)
+        .ownedByWith("owner", func (subject, _) = OqlLib.canSeeManager(accessGrants, demoState, subject))
+        .controllerOrScoped()
+        .build(),
+      Entity.manual<OqlTypes.CoverageRow>(
+        "coverage",
+        func () = positions.values().map(func(p) = OqlLib.coverageRow(roadies, Auth.demoActive(demoState), p)),
+        "CoverageRow",
+        "positionId",
+      )
+        .sample({
+          positionId = 0;
+          owner = "";
+          positionName = "";
+          house = "foh";
+          hasGrid = false;
+          shiftsNeeded = 0;
+          shiftCapacity = 0;
+          shortShifts = 0;
+          stillToHire = 0;
+        })
+        .payload("positionId", func c = c.positionId)
+        .payload("owner", func c = c.owner)
+        .payload("positionName", func c = c.positionName)
+        .payload("house", func c = c.house)
+        .payload("hasGrid", func c = c.hasGrid)
+        .payload("shiftsNeeded", func c = c.shiftsNeeded)
+        .payload("shiftCapacity", func c = c.shiftCapacity)
+        .payload("shortShifts", func c = c.shortShifts)
+        .payload("stillToHire", func c = c.stillToHire)
         .ownedByWith("owner", func (subject, _) = OqlLib.canSeeManager(accessGrants, demoState, subject))
         .controllerOrScoped()
         .build(),
@@ -403,7 +438,7 @@ actor {
       )
         .sample({
           id = 0;
-          owner = Principal.fromText("aaaaa-aa");
+          owner = "";
           name = "";
           positionAppliedFor = "";
           submittedAt = 0;
@@ -426,7 +461,7 @@ actor {
       )
         .sample({
           id = 0;
-          owner = Principal.fromText("aaaaa-aa");
+          owner = "";
           name = "";
           start = 0;
         })
@@ -445,7 +480,7 @@ actor {
       )
         .sample({
           id = 0;
-          owner = Principal.fromText("aaaaa-aa");
+          owner = "";
           roadieId = 0;
           eventId = 0;
           present = false;
@@ -468,7 +503,7 @@ actor {
       )
         .sample({
           id = 0;
-          owner = Principal.fromText("aaaaa-aa");
+          owner = "";
           sectionTitle = "";
           area = "kitchen";
           question = "";
@@ -497,7 +532,7 @@ actor {
       )
         .sample({
           id = 0;
-          owner = Principal.fromText("aaaaa-aa");
+          owner = "";
           name = "";
           start = 0;
           place = "";
@@ -522,7 +557,7 @@ actor {
       )
         .sample({
           key = "";
-          owner = Principal.fromText("aaaaa-aa");
+          owner = "";
           eventId = 0;
           roadieId = 0;
           answer = "noAnswer";
@@ -556,7 +591,7 @@ actor {
       )
         .sample({
           id = 0;
-          owner = Principal.fromText("aaaaa-aa");
+          owner = "";
           roadieId = 0;
           authorName = "";
           didWell = "";
@@ -592,7 +627,7 @@ actor {
       )
         .sample({
           id = 0;
-          owner = Principal.fromText("aaaaa-aa");
+          owner = "";
           kind = "alert";
           roadieId = 0;
           createdAt = 0;
@@ -608,20 +643,17 @@ actor {
         .controllerOrScoped()
         .build(),
       // The caller's own access row: principal, real role, registered/approved
-      // state and access end date. One row per signed-in caller; none for an
-      // anonymous caller.
+      // state and access end date. One row per access grant, so each caller
+      // sees only their own row through the scoped owner rule.
       Entity.manual<OqlTypes.MyAccessRow>(
         "myAccess",
-        func () = switch (OqlLib.myAccessRow(accessGrants, oqlSubject())) {
-          case (?row) { [row].values() };
-          case null { [].values() };
-        },
+        func () = accessGrants.entries().map(func((principal, _)) = OqlLib.myAccessRow(accessGrants, principal)),
         "MyAccessRow",
         "principal",
       )
         .sample({
           principal = Principal.fromText("aaaaa-aa");
-          owner = Principal.fromText("aaaaa-aa");
+          owner = "";
           role = "admin";
           registered = true;
           approved = true;
