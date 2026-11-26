@@ -140,6 +140,8 @@
 - Keep every existing screen and method working when adding People Matrix data
 - Store only the pay setup choice, never any account or card number
 - The Coverage view is read-only and never changes pars or build-to numbers
+- Keep all migrations and stable variables
+- Run the type check, build and all tests, and fix anything that fails
 
 ## Accepted Requirements
 
@@ -551,6 +553,17 @@
 - Full export onboarding, policies, alcohol and food-handler column fixes
 - People Matrix .xlsx download matching the brand file, including a Shift Coverage sheet
 - Tests added for the new features
+- People Matrix position matching ignores case, spaces, '/' and '-'
+- People Matrix sheet map and Staff Pars rows use the app's real seeded position names
+- Unmapped positions get their own Staff Pars row at the end of the right FOH or BOH section and their own sheet before Shift Coverage
+- Coverage short count is the sum of (needed minus covered) over the 14 shifts, with Still to hire the ceiling of that sum / 5
+- The same people-short count applies to FOH and BOH totals, the Dashboard card, the Roster Coverage tab and the Shift Coverage sheet
+- The label reads 'People-shifts short' wherever 'Short shifts' showed
+- The named short list stays as it is
+- People Matrix tests use the real seeded position names and check every seeded position lands on a sheet with its hired roadies and a non-zero par row
+- Coverage tests cover 6 short from one shift and 8 short from two shifts, each giving Still to hire 2
+- Keep all migrations and stable variables
+- Build a preview only; do not publish or go live
 
 ## Verified Commands
 
@@ -560,12 +573,6 @@
 
 ## Learnings
 
-- Fixture grants must use a non-system approver; approvedBy = aaaaa-aa marks a grant as a demo leader and ownersOf skips it, so readiness tests silently pass with no owners.
-- Auth.effectiveRole honours the chosen demo role while demo mode is on, matching the app's existing queries; Auth.realRole ignores it.
-- api-doc.mo is one long source line; grep for distinctive phrases such as 'OQL' confirms doc text even when reads truncate at 2,000 chars.
-- OQL row owner columns are Text holding the plain record id (owner = position.id.toText()); Principal.fromText(<nat>) traps with 'blob_of_principal: principal too short' on every query.
-- MyAccessRow.owner is Text like the other 10 row types; myAccessRow(accessGrants, principal) builds one row per grant with owner = principal.toText() and .ownedBy("owner") compares #text(subject.toText()).
-- OQL canSee helpers use Auth.realRole (the caller's real, non-expired role), never Auth.effectiveRole, while rows still filter by the current demo partition.
 - main.mo no longer defines oqlSubject(); the myAccess entity builds one row per accessGrants entry instead of a fixed placeholder principal.
 - StoreLogo img appends 'w-auto max-w-[12rem]' after the caller className, so a caller max-w-* is overridden; the header wraps it in a sized span to cap width.
 - The header logo sits on a white rounded badge (bg-white, padding, rounded corners, subtle shadow) with object-contain and width auto, sized about as tall as the Roadie Roster title block; the badge is shrink-0 and the title block is min-w-0 so the app name truncates before the mobile menu button moves.
@@ -585,3 +592,9 @@
 - useDashboardCopy() returns { t, locale }; a component using locale must destructure it or TS2304 fires.
 - exceljs getSheetValues() returns RowValues; a type predicate must narrow to CellValue[], not unknown[], to satisfy TS2677.
 - Migration 00000035 OldActor equals 00000034 NewActor; NewActor adds weeklyCheckIns and migrates Position and OrientationCheckoff defaults.
+- peopleMatrix normalize() strips spaces, '/' and '-' so seeded names like 'Point / Build' match; unmapped positions get a Staff Pars row at the end of their house section and a sheet before Shift Coverage.
+- The People Matrix test runs with node --experimental-transform-types plus a resolve hook mapping @/ to src and .did to declarations/backend.did.js.
+- lib/coverage.mo shortShifts now counts people short (sum of needed minus covered over the 14 shifts) and stillToHire is the ceiling of that sum / 5; the named short list is unchanged.
+- Roster.tsx mounts a local CoveragePanel (the shared CoverageTab.tsx is not imported); its short list renders 'Short: Sat AM (3), Sun AM (2)' from roster.coverage.shortPrefix plus each shift label and count.
+- mops test compiles test files where try in a sync func is M0039 misplaced; a Runtime.trap cannot be caught, so test the pure role predicate instead.
+- Pre-existing baseline failures outside the coverage scope: export.test.mo (M0001) and store/paperwork/checkins.test.mo (M0039 misplaced try) fail identically on the untouched baseline.

@@ -78,7 +78,7 @@ module {
   func allSlots() : [Roadie.AvailabilitySlot] {
     let days : [Common.Weekday] = [#wed, #thu, #fri, #sat, #sun, #mon, #tue];
     let out = days.map(func(d) = daySlots(d));
-    out.foldLeft([], func(acc, slots) = acc.concat(slots));
+    out.foldLeft<[Roadie.AvailabilitySlot], [Roadie.AvailabilitySlot]>([] : [Roadie.AvailabilitySlot], func(acc, slots) = acc.concat(slots));
   };
 
   /// The covered count for one shift index of a position block.
@@ -141,10 +141,10 @@ module {
     not view.positions[0].hasGrid;
   };
 
-  /// Still to hire is the ceiling of short shifts / 5.
+  /// Still to hire is the ceiling of the people-short sum / 5.
   public func testStillToHireCeiling() : Bool {
-    // 6 needed shifts, nobody available: 6 short shifts -> ceil(6/5) = 2.
-    let needed = [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0];
+    // One shift needs 6, nobody available: 6 people short -> ceil(6/5) = 2.
+    let needed = [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let positions = Map.empty<Common.PositionId, Store.Position>();
     positions.add(1, positionWith(1, #foh, needed));
     let roadies = Map.empty<Common.RoadieId, Roadie.Roadie>();
@@ -152,16 +152,21 @@ module {
     view.positions[0].shortShifts == 6 and view.positions[0].stillToHire == 2;
   };
 
-  /// A non-manager role is refused.
-  public func testTrainerRefused() : Bool {
+  /// Two shifts each short 4 people give 8 people short and Still to hire 2.
+  public func testTwoShiftsShortFourEach() : Bool {
+    let needed = [4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let positions = Map.empty<Common.PositionId, Store.Position>();
+    positions.add(1, positionWith(1, #foh, needed));
     let roadies = Map.empty<Common.RoadieId, Roadie.Roadie>();
-    try {
-      ignore CoverageLib.getCoverage(grants(), demoOff(), roadies, positions, trainer());
-      false;
-    } catch (_) {
-      true;
-    };
+    let view = CoverageLib.getCoverage(grants(), demoOff(), roadies, positions, admin());
+    view.positions[0].shortShifts == 8 and view.positions[0].stillToHire == 2;
+  };
+
+  /// A non-manager role is refused by the read gate.
+  public func testTrainerRefused() : Bool {
+    not CoverageLib.roleCanReadCoverage(#trainer)
+      and CoverageLib.roleCanReadCoverage(#storeManager)
+      and CoverageLib.roleCanReadCoverage(#admin);
   };
 
   /// Archived roadies and roadies in the other demo partition are not counted.

@@ -83,14 +83,19 @@ function roadie(
   };
 }
 
-/** A position record for the weekday lunch par. */
-function position(id: bigint, name: string, weekdayLunchPar: bigint): Position {
+/** A position record for the weekday lunch par and house. */
+function position(
+  id: bigint,
+  name: string,
+  weekdayLunchPar: bigint,
+  house: HouseEnum = HouseEnum.foh,
+): Position {
   return {
     id,
     openingBuildTo: 0n,
     defaultHats: 0n,
     defaultShirts: 0n,
-    house: HouseEnum.foh,
+    house,
     afterOpeningBuildTo: 0n,
     weekdayLunchPar,
     minimumAge: 16n,
@@ -245,6 +250,98 @@ function headerIndex(headers: unknown[], label: string): number {
   return headers.findIndex((value) => value === label);
 }
 
+/** The first row whose first cell equals `label`, or undefined. */
+function findRow(
+  sheet: import("exceljs").Worksheet,
+  label: string,
+): CellValue[] | undefined {
+  return sheet
+    .getSheetValues()
+    .find(
+      (row): row is CellValue[] =>
+        Array.isArray(row) && (row as CellValue[])[1] === label,
+    );
+}
+
+/** The seeded position names, in position-id order (seed.mo 77-94). */
+const SEEDED_POSITIONS: Array<{ name: string; house: HouseEnum }> = [
+  { name: "Servers", house: HouseEnum.foh },
+  { name: "Hosts", house: HouseEnum.foh },
+  { name: "Bartenders", house: HouseEnum.foh },
+  { name: "Server assistants", house: HouseEnum.foh },
+  { name: "To-go", house: HouseEnum.foh },
+  { name: "Fry / Salad", house: HouseEnum.boh },
+  { name: "Dish", house: HouseEnum.boh },
+  { name: "Pizza", house: HouseEnum.boh },
+  { name: "Broil / Saute", house: HouseEnum.boh },
+  { name: "Hot prep", house: HouseEnum.boh },
+  { name: "Cold prep", house: HouseEnum.boh },
+  { name: "Point / Build", house: HouseEnum.boh },
+  { name: "Sear", house: HouseEnum.boh },
+  { name: "Expo", house: HouseEnum.boh },
+  { name: "Bake", house: HouseEnum.boh },
+  { name: "Silverware roller", house: HouseEnum.boh },
+  { name: "Meat cutter", house: HouseEnum.boh },
+  { name: "DMO prep", house: HouseEnum.boh },
+];
+
+/** The fixed position sheets, in workbook order. */
+const POSITION_SHEET_NAMES = [
+  "Servers",
+  "Bartenders",
+  "Hosts and TOGO",
+  "SA",
+  "Expo",
+  "Meat",
+  "Cold",
+  "DMO Prep",
+  "Hot Prep",
+  "Bake and Pizza",
+  "Point and Fry-Salad",
+  "Broil and Sear",
+  "Dish and Silverware",
+];
+
+/**
+ * A full seeded fixture: every seeded position with one hired roadie, so each
+ * block and each Staff Pars row can be checked against the app's real names.
+ */
+function seededFixture() {
+  const groups: Array<[string, ExportRow[]]> = [];
+  const overview: ExportData["overview"] = [];
+  const positions: Position[] = [];
+  const roadies: Roadie[] = [];
+  const checkoffs = new Map<string, OrientationCheckoff>();
+  SEEDED_POSITIONS.forEach((entry, index) => {
+    const id = BigInt(index);
+    const name = `Roadie ${entry.name}`;
+    groups.push([entry.name, [exportRow({ name })]]);
+    overview.push({
+      hired: 1n,
+      need: 0n,
+      positionName: entry.name,
+      totalPar: 5n,
+    });
+    positions.push(position(id, entry.name, 2n, entry.house));
+    roadies.push(roadie(id, name, { mainPositionId: id }));
+    checkoffs.set(id.toString(), checkoff(id));
+  });
+  const data: ExportData = {
+    fohNeed: 0n,
+    fohTotal: 5n,
+    groups,
+    bohTotal: 13n,
+    overview,
+    bohNeed: 0n,
+    grandTotal: 18n,
+    grandTotalPar: 90n,
+    bohTotalPar: 65n,
+    fohTotalPar: 25n,
+    grandNeed: 0n,
+  };
+  return { data, positions, roadies, checkoffs };
+}
+
 function run(): void {
   const workbook = buildPeopleMatrixWorkbook(
     fixtureExport(),
@@ -260,21 +357,7 @@ function run(): void {
     "Staff Pars and Overview",
   ]);
   assert.equal(sheetNames[sheetNames.length - 1], "Shift Coverage");
-  assert.deepEqual(sheetNames.slice(2, -1), [
-    "Servers",
-    "Bartenders",
-    "Hosts and TOGO",
-    "SA",
-    "Expo",
-    "Meat",
-    "Cold",
-    "DMO Prep",
-    "Hot Prep",
-    "Bake and Pizza",
-    "Point and Fry-Salad",
-    "Broil and Sear",
-    "Dish and Silverware",
-  ]);
+  assert.deepEqual(sheetNames.slice(2, -1), POSITION_SHEET_NAMES);
 
   // The Recruiting Locations sheet carries its headers only.
   const recruiting = workbook.getWorksheet("Recruiting Locations");
@@ -310,12 +393,7 @@ function run(): void {
   assert.ok(overviewText.includes("Total BOH"));
   assert.ok(overviewText.includes("Total"));
   // The Servers row reads its par, hired and weekday lunch par from the fixture.
-  const serversRow = overview
-    .getSheetValues()
-    .find(
-      (row): row is CellValue[] =>
-        Array.isArray(row) && (row as CellValue[])[1] === "Servers",
-    );
+  const serversRow = findRow(overview, "Servers");
   assert.ok(serversRow);
   assert.equal(serversRow[2], 1); // total par
   assert.equal(serversRow[3], 1); // hired
@@ -419,7 +497,8 @@ function run(): void {
   assert.equal(hostRow[headerIndex(hostHeaders, "Wkdy Lunch (Y)")], "");
 
   // The final Shift Coverage sheet: one block per position with the 14 shift
-  // columns, the Needed/Available/Covered/Short rows and the still-to-hire row.
+  // columns, the Needed/Available/Covered/People-shifts short rows and the
+  // still-to-hire row.
   const coverage = workbook.getWorksheet("Shift Coverage");
   assert.ok(coverage);
   assert.equal(rowValues(coverage, 1)[0], "Servers");
@@ -434,10 +513,75 @@ function run(): void {
   assert.equal(rowValues(coverage, 4)[1], 1);
   assert.equal(rowValues(coverage, 5)[0], "Covered");
   assert.equal(rowValues(coverage, 5)[1], 1);
-  assert.equal(rowValues(coverage, 6)[0], "Short");
+  assert.equal(rowValues(coverage, 6)[0], "People-shifts short");
   assert.equal(rowValues(coverage, 6)[1], 1);
   assert.equal(rowValues(coverage, 7)[0], "Still to hire");
   assert.equal(rowValues(coverage, 7)[1], 1);
+
+  // Every seeded position lands on a sheet with its hired roadie and has a
+  // non-zero par row on Staff Pars.
+  const seeded = seededFixture();
+  const full = buildPeopleMatrixWorkbook(seeded.data, null, {
+    roadies: seeded.roadies,
+    positions: seeded.positions,
+    checkoffs: seeded.checkoffs,
+    paidItemIds: PAID_ITEM_IDS,
+  });
+  const fullOverview = full.getWorksheet("Staff Pars and Overview");
+  assert.ok(fullOverview);
+  for (const entry of SEEDED_POSITIONS) {
+    const parRow = findRow(fullOverview, entry.name);
+    assert.ok(parRow, `missing Staff Pars row for ${entry.name}`);
+    assert.equal(parRow[2], 5, `${entry.name} par`);
+    assert.equal(parRow[3], 1, `${entry.name} hired`);
+    const roadieName = `Roadie ${entry.name}`;
+    const onSheet = full.worksheets.some((sheet) =>
+      sheet
+        .getSheetValues()
+        .some(
+          (row) =>
+            Array.isArray(row) &&
+            (row as CellValue[]).some(
+              (cell) =>
+                typeof cell === "string" &&
+                (cell === roadieName || roadieName.endsWith(cell)),
+            ),
+        ),
+    );
+    assert.ok(onSheet, `${entry.name} roadie missing from its sheet`);
+  }
+
+  // A position the map does not place gets its own Staff Pars row at the end of
+  // its house section and its own sheet before Shift Coverage.
+  const extra = seededFixture();
+  extra.data.groups.push(["Pastry", [exportRow({ name: "Pat Doe" })]]);
+  extra.data.overview.push({
+    hired: 1n,
+    need: 0n,
+    positionName: "Pastry",
+    totalPar: 4n,
+  });
+  extra.positions.push(position(99n, "Pastry", 0n, HouseEnum.boh));
+  extra.roadies.push(roadie(99n, "Pat Doe", { mainPositionId: 99n }));
+  const extraBook = buildPeopleMatrixWorkbook(extra.data, null, {
+    roadies: extra.roadies,
+    positions: extra.positions,
+    checkoffs: extra.checkoffs,
+    paidItemIds: PAID_ITEM_IDS,
+  });
+  const extraNames = extraBook.worksheets.map((sheet) => sheet.name);
+  assert.equal(extraNames[extraNames.length - 2], "Pastry");
+  assert.equal(extraNames[extraNames.length - 1], "Shift Coverage");
+  const extraOverview = extraBook.getWorksheet("Staff Pars and Overview");
+  assert.ok(extraOverview);
+  const pastryRow = findRow(extraOverview, "Pastry");
+  assert.ok(pastryRow);
+  assert.equal(pastryRow[2], 4);
+  assert.equal(pastryRow[3], 1);
+  const pastrySheet = extraBook.getWorksheet("Pastry");
+  assert.ok(pastrySheet);
+  assert.equal(rowValues(pastrySheet, 1)[0], "Pastry");
+  assert.equal(rowValues(pastrySheet, 3)[1], "Pat Doe");
 
   console.log("peopleMatrix.test.ts: all assertions passed");
 }

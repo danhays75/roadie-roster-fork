@@ -3,6 +3,7 @@ import type {
   DateOnly,
   ExportData,
   ExportRow,
+  House,
   OrientationCheckoff,
   Position,
   Roadie,
@@ -56,10 +57,11 @@ const SHIFT_LABELS: Record<Shift, string> = {
   [ShiftEnum.pm]: "PM",
 };
 
-/** One position block inside a sheet: its title and the export groups it stacks. */
+/** One position block inside a sheet: its title and the position it shows. */
 interface PositionBlock {
   title: string;
-  groups: string[];
+  /** The app's real position name this block lists, matched loosely. */
+  position: string;
 }
 
 /** One position sheet: its name and the blocks stacked into it, in order. */
@@ -70,56 +72,61 @@ interface PositionSheet {
 
 /**
  * The position sheets in workbook order. A combined sheet stacks one block per
- * position in the store's order; a single-position sheet has one block.
+ * position in the store's order; a single-position sheet has one block. The
+ * `position` names are the app's seeded names, matched ignoring case, spaces,
+ * "/" and "-".
  */
 const POSITION_SHEETS: PositionSheet[] = [
-  {
-    sheet: "Servers",
-    blocks: [{ title: "Servers", groups: ["Servers", "Server"] }],
-  },
+  { sheet: "Servers", blocks: [{ title: "Servers", position: "Servers" }] },
   {
     sheet: "Bartenders",
-    blocks: [{ title: "Bartenders", groups: ["Bartenders", "Bartender"] }],
+    blocks: [{ title: "Bartenders", position: "Bartenders" }],
   },
   {
     sheet: "Hosts and TOGO",
     blocks: [
-      { title: "Hosts", groups: ["Hosts"] },
-      { title: "To-go", groups: ["TOGO", "To-go", "To Go"] },
+      { title: "Hosts", position: "Hosts" },
+      { title: "To-go", position: "To-go" },
     ],
   },
-  { sheet: "SA", blocks: [{ title: "SA", groups: ["SA"] }] },
-  { sheet: "Expo", blocks: [{ title: "Expo", groups: ["Expo"] }] },
-  { sheet: "Meat", blocks: [{ title: "Meat cutter", groups: ["Meat"] }] },
-  { sheet: "Cold", blocks: [{ title: "Cold prep", groups: ["Cold"] }] },
-  { sheet: "DMO Prep", blocks: [{ title: "DMO prep", groups: ["DMO Prep"] }] },
-  { sheet: "Hot Prep", blocks: [{ title: "Hot prep", groups: ["Hot Prep"] }] },
+  {
+    sheet: "SA",
+    blocks: [{ title: "SA", position: "Server assistants" }],
+  },
+  { sheet: "Expo", blocks: [{ title: "Expo", position: "Expo" }] },
+  {
+    sheet: "Meat",
+    blocks: [{ title: "Meat cutter", position: "Meat cutter" }],
+  },
+  { sheet: "Cold", blocks: [{ title: "Cold prep", position: "Cold prep" }] },
+  { sheet: "DMO Prep", blocks: [{ title: "DMO prep", position: "DMO prep" }] },
+  { sheet: "Hot Prep", blocks: [{ title: "Hot prep", position: "Hot prep" }] },
   {
     sheet: "Bake and Pizza",
     blocks: [
-      { title: "Bake", groups: ["Bake"] },
-      { title: "Pizza", groups: ["Pizza"] },
+      { title: "Bake", position: "Bake" },
+      { title: "Pizza", position: "Pizza" },
     ],
   },
   {
     sheet: "Point and Fry-Salad",
     blocks: [
-      { title: "Point/Build", groups: ["Point", "Point/Build"] },
-      { title: "Fry/Salad", groups: ["Fry-Salad", "Fry/Salad"] },
+      { title: "Point/Build", position: "Point / Build" },
+      { title: "Fry/Salad", position: "Fry / Salad" },
     ],
   },
   {
     sheet: "Broil and Sear",
     blocks: [
-      { title: "Broil/Saute", groups: ["Broil", "Broil/Saute"] },
-      { title: "Sear", groups: ["Sear"] },
+      { title: "Broil/Saute", position: "Broil / Saute" },
+      { title: "Sear", position: "Sear" },
     ],
   },
   {
     sheet: "Dish and Silverware",
     blocks: [
-      { title: "Dish", groups: ["Dish"] },
-      { title: "Silverware roller", groups: ["Silverware"] },
+      { title: "Dish", position: "Dish" },
+      { title: "Silverware roller", position: "Silverware roller" },
     ],
   },
 ];
@@ -142,10 +149,10 @@ const BOH_OVERVIEW = [
   "DMO prep",
   "Bake",
   "Sear",
-  "Point/Build",
-  "Fry/Salad",
+  "Point / Build",
+  "Fry / Salad",
   "Pizza",
-  "Broil/Saute",
+  "Broil / Saute",
   "Dish",
   "Silverware roller",
 ];
@@ -161,13 +168,13 @@ const OVERVIEW_HEADERS = [
 ];
 
 /** The coverage rows inside each position block. */
-const COVERAGE_ROWS = ["Needed", "Available", "Covered", "Short"];
+const COVERAGE_ROWS = ["Needed", "Available", "Covered", "People-shifts short"];
 
 /** The extra data the People Matrix needs beyond the Full export. */
 export interface PeopleMatrixExtras {
   /** Every roadie in the active partition, for check-ins and pay setup. */
   roadies: Roadie[];
-  /** Positions, for the weekday lunch par. */
+  /** Positions, for the weekday lunch par and the house of each position. */
   positions: Position[];
   /** Orientation check-offs keyed by roadie id, for pay setup and paid dates. */
   checkoffs: Map<string, OrientationCheckoff>;
@@ -189,21 +196,23 @@ function roadiesByName(roadies: Roadie[]): Map<string, Roadie> {
   return map;
 }
 
-/** Normalize a group or position name for matching. */
+/**
+ * Normalize a group or position name for matching: ignore case, spaces, "/"
+ * and "-", so "Point / Build", "Point/Build" and "point-build" all match.
+ */
 function normalize(name: string): string {
-  return name.trim().toLowerCase();
+  return name
+    .trim()
+    .toLowerCase()
+    .replaceAll(/[\s/-]+/g, "");
 }
 
-/** The export rows for one block, stacking its groups in the declared order. */
-function rowsForGroups(data: ExportData, groups: string[]): ExportRow[] {
-  const byName = new Map<string, ExportRow[]>();
-  for (const [groupName, rows] of data.groups) {
-    byName.set(normalize(groupName), rows);
-  }
+/** The export rows for one position, matched loosely against the groups. */
+function rowsForPosition(data: ExportData, position: string): ExportRow[] {
+  const key = normalize(position);
   const rows: ExportRow[] = [];
-  for (const group of groups) {
-    const match = byName.get(normalize(group));
-    if (match) rows.push(...match);
+  for (const [groupName, groupRows] of data.groups) {
+    if (normalize(groupName) === key) rows.push(...groupRows);
   }
   return rows;
 }
@@ -482,11 +491,16 @@ function overviewRows(
   });
 }
 
-/** Build the "Staff Pars and Overview" sheet with FOH, BOH and Total blocks. */
+/**
+ * Build the "Staff Pars and Overview" sheet with FOH, BOH and Total blocks.
+ * Any position the sheet map does not place gets its own row at the end of the
+ * right FOH or BOH section.
+ */
 function addOverviewSheet(
   workbook: ExcelJS.Workbook,
   data: ExportData,
   extras: PeopleMatrixExtras,
+  unmapped: Array<{ name: string; house: House }>,
 ): void {
   const sheet = workbook.addWorksheet(OVERVIEW_SHEET);
   sheet.addRow(OVERVIEW_HEADERS);
@@ -517,10 +531,11 @@ function addOverviewSheet(
     totalPar: number,
     hired: number,
     weekdayLunch: number,
+    extraNames: string[] = [],
   ) => {
     const titleRow = sheet.addRow([label]);
     titleRow.font = { bold: true, size: 12 };
-    for (const row of overviewRows(data, names)) {
+    for (const row of overviewRows(data, [...names, ...extraNames])) {
       const wkdyPar = lunchByPosition.get(normalize(row.name)) ?? 0;
       const wkdyLunch = lunchHiredByPosition.get(normalize(row.name)) ?? 0;
       sheet.addRow([
@@ -536,7 +551,7 @@ function addOverviewSheet(
       `Total ${label}`,
       totalPar,
       hired,
-      names.reduce(
+      [...names, ...extraNames].reduce(
         (sum, name) => sum + (lunchByPosition.get(normalize(name)) ?? 0),
         0,
       ),
@@ -555,12 +570,19 @@ function addOverviewSheet(
     (sum, name) => sum + (lunchHiredByPosition.get(normalize(name)) ?? 0),
     0,
   );
+  const fohExtra = unmapped
+    .filter((position) => position.house === HouseEnum.foh)
+    .map((position) => position.name);
+  const bohExtra = unmapped
+    .filter((position) => position.house === HouseEnum.boh)
+    .map((position) => position.name);
   writeBlock(
     "FOH",
     FOH_OVERVIEW,
     Number(data.fohTotalPar),
     Number(data.fohTotal),
     fohLunch,
+    fohExtra,
   );
   writeBlock(
     "BOH",
@@ -568,12 +590,13 @@ function addOverviewSheet(
     Number(data.bohTotalPar),
     Number(data.bohTotal),
     bohLunch,
+    bohExtra,
   );
   const grand = sheet.addRow([
     "Total",
     Number(data.grandTotalPar),
     Number(data.grandTotal),
-    FOH_OVERVIEW.concat(BOH_OVERVIEW).reduce(
+    FOH_OVERVIEW.concat(BOH_OVERVIEW, fohExtra, bohExtra).reduce(
       (sum, name) => sum + (lunchByPosition.get(normalize(name)) ?? 0),
       0,
     ),
@@ -597,9 +620,54 @@ function addPositionSheet(
   const isServer = entry.sheet === "Servers";
   const isAlcohol = entry.sheet === "Servers" || entry.sheet === "Bartenders";
   for (const block of entry.blocks) {
-    const rows = rowsForGroups(data, block.groups);
+    const rows = rowsForPosition(data, block.position);
     addBlock(sheet, block.title, rows, extras, isServer, isAlcohol, weekStarts);
   }
+}
+
+/** Excel sheet names are capped at 31 chars and forbid : \ / ? * [ ]. */
+function safeSheetName(name: string, used: Set<string>): string {
+  const cleaned = name.replaceAll(/[:\\/?*[\]]/g, " ").trim() || "Position";
+  let candidate = cleaned.slice(0, 31);
+  let suffix = 2;
+  while (used.has(candidate.toLowerCase())) {
+    const tag = ` (${suffix})`;
+    candidate = `${cleaned.slice(0, 31 - tag.length)}${tag}`;
+    suffix += 1;
+  }
+  used.add(candidate.toLowerCase());
+  return candidate;
+}
+
+/**
+ * The positions the fixed sheet map does not place, in position-id order, each
+ * with the house it belongs to. These get their own sheet before Shift Coverage
+ * and their own row at the end of the right Staff Pars section.
+ */
+function unmappedPositions(
+  data: ExportData,
+  extras: PeopleMatrixExtras,
+): Array<{ name: string; house: House }> {
+  const mapped = new Set<string>();
+  for (const entry of POSITION_SHEETS) {
+    for (const block of entry.blocks) mapped.add(normalize(block.position));
+  }
+  const houseByName = new Map<string, House>();
+  for (const position of extras.positions) {
+    houseByName.set(normalize(position.name), position.house);
+  }
+  const seen = new Set<string>();
+  const result: Array<{ name: string; house: House }> = [];
+  for (const row of data.overview) {
+    const key = normalize(row.positionName);
+    if (mapped.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    result.push({
+      name: row.positionName,
+      house: houseByName.get(key) ?? HouseEnum.boh,
+    });
+  }
+  return result;
 }
 
 /** Build the final "Shift Coverage" sheet: one block per position. */
@@ -623,7 +691,10 @@ function addCoverageSheet(
     const needed = row.cells.map((cell) => cell.needed);
     const available = row.cells.map((cell) => cell.available);
     const covered = row.cells.map((cell) => cell.covered);
-    const short: number[] = row.cells.map((cell) => (cell.short ? 1 : 0));
+    // People-shifts short: how many people each shift is missing.
+    const short = row.cells.map((cell) =>
+      Math.max(0, cell.needed - cell.covered),
+    );
 
     sheet.addRow([
       COVERAGE_ROWS[0],
@@ -656,7 +727,8 @@ function addCoverageSheet(
 /**
  * Build the People Matrix workbook from the Full export data plus the coverage
  * result. Sheets appear in the store's fixed order: Recruiting Locations,
- * Staff Pars and Overview, the position sheets, then Shift Coverage.
+ * Staff Pars and Overview, the position sheets, any unmapped position sheets,
+ * then Shift Coverage.
  */
 export function buildPeopleMatrixWorkbook(
   data: ExportData,
@@ -667,10 +739,26 @@ export function buildPeopleMatrixWorkbook(
   workbook.creator = "Roadie";
   workbook.created = new Date();
   const weekStarts = checkInWeekStarts(new Date());
+  const unmapped = unmappedPositions(data, extras);
   addRecruitingSheet(workbook);
-  addOverviewSheet(workbook, data, extras);
+  addOverviewSheet(workbook, data, extras, unmapped);
   for (const entry of POSITION_SHEETS) {
     addPositionSheet(workbook, entry, data, extras, weekStarts);
+  }
+  const used = new Set(
+    workbook.worksheets.map((sheet) => sheet.name.toLowerCase()),
+  );
+  for (const position of unmapped) {
+    const sheet = workbook.addWorksheet(safeSheetName(position.name, used));
+    addBlock(
+      sheet,
+      position.name,
+      rowsForPosition(data, position.name),
+      extras,
+      false,
+      false,
+      weekStarts,
+    );
   }
   addCoverageSheet(workbook, coverage);
   return workbook;

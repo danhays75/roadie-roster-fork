@@ -167,11 +167,16 @@ function CoveragePanel({
       label: t("roster.coverage.stillToHireTotal"),
       value: summary.stillToHire,
     },
+    {
+      key: "shortShifts",
+      label: t("roster.coverage.shortShifts"),
+      value: summary.foh.shortShifts + summary.boh.shortShifts,
+    },
   ];
 
   return (
     <div className="space-y-6" data-ocid="roster.coverage.section">
-      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {totals.map((entry) => (
           <div
             key={entry.key}
@@ -181,7 +186,14 @@ function CoveragePanel({
             <dt className="font-display text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               {entry.label}
             </dt>
-            <dd className="mt-1 font-display text-3xl font-bold tabular-nums">
+            <dd
+              className={cn(
+                "mt-1 font-display text-3xl font-bold tabular-nums",
+                entry.key === "shortShifts" && entry.value > 0
+                  ? "text-destructive"
+                  : "text-foreground",
+              )}
+            >
               {entry.value}
             </dd>
           </div>
@@ -275,20 +287,15 @@ function CoveragePanel({
             {t("roster.coverage.noShortShifts")}
           </p>
         ) : (
-          <ul className="flex flex-wrap gap-2">
-            {summary.shortShifts.map((short) => (
-              <li
-                key={short.key}
-                className="inline-flex items-center gap-2 rounded-full border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-sm font-semibold text-destructive"
-                data-ocid="roster.coverage.short_shift.item"
-              >
-                {short.label}
-                <span className="rounded-full bg-destructive px-2 py-0.5 text-[11px] font-bold tabular-nums text-destructive-foreground">
-                  {t("roster.coverage.shortBy")} {short.count}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <p
+            className="text-sm font-semibold text-destructive"
+            data-ocid="roster.coverage.short_shift.list"
+          >
+            {t("roster.coverage.shortPrefix")}{" "}
+            {summary.shortShifts
+              .map((short) => `${short.label} (${short.count})`)
+              .join(", ")}
+          </p>
         )}
       </section>
     </div>

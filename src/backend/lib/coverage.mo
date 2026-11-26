@@ -187,10 +187,11 @@ module {
     let shortList = List.empty<Coverage.ShortShift>();
     for (i in Nat.range(0, 14)) {
       shiftsNeeded += needed[i];
-      if (covered[i] < needed[i]) {
-        shortShifts += 1;
+      let missing = saturatingSub(needed[i], covered[i]);
+      shortShifts += missing;
+      if (missing > 0) {
         let (day, shift) = shiftAt(i);
-        shortList.add({ day; shift; count = saturatingSub(needed[i], covered[i]) });
+        shortList.add({ day; shift; count = missing });
       };
     };
     let shiftCapacity = people.foldLeft(0, func(acc, person) = acc + person.capacity);
@@ -213,16 +214,14 @@ module {
     var shiftsNeeded = 0;
     var shiftCapacity = 0;
     var shortShifts = 0;
-    var stillToHire = 0;
     for (b in blocks.values()) {
       if (b.house == house) {
         shiftsNeeded += b.shiftsNeeded;
         shiftCapacity += b.shiftCapacity;
         shortShifts += b.shortShifts;
-        stillToHire += b.stillToHire;
       };
     };
-    { shiftsNeeded; shiftCapacity; shortShifts; stillToHire };
+    { shiftsNeeded; shiftCapacity; shortShifts; stillToHire = (shortShifts + 4) / 5 };
   };
 
   /// True when a role may read the coverage view: Admin, Managing Partner,

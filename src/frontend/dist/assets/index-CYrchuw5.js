@@ -53637,7 +53637,7 @@ var dictionaries = {
 		"roster.coverage.position": "Position",
 		"roster.coverage.house": "House",
 		"roster.coverage.shiftsNeeded": "Shifts needed",
-		"roster.coverage.shortShifts": "Short shifts",
+		"roster.coverage.shortShifts": "People-shifts short",
 		"roster.coverage.shiftCapacity": "Shift capacity",
 		"roster.coverage.stillToHire": "Still to hire",
 		"roster.coverage.foh": "Front of house",
@@ -53645,6 +53645,7 @@ var dictionaries = {
 		"roster.coverage.shortShiftList": "Short shifts",
 		"roster.coverage.noShortShifts": "Every shift is covered.",
 		"roster.coverage.shortBy": "Short by",
+		"roster.coverage.shortPrefix": "Short:",
 		"roster.coverage.needed": "Needed",
 		"roster.coverage.available": "Available",
 		"roster.coverage.covered": "Covered",
@@ -54709,7 +54710,7 @@ var dictionaries = {
 		"roster.coverage.position": "Puesto",
 		"roster.coverage.house": "Área",
 		"roster.coverage.shiftsNeeded": "Turnos necesarios",
-		"roster.coverage.shortShifts": "Turnos cortos",
+		"roster.coverage.shortShifts": "Personas-turnos faltantes",
 		"roster.coverage.shiftCapacity": "Capacidad de turnos",
 		"roster.coverage.stillToHire": "Por contratar",
 		"roster.coverage.foh": "Sala",
@@ -54717,6 +54718,7 @@ var dictionaries = {
 		"roster.coverage.shortShiftList": "Turnos cortos",
 		"roster.coverage.noShortShifts": "Todos los turnos están cubiertos.",
 		"roster.coverage.shortBy": "Faltan",
+		"roster.coverage.shortPrefix": "Faltan:",
 		"roster.coverage.needed": "Necesarios",
 		"roster.coverage.available": "Disponibles",
 		"roster.coverage.covered": "Cubiertos",
@@ -105379,8 +105381,8 @@ var __vitePreload = function preload(baseModule, deps, importerUrl) {
 };
 //#endregion
 //#region src/pages/Dashboard.tsx
-var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-CVVwiGNj.js").then((m) => ({ default: m.KpiTiles })), []));
-var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-Dz7OMLVR.js").then((m) => ({ default: m.OpeningTimelineView })), []));
+var KpiTiles = (0, import_react.lazy)(() => __vitePreload(() => import("./KpiTiles-CjNCf-I6.js").then((m) => ({ default: m.KpiTiles })), []));
+var OpeningTimeline = (0, import_react.lazy)(() => __vitePreload(() => import("./OpeningTimeline-BzhPLbQ2.js").then((m) => ({ default: m.OpeningTimelineView })), []));
 var KPI_SKELETON_TILES = [
 	"hired",
 	"needed",
@@ -106698,7 +106700,7 @@ function EventsPage() {
 //#region src/lib/export.ts
 var OVERVIEW_SHEET$1 = "Staff Pars and Overview";
 /** Excel sheet names are capped at 31 chars and forbid : \ / ? * [ ]. */
-function safeSheetName(name, used) {
+function safeSheetName$1(name, used) {
 	const cleaned = name.replaceAll(/[:\\/?*[\]]/g, " ").trim() || "Group";
 	let candidate = cleaned.slice(0, 31);
 	let suffix = 2;
@@ -106815,7 +106817,7 @@ function addOverviewSheet$1(workbook, data) {
 function addGroupSheets(workbook, data, variant) {
 	const used = /* @__PURE__ */ new Set([OVERVIEW_SHEET$1.toLowerCase()]);
 	for (const [groupName, rows] of data.groups) {
-		const sheet = workbook.addWorksheet(safeSheetName(groupName, used));
+		const sheet = workbook.addWorksheet(safeSheetName$1(groupName, used));
 		sheet.addRow(groupHeaders(variant));
 		for (const row of rows) sheet.addRow(groupRow(row, variant));
 		sheet.getRow(1).font = { bold: true };
@@ -106914,117 +106916,115 @@ var SHIFT_LABELS = {
 };
 /**
 * The position sheets in workbook order. A combined sheet stacks one block per
-* position in the store's order; a single-position sheet has one block.
+* position in the store's order; a single-position sheet has one block. The
+* `position` names are the app's seeded names, matched ignoring case, spaces,
+* "/" and "-".
 */
 var POSITION_SHEETS = [
 	{
 		sheet: "Servers",
 		blocks: [{
 			title: "Servers",
-			groups: ["Servers", "Server"]
+			position: "Servers"
 		}]
 	},
 	{
 		sheet: "Bartenders",
 		blocks: [{
 			title: "Bartenders",
-			groups: ["Bartenders", "Bartender"]
+			position: "Bartenders"
 		}]
 	},
 	{
 		sheet: "Hosts and TOGO",
 		blocks: [{
 			title: "Hosts",
-			groups: ["Hosts"]
+			position: "Hosts"
 		}, {
 			title: "To-go",
-			groups: [
-				"TOGO",
-				"To-go",
-				"To Go"
-			]
+			position: "To-go"
 		}]
 	},
 	{
 		sheet: "SA",
 		blocks: [{
 			title: "SA",
-			groups: ["SA"]
+			position: "Server assistants"
 		}]
 	},
 	{
 		sheet: "Expo",
 		blocks: [{
 			title: "Expo",
-			groups: ["Expo"]
+			position: "Expo"
 		}]
 	},
 	{
 		sheet: "Meat",
 		blocks: [{
 			title: "Meat cutter",
-			groups: ["Meat"]
+			position: "Meat cutter"
 		}]
 	},
 	{
 		sheet: "Cold",
 		blocks: [{
 			title: "Cold prep",
-			groups: ["Cold"]
+			position: "Cold prep"
 		}]
 	},
 	{
 		sheet: "DMO Prep",
 		blocks: [{
 			title: "DMO prep",
-			groups: ["DMO Prep"]
+			position: "DMO prep"
 		}]
 	},
 	{
 		sheet: "Hot Prep",
 		blocks: [{
 			title: "Hot prep",
-			groups: ["Hot Prep"]
+			position: "Hot prep"
 		}]
 	},
 	{
 		sheet: "Bake and Pizza",
 		blocks: [{
 			title: "Bake",
-			groups: ["Bake"]
+			position: "Bake"
 		}, {
 			title: "Pizza",
-			groups: ["Pizza"]
+			position: "Pizza"
 		}]
 	},
 	{
 		sheet: "Point and Fry-Salad",
 		blocks: [{
 			title: "Point/Build",
-			groups: ["Point", "Point/Build"]
+			position: "Point / Build"
 		}, {
 			title: "Fry/Salad",
-			groups: ["Fry-Salad", "Fry/Salad"]
+			position: "Fry / Salad"
 		}]
 	},
 	{
 		sheet: "Broil and Sear",
 		blocks: [{
 			title: "Broil/Saute",
-			groups: ["Broil", "Broil/Saute"]
+			position: "Broil / Saute"
 		}, {
 			title: "Sear",
-			groups: ["Sear"]
+			position: "Sear"
 		}]
 	},
 	{
 		sheet: "Dish and Silverware",
 		blocks: [{
 			title: "Dish",
-			groups: ["Dish"]
+			position: "Dish"
 		}, {
 			title: "Silverware roller",
-			groups: ["Silverware"]
+			position: "Silverware roller"
 		}]
 	}
 ];
@@ -107045,10 +107045,10 @@ var BOH_OVERVIEW = [
 	"DMO prep",
 	"Bake",
 	"Sear",
-	"Point/Build",
-	"Fry/Salad",
+	"Point / Build",
+	"Fry / Salad",
 	"Pizza",
-	"Broil/Saute",
+	"Broil / Saute",
 	"Dish",
 	"Silverware roller"
 ];
@@ -107066,7 +107066,7 @@ var COVERAGE_ROWS = [
 	"Needed",
 	"Available",
 	"Covered",
-	"Short"
+	"People-shifts short"
 ];
 /** The roadie's display name, matching how the export names them. */
 function roadieName(roadie) {
@@ -107078,19 +107078,18 @@ function roadiesByName(roadies) {
 	for (const roadie of roadies) map.set(normalize(roadieName(roadie)), roadie);
 	return map;
 }
-/** Normalize a group or position name for matching. */
+/**
+* Normalize a group or position name for matching: ignore case, spaces, "/"
+* and "-", so "Point / Build", "Point/Build" and "point-build" all match.
+*/
 function normalize(name) {
-	return name.trim().toLowerCase();
+	return name.trim().toLowerCase().replaceAll(/[\s/-]+/g, "");
 }
-/** The export rows for one block, stacking its groups in the declared order. */
-function rowsForGroups(data, groups) {
-	const byName = /* @__PURE__ */ new Map();
-	for (const [groupName, rows] of data.groups) byName.set(normalize(groupName), rows);
+/** The export rows for one position, matched loosely against the groups. */
+function rowsForPosition(data, position) {
+	const key = normalize(position);
 	const rows = [];
-	for (const group of groups) {
-		const match = byName.get(normalize(group));
-		if (match) rows.push(...match);
-	}
+	for (const [groupName, groupRows] of data.groups) if (normalize(groupName) === key) rows.push(...groupRows);
 	return rows;
 }
 /** A real Excel date for a date-only value, or null when absent. */
@@ -107242,8 +107241,12 @@ function overviewRows(data, names) {
 		};
 	});
 }
-/** Build the "Staff Pars and Overview" sheet with FOH, BOH and Total blocks. */
-function addOverviewSheet(workbook, data, extras) {
+/**
+* Build the "Staff Pars and Overview" sheet with FOH, BOH and Total blocks.
+* Any position the sheet map does not place gets its own row at the end of the
+* right FOH or BOH section.
+*/
+function addOverviewSheet(workbook, data, extras, unmapped) {
 	const sheet = workbook.addWorksheet(OVERVIEW_SHEET);
 	sheet.addRow(OVERVIEW_HEADERS);
 	sheet.getRow(1).font = { bold: true };
@@ -107256,13 +107259,13 @@ function addOverviewSheet(workbook, data, extras) {
 		const key = normalize(positionName);
 		lunchHiredByPosition.set(key, (lunchHiredByPosition.get(key) ?? 0) + 1);
 	}
-	const writeBlock = (label, names, totalPar, hired, weekdayLunch) => {
+	const writeBlock = (label, names, totalPar, hired, weekdayLunch, extraNames = []) => {
 		const titleRow = sheet.addRow([label]);
 		titleRow.font = {
 			bold: true,
 			size: 12
 		};
-		for (const row of overviewRows(data, names)) {
+		for (const row of overviewRows(data, [...names, ...extraNames])) {
 			const wkdyPar = lunchByPosition.get(normalize(row.name)) ?? 0;
 			const wkdyLunch = lunchHiredByPosition.get(normalize(row.name)) ?? 0;
 			sheet.addRow([
@@ -107278,7 +107281,7 @@ function addOverviewSheet(workbook, data, extras) {
 			`Total ${label}`,
 			totalPar,
 			hired,
-			names.reduce((sum, name) => sum + (lunchByPosition.get(normalize(name)) ?? 0), 0),
+			[...names, ...extraNames].reduce((sum, name) => sum + (lunchByPosition.get(normalize(name)) ?? 0), 0),
 			weekdayLunch,
 			hired - totalPar
 		]);
@@ -107287,13 +107290,15 @@ function addOverviewSheet(workbook, data, extras) {
 	};
 	const fohLunch = FOH_OVERVIEW.reduce((sum, name) => sum + (lunchHiredByPosition.get(normalize(name)) ?? 0), 0);
 	const bohLunch = BOH_OVERVIEW.reduce((sum, name) => sum + (lunchHiredByPosition.get(normalize(name)) ?? 0), 0);
-	writeBlock("FOH", FOH_OVERVIEW, Number(data.fohTotalPar), Number(data.fohTotal), fohLunch);
-	writeBlock("BOH", BOH_OVERVIEW, Number(data.bohTotalPar), Number(data.bohTotal), bohLunch);
+	const fohExtra = unmapped.filter((position) => position.house === House.foh).map((position) => position.name);
+	const bohExtra = unmapped.filter((position) => position.house === House.boh).map((position) => position.name);
+	writeBlock("FOH", FOH_OVERVIEW, Number(data.fohTotalPar), Number(data.fohTotal), fohLunch, fohExtra);
+	writeBlock("BOH", BOH_OVERVIEW, Number(data.bohTotalPar), Number(data.bohTotal), bohLunch, bohExtra);
 	const grand = sheet.addRow([
 		"Total",
 		Number(data.grandTotalPar),
 		Number(data.grandTotal),
-		FOH_OVERVIEW.concat(BOH_OVERVIEW).reduce((sum, name) => sum + (lunchByPosition.get(normalize(name)) ?? 0), 0),
+		FOH_OVERVIEW.concat(BOH_OVERVIEW, fohExtra, bohExtra).reduce((sum, name) => sum + (lunchByPosition.get(normalize(name)) ?? 0), 0),
 		fohLunch + bohLunch,
 		Number(data.grandNeed)
 	]);
@@ -107309,9 +107314,45 @@ function addPositionSheet(workbook, entry, data, extras, weekStarts) {
 	const isServer = entry.sheet === "Servers";
 	const isAlcohol = entry.sheet === "Servers" || entry.sheet === "Bartenders";
 	for (const block of entry.blocks) {
-		const rows = rowsForGroups(data, block.groups);
+		const rows = rowsForPosition(data, block.position);
 		addBlock(sheet, block.title, rows, extras, isServer, isAlcohol, weekStarts);
 	}
+}
+/** Excel sheet names are capped at 31 chars and forbid : \ / ? * [ ]. */
+function safeSheetName(name, used) {
+	const cleaned = name.replaceAll(/[:\\/?*[\]]/g, " ").trim() || "Position";
+	let candidate = cleaned.slice(0, 31);
+	let suffix = 2;
+	while (used.has(candidate.toLowerCase())) {
+		const tag = ` (${suffix})`;
+		candidate = `${cleaned.slice(0, 31 - tag.length)}${tag}`;
+		suffix += 1;
+	}
+	used.add(candidate.toLowerCase());
+	return candidate;
+}
+/**
+* The positions the fixed sheet map does not place, in position-id order, each
+* with the house it belongs to. These get their own sheet before Shift Coverage
+* and their own row at the end of the right Staff Pars section.
+*/
+function unmappedPositions(data, extras) {
+	const mapped = /* @__PURE__ */ new Set();
+	for (const entry of POSITION_SHEETS) for (const block of entry.blocks) mapped.add(normalize(block.position));
+	const houseByName = /* @__PURE__ */ new Map();
+	for (const position of extras.positions) houseByName.set(normalize(position.name), position.house);
+	const seen = /* @__PURE__ */ new Set();
+	const result = [];
+	for (const row of data.overview) {
+		const key = normalize(row.positionName);
+		if (mapped.has(key) || seen.has(key)) continue;
+		seen.add(key);
+		result.push({
+			name: row.positionName,
+			house: houseByName.get(key) ?? House.boh
+		});
+	}
+	return result;
 }
 /** Build the final "Shift Coverage" sheet: one block per position. */
 function addCoverageSheet(workbook, coverage) {
@@ -107333,7 +107374,7 @@ function addCoverageSheet(workbook, coverage) {
 		const needed = row.cells.map((cell) => cell.needed);
 		const available = row.cells.map((cell) => cell.available);
 		const covered = row.cells.map((cell) => cell.covered);
-		const short = row.cells.map((cell) => cell.short ? 1 : 0);
+		const short = row.cells.map((cell) => Math.max(0, cell.needed - cell.covered));
 		sheet.addRow([
 			COVERAGE_ROWS[0],
 			...needed,
@@ -107366,16 +107407,20 @@ function addCoverageSheet(workbook, coverage) {
 /**
 * Build the People Matrix workbook from the Full export data plus the coverage
 * result. Sheets appear in the store's fixed order: Recruiting Locations,
-* Staff Pars and Overview, the position sheets, then Shift Coverage.
+* Staff Pars and Overview, the position sheets, any unmapped position sheets,
+* then Shift Coverage.
 */
 function buildPeopleMatrixWorkbook(data, coverage, extras) {
 	const workbook = new import_exceljs_min.default.Workbook();
 	workbook.creator = "Roadie";
 	workbook.created = /* @__PURE__ */ new Date();
 	const weekStarts = checkInWeekStarts(/* @__PURE__ */ new Date());
+	const unmapped = unmappedPositions(data, extras);
 	addRecruitingSheet(workbook);
-	addOverviewSheet(workbook, data, extras);
+	addOverviewSheet(workbook, data, extras, unmapped);
 	for (const entry of POSITION_SHEETS) addPositionSheet(workbook, entry, data, extras, weekStarts);
+	const used = new Set(workbook.worksheets.map((sheet) => sheet.name.toLowerCase()));
+	for (const position of unmapped) addBlock(workbook.addWorksheet(safeSheetName(position.name, used)), position.name, rowsForPosition(data, position.name), extras, false, false, weekStarts);
 	addCoverageSheet(workbook, coverage);
 	return workbook;
 }
@@ -121122,6 +121167,11 @@ function CoveragePanel({ summary, isLoading, isError, onRetry }) {
 			key: "all",
 			label: t("roster.coverage.stillToHireTotal"),
 			value: summary.stillToHire
+		},
+		{
+			key: "shortShifts",
+			label: t("roster.coverage.shortShifts"),
+			value: summary.foh.shortShifts + summary.boh.shortShifts
 		}
 	];
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -121129,7 +121179,7 @@ function CoveragePanel({ summary, isLoading, isError, onRetry }) {
 		"data-ocid": "roster.coverage.section",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("dl", {
-				className: "grid grid-cols-1 gap-3 sm:grid-cols-3",
+				className: "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4",
 				children: totals.map((entry) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "rounded-lg border border-border bg-card p-4 shadow-subtle",
 					"data-ocid": `roster.coverage.total.${entry.key}`,
@@ -121137,7 +121187,7 @@ function CoveragePanel({ summary, isLoading, isError, onRetry }) {
 						className: "font-display text-xs font-semibold uppercase tracking-widest text-muted-foreground",
 						children: entry.label
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("dd", {
-						className: "mt-1 font-display text-3xl font-bold tabular-nums",
+						className: cn("mt-1 font-display text-3xl font-bold tabular-nums", entry.key === "shortShifts" && entry.value > 0 ? "text-destructive" : "text-foreground"),
 						children: entry.value
 					})]
 				}, entry.key))
@@ -121213,20 +121263,14 @@ function CoveragePanel({ summary, isLoading, isError, onRetry }) {
 				}), summary.shortShifts.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "text-sm text-muted-foreground",
 					children: t("roster.coverage.noShortShifts")
-				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
-					className: "flex flex-wrap gap-2",
-					children: summary.shortShifts.map((short) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-						className: "inline-flex items-center gap-2 rounded-full border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-sm font-semibold text-destructive",
-						"data-ocid": "roster.coverage.short_shift.item",
-						children: [short.label, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-							className: "rounded-full bg-destructive px-2 py-0.5 text-[11px] font-bold tabular-nums text-destructive-foreground",
-							children: [
-								t("roster.coverage.shortBy"),
-								" ",
-								short.count
-							]
-						})]
-					}, short.key))
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+					className: "text-sm font-semibold text-destructive",
+					"data-ocid": "roster.coverage.short_shift.list",
+					children: [
+						t("roster.coverage.shortPrefix"),
+						" ",
+						summary.shortShifts.map((short) => `${short.label} (${short.count})`).join(", ")
+					]
 				})]
 			})
 		]
