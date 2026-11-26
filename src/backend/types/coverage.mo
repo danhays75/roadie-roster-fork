@@ -29,7 +29,8 @@ module {
   /// a grid. `cells` is always the 14 shifts in Wed AM … Tue PM order.
   /// `shiftsNeeded` is the sum of the grid, `shiftCapacity` the sum of every
   /// counted person's capacity, `shortShifts` the number of needed cells not
-  /// covered, and `stillToHire` the ceiling of shortShifts / 5.
+  /// covered, and `stillToHire` the ceiling of shortShifts / 5. A house total's
+  /// stillToHire is the sum of its positions' own stillToHire.
   public type PositionCoverage = {
     positionId : Common.PositionId;
     positionName : Text;
@@ -44,7 +45,11 @@ module {
   };
 
   /// The FOH or BOH totals of shifts needed, capacity, short shifts and
-  /// still-to-hire across the positions in that house.
+  /// still-to-hire across the positions in that house. `shiftsNeeded`,
+  /// `shiftCapacity` and `shortShifts` are plain sums; `stillToHire` is the sum
+  /// of each position's own stillToHire (each position's stillToHire is the
+  /// ceiling of its own shortShifts / 5), because people cannot cover another
+  /// position's shifts.
   public type CoverageTotals = {
     shiftsNeeded : Nat;
     shiftCapacity : Nat;

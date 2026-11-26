@@ -209,19 +209,24 @@ module {
     };
   };
 
-  /// Sum the totals for one house across the position blocks.
+  /// Sum the totals for one house across the position blocks. `shiftsNeeded`,
+  /// `shiftCapacity` and `shortShifts` are plain sums. `stillToHire` is the sum
+  /// of each position's own stillToHire, because people cannot cover another
+  /// position's shifts.
   func totalsFor(blocks : [Coverage.PositionCoverage], house : Common.House) : Coverage.CoverageTotals {
     var shiftsNeeded = 0;
     var shiftCapacity = 0;
     var shortShifts = 0;
+    var stillToHire = 0;
     for (b in blocks.values()) {
       if (b.house == house) {
         shiftsNeeded += b.shiftsNeeded;
         shiftCapacity += b.shiftCapacity;
         shortShifts += b.shortShifts;
+        stillToHire += b.stillToHire;
       };
     };
-    { shiftsNeeded; shiftCapacity; shortShifts; stillToHire = (shortShifts + 4) / 5 };
+    { shiftsNeeded; shiftCapacity; shortShifts; stillToHire };
   };
 
   /// True when a role may read the coverage view: Admin, Managing Partner,

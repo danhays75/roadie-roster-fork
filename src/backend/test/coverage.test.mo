@@ -162,6 +162,25 @@ module {
     view.positions[0].shortShifts == 8 and view.positions[0].stillToHire == 2;
   };
 
+  /// House Still to hire is the sum of each position's own stillToHire: three
+  /// FOH positions each short 1 person give 3, and one position short 6 gives 2.
+  public func testHouseStillToHireSumsPositions() : Bool {
+    let positions = Map.empty<Common.PositionId, Store.Position>();
+    positions.add(1, positionWith(1, #foh, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+    positions.add(2, positionWith(2, #foh, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+    positions.add(3, positionWith(3, #foh, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+    let roadies = Map.empty<Common.RoadieId, Roadie.Roadie>();
+    let view = CoverageLib.getCoverage(grants(), demoOff(), roadies, positions, admin());
+    let threeShort = view.foh.stillToHire == 3 and view.foh.shortShifts == 3;
+
+    let positions2 = Map.empty<Common.PositionId, Store.Position>();
+    positions2.add(1, positionWith(1, #foh, [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+    let view2 = CoverageLib.getCoverage(grants(), demoOff(), roadies, positions2, admin());
+    let oneShortSix = view2.foh.stillToHire == 2 and view2.foh.shortShifts == 6;
+
+    threeShort and oneShortSix;
+  };
+
   /// A non-manager role is refused by the read gate.
   public func testTrainerRefused() : Bool {
     not CoverageLib.roleCanReadCoverage(#trainer)

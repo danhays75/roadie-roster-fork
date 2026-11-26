@@ -573,8 +573,6 @@
 
 ## Learnings
 
-- main.mo no longer defines oqlSubject(); the myAccess entity builds one row per accessGrants entry instead of a fixed placeholder principal.
-- StoreLogo img appends 'w-auto max-w-[12rem]' after the caller className, so a caller max-w-* is overridden; the header wraps it in a sized span to cap width.
 - The header logo sits on a white rounded badge (bg-white, padding, rounded corners, subtle shadow) with object-contain and width auto, sized about as tall as the Roadie Roster title block; the badge is shrink-0 and the title block is min-w-0 so the app name truncates before the mobile menu button moves.
 - The desktop nav row in Layout.tsx wraps with lg:flex-wrap, lg:justify-start and a small row gap; there is no overflow-x-auto wrapper and no right-edge gradient fade on that row. The mobile dropdown below lg is unchanged.
 - The header logo in src/frontend/src/components/Layout.tsx renders directly on the navy header with no white badge; StoreLogo keeps h-12/md:h-16, object-contain and shrink-0 so the mobile menu button stays on screen.
@@ -598,3 +596,5 @@
 - Roster.tsx mounts a local CoveragePanel (the shared CoverageTab.tsx is not imported); its short list renders 'Short: Sat AM (3), Sun AM (2)' from roster.coverage.shortPrefix plus each shift label and count.
 - mops test compiles test files where try in a sync func is M0039 misplaced; a Runtime.trap cannot be caught, so test the pure role predicate instead.
 - Pre-existing baseline failures outside the coverage scope: export.test.mo (M0001) and store/paperwork/checkins.test.mo (M0039 misplaced try) fail identically on the untouched baseline.
+- lib/coverage.mo totalsFor now sets FOH and BOH stillToHire to the sum of each position's own stillToHire (each position's stillToHire stays ceil(its own shortShifts / 5)); shiftsNeeded, shiftCapacity and shortShifts stay plain sums.
+- The All (FOH + BOH) Still to hire figure is foh.stillToHire + boh.stillToHire in lib/coverage.ts formatCoverage, which the Dashboard CoverageSummaryCard, the Roster local CoveragePanel and the shared CoverageTab all read.
